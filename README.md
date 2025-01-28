@@ -1,6 +1,8 @@
-# Bare Metal Language (BML) - Version 1.5: Reclaim Performance, Ditch Assembly.
+ # Bare Metal Language (BML) - Version 1.5: Reclaim Performance, Ditch Assembly.
 
-**WIP
+**WIP 
+
+[Join the BML Discord Server!](https://discord.gg/jZUqrwjQ)
 
 **Write High-Level, Run at Bare Metal Speed.**
 
