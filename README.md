@@ -1,5 +1,7 @@
 # Bare Metal Language (BML) - Version 1.5: Reclaim Performance, Ditch Assembly.
 
+**WIP
+
 **Write High-Level, Run at Bare Metal Speed.**
 
 Tired of wrestling with cryptic assembly code for your embedded systems?  Do you crave the expressiveness of a modern language without sacrificing the performance and control you need at the metal?
@@ -47,18 +49,15 @@ Assembly language is powerful but notoriously complex, error-prone, and difficul
 *   **Dive into CAM Development:** [Link to BML CAM Development Guide (Placeholder)]
 *   **Browse the CAM Catalog:** [Link to BML CAM Catalog (Placeholder)]
 
-**Join the BML Community:**
-
-We are building a vibrant community around BML.  Contribute to the CAM ecosystem, provide feedback, and help shape the future of bare metal programming.  [Link to BML Community Forum/Mailing List (Placeholder)]
 
 **License:**
 
-BML is released under the [Specify License - e.g., MIT License]. See the `LICENSE` file for details.
+BML is released under the MIT. See the `LICENSE` file for details.
 
 
 **Bare Metal Language -  Performance. Safety. Control.  Reimagined for the Modern Engineer.**
 
 
-**TODO 
+** TODO 
 
 Need port it from my OS. 
