@@ -2,6 +2,9 @@
 
 **[Join the BML Discord Server](https://discord.gg/jZUqrwjQ)**
 
+
+**Work in progress**
+
 **Write High-Level Code, Achieve Bare Metal Speed.**
 
 Are you seeking the expressiveness of modern languages for embedded systems, but constrained by assembly's complexity and lack of maintainability?
