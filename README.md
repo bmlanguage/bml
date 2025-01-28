@@ -1,65 +1,51 @@
- # Bare Metal Language (BML) - Version 1.5: Reclaim Performance, Ditch Assembly.
 
-**WIP 
+```markdown
+# Bare Metal Language (BML) v1.5: High-Performance Embedded Systems Without Assembly
 
-[Join the BML Discord Server!](https://discord.gg/jZUqrwjQ)
+**[Join the BML Discord Server](https://discord.gg/jZUqrwjQ)**
 
-**Write High-Level, Run at Bare Metal Speed.**
+**Write High-Level Code, Achieve Bare Metal Speed.**
 
-Tired of wrestling with cryptic assembly code for your embedded systems?  Do you crave the expressiveness of a modern language without sacrificing the performance and control you need at the metal?
+Are you seeking the expressiveness of modern languages for embedded systems, but constrained by assembly's complexity and lack of maintainability?
 
-**Introducing Bare Metal Language (BML) - Version 1.5: Your Production-Ready Path to High-Performance, Safe, and Maintainable Embedded Systems.**
+**Introducing Bare Metal Language (BML) v1.5: Your Production-Ready Solution for High-Performance, Safe, and Maintainable Embedded Systems Development.**
 
-BML isn't just another embedded language; it's a **purpose-built replacement for assembly**, meticulously engineered to empower you to:
+BML is a purpose-built language meticulously designed as a **direct replacement for assembly**, empowering engineers to:
 
-*   **Achieve Assembly-Level Performance:** BML's compiler is aggressively optimized, leveraging advanced techniques and **Composable Architecture Modules (CAMs)** to generate machine code that rivals hand-optimized assembly, all from high-level source.  Say goodbye to performance compromises.
-*   **Embrace Modern Software Engineering:**  Write readable, maintainable, and modular code with BML's clear syntax, static typing, and powerful abstraction capabilities.  Bring modern software engineering practices to your embedded projects.
-*   **Mitigate Memory Safety Risks:** BML proactively addresses memory safety with features like `safeArray`, `scopedPtr`, and capability-based pointers, reducing common errors without sacrificing performance.  Build more robust and reliable systems.
-*   **Target Multiple Architectures with Ease:**  Write architecture-agnostic code and leverage CAMs for platform-specific optimizations. Compile your BML codebase for ARM, RISC-V, x86, and more, with peak performance on each.
-*   **Harness the Power of CAMs:**  Composable Architecture Modules (CAMs) are BML's secret weapon. They are compiler extensions that inject domain-specific optimizations and hardware awareness directly into your code. Build complex systems from reusable, pre-verified, and highly optimized components.
+*   **Maximize Performance:** BML's aggressively optimizing compiler, leveraging **Composable Architecture Modules (CAMs)**, generates machine code rivaling hand-optimized assembly from high-level source. Eliminate performance compromises in embedded systems.
+*   **Embrace Modern Practices:** Develop readable, maintainable, and modular embedded code with BML's clear syntax, static typing, and robust abstraction capabilities. Apply modern software engineering principles to your embedded projects.
+*   **Enhance Memory Safety:** Proactively mitigate memory safety risks with built-in features like `safeArray`, `scopedPtr`, and capability-based pointers. Build robust and reliable systems, reducing common memory-related errors without performance overhead.
+*   **Target Multiple Architectures:** Write architecture-agnostic code and utilize CAMs for platform-specific optimizations. Compile your BML codebase for ARM, RISC-V, x86, and more, achieving peak performance across diverse platforms.
+*   **Leverage Composable Architecture Modules (CAMs):** CAMs are BML's core innovation – compiler extensions that inject domain-specific optimizations and hardware awareness directly into your code. Construct complex systems from reusable, pre-verified, and highly optimized components.
 
-**What's New in Version 1.5 - Production Ready & Feature Complete:**
+## Version 1.5: Production Ready & Feature Complete
 
-Version 1.5 marks a significant milestone, solidifying BML as a **production-ready language** and introducing **cutting-edge features** for unparalleled optimization and metaprogramming:
+BML v1.5 marks a significant step, establishing BML as a **production-ready language** with **advanced features** for unparalleled optimization and metaprogramming capabilities:
 
-*   **🚀 Compile-Time Reflection:** Inspect type information *during compilation* using `sizeof()` and `isType()`. CAMs become even smarter and more adaptive.
-*   **⚡ Compile-Time Functions (Static Lambdas):**  Execute code *at compile time* within CAMs using `compileTimeFunction`.  Unlock zero-overhead code specialization and pre-computation.
-*   **⚙️ Data-Driven Code Generation:**  CAMs now automatically specialize code based on **Data Layout Attributes**.  Optimize performance based on how your data is organized in memory, automatically.
+*   **Compile-Time Reflection:** Enhance CAMs with compile-time type introspection using `sizeof()` and `isType()`. Enable smarter, more adaptive optimizations based on type information available during compilation.
+*   **Compile-Time Functions (Static Lambdas):** Execute code at compile time within CAMs using `compileTimeFunction`. Unlock zero-overhead code specialization and pre-computation, pushing performance boundaries.
+*   **Data-Driven Code Generation:** CAMs now automatically specialize code based on **Data Layout Attributes**. Optimize performance automatically by tailoring code generation to your specific data organization in memory.
 
-**Key Benefits at a Glance:**
+## Key Benefits
 
-*   **🚀 Performance Primacy:** Zero-overhead abstractions, aggressive compile-time optimizations, CAM-driven specialization.
-*   **🎛️ Low-Level Control:** Direct hardware interaction, register manipulation, precise timing.
-*   **🛡️ Memory Safety Mitigation:** `scopedPtr`, `safeArray`, capability-based pointers, static analysis.
-*   **🎯 Multi-Target Versatility:** Write once, compile for ARM, RISC-V, x86, and more.
-*   **🧩 Modularity & Reusability:** CAMs for building complex systems from reusable components.
-*   **✅ Readability & Maintainability:** Clear syntax, structured code, easier to understand and evolve.
-*   **🛠️ Tooling & Debugging:** Designed for source-level debugging and assembly inspection.
-*   **🧵 Concurrency & Parallelism:**  Explicit language constructs for multi-core bare metal systems.
+*   **Performance Primacy:** Zero-overhead abstractions, aggressive compile-time optimizations, and CAM-driven specialization deliver exceptional performance.
+*   **Low-Level Control:** Direct hardware interaction, register manipulation, and precise timing control for demanding embedded applications.
+*   **Memory Safety Focus:** `scopedPtr`, `safeArray`, capability-based pointers, and static analysis tools mitigate memory-related errors.
+*   **Multi-Architecture Versatility:** Compile once, deploy across ARM, RISC-V, x86, and other architectures.
+*   **Modular & Reusable Components:** CAMs facilitate building complex systems from pre-verified, reusable modules.
+*   **Improved Code Quality:** Clear syntax and structured code promote readability, maintainability, and easier evolution of embedded systems.
+*   **Enhanced Tooling & Debugging:** Designed for seamless source-level debugging and assembly inspection workflows.
+*   **Concurrency & Parallelism Ready:** Explicit language constructs for developing multi-core bare metal systems.
 
-**Why BML? Stop Writing Assembly, Start Engineering.**
+## Why Choose BML? Engineer, Don't Wrestle with Assembly.
 
-Assembly language is powerful but notoriously complex, error-prone, and difficult to maintain.  Low-level C, while an improvement, still often requires manual optimization and careful memory management, hindering productivity and increasing the risk of bugs.
+While assembly language offers ultimate control, it's notoriously complex, error-prone, and challenging to maintain. Low-level C, while an improvement, often necessitates manual optimization and intricate memory management, impacting productivity and increasing bug risks.
 
-**BML solves this dilemma.** It empowers you to write high-level code that compiles down to assembly-level efficiency, eliminating the need for manual assembly in the vast majority of embedded development tasks.  Focus on your system's logic, not the intricacies of machine code.
+**BML resolves this dilemma.** It empowers you to write high-level code that compiles to assembly-level efficiency, eliminating manual assembly for the vast majority of embedded development tasks. Focus on your system's core logic and innovation, not the complexities of machine code.
 
-**Get Started with BML 1.5:**
+## License
 
-*   **Download the Compiler:** [Link to BML Compiler Download (Placeholder)]
-*   **Read the Documentation:** [Link to BML Documentation (This Document)]
-*   **Explore Examples:** [Link to BML Example Code Repository (Placeholder)]
-*   **Dive into CAM Development:** [Link to BML CAM Development Guide (Placeholder)]
-*   **Browse the CAM Catalog:** [Link to BML CAM Catalog (Placeholder)]
+BML is licensed under the MIT License. See the `LICENSE` file for complete details.
 
-
-**License:**
-
-BML is released under the MIT. See the `LICENSE` file for details.
-
-
-**Bare Metal Language -  Performance. Safety. Control.  Reimagined for the Modern Engineer.**
-
-
-** TODO 
-
-Need port it from my OS. 
+**Bare Metal Language - Performance. Safety. Control. Reimagining Embedded Development.**
+```
