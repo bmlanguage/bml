@@ -1,0 +1,15 @@
+
+// Manifest file for the StringUtilsCam Composable Architecture Module (CAM)
+// File: StringUtilsCam.manifest
+
+name = "StringUtilsCam"
+version = "1.3.0"
+description = "Optimized string utility functions for BML. Assembly-centric for near-zero overhead."
+license = "MIT"
+architectures = "arm, riscv, x86"  // Comma-separated string, not YAML list
+keywords = "string, utilities"      // Comma-separated string, not YAML list
+exports_functions = "stringLength, stringCompare, stringCopy, stringConcatenate, stringSubstring, stringGetChar, stringGetUnicodeChar, stringToInteger, integerToString, stringToUpper, stringToLower, stringStartsWith, stringEndsWith, stringTrim, stringFindChar, stringFindLastChar, stringFindSubstring" # Comma-separated string
+interface_intrinsic_functions = "stringIntrinsicLength(StringLiteral str) -> uint32, memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes) -> void" # Comma-separated string
+source_file = "StringUtilsCam.bml"
+documentation_file = "StringUtilsCam.md"
+changelog_summary = "v1.3.0: Optimized assembly, new search functions; v1.2.0: Added trim, case conversion; v1.0.0: Initial release." // String value
