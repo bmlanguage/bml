@@ -1,4849 +1,2504 @@
 
-**Document Version:** 1.5 - Bare Metal Language Specification - Production Ready Core - Advanced Features
+**Bare Metal Language (BML) Specification (Version 1.9 - Complete)**
 
-**Authors:** Bare Metal Language Project
-**Date:** December 15, 2023 (Final, Production Ready)
+**1. Introduction**
 
-### 1. Introduction
+The Bare Metal Language (BML) is a high-level, statically-typed language meticulously designed for bare metal and embedded systems development. It aims to provide a productive, maintainable, and safe alternative to assembly language, while retaining the fine-grained control and performance characteristics necessary in such environments. BML provides direct hardware access with minimal runtime overhead, explicit memory safety features, and concurrent programming constructs, while also focusing on portability across different architectures. Composable Architecture Modules (CAMs) are a central element of BML, enabling architecture-specific code and optimizations. Version 1.9 introduces significant enhancements, including constrained instruction DSLs within CAMs, dynamically extensible CAMs, Meta-CAMs for automated CAM generation, improved CAM composition and customization, hardware-assisted bounds checking, static analysis with refinement types, advanced debugging with compiler output and CAM level debug, updated memory model, concise struct/union/tuple initialization, implicit bitfield access, optional parentheses for single-argument functions, default function parameter values, and concise result handling with the `?` operator. BML is intended to be a high-level, statically-typed replacement for assembly language, providing similar levels of performance and fine-grained hardware control *where applicable*, while drastically improving code maintainability, type safety, and developer productivity. BML achieves this through its Composable Architecture Module (CAM) system, allowing platform-specific optimizations. While BML abstracts away direct instruction-level control, its focus is on providing similar levels of performance using high-level constructs.
 
-The Bare Metal Language (BML) is a domain-specific programming language meticulously engineered as a high-level, robust, and performant replacement for assembly language in bare metal and embedded systems development. Assembly language, while granting ultimate hardware control, is notoriously complex, error-prone, and challenging to maintain, hindering modern software engineering practices. BML empowers developers to write embedded systems code with high-level expressiveness, readability, and maintainability, effectively bridging the gap to modern software engineering, while rigorously achieving absolute performance with minimal to zero runtime overhead, inherent memory safety mitigations, robust concurrency management, and direct hardware interfacing. **BML Version 1.5 represents a production-ready and feature-complete language, suitable for building mission-critical embedded systems.**
+**Core Principles:**
 
-BML definitively bridges the critical divide between high-level programming abstractions and the stringent demands of low-level control in resource-constrained embedded environments. This carefully crafted balance makes BML exceptionally suitable for a diverse range of embedded applications, from simple microcontroller routines and device drivers to complex bare metal operating systems and intricate real-time systems. BML empowers you to write high-level code that compiles down to assembly-level efficiency, **without the need for manual assembly programming in the vast majority of embedded development tasks.**
+*   **Zero Overhead:** BML is designed with a *zero-overhead* philosophy. It prioritizes minimal runtime costs, striving for performance comparable to hand-crafted assembly code where applicable. This means no hidden allocations, dynamic dispatch (unless explicitly requested), or garbage collection, ensuring predictable and efficient performance. BML achieves this by using compile-time checks and optimizations, hardware capabilities, and providing low-level access mechanisms.
+*   **Low-Level Control:** BML provides mechanisms for direct hardware interaction, precise memory manipulation, and bit-level control. While abstracting away direct instruction encoding at user-level, BML, via Composable Architecture Modules (CAMs), allows for highly optimized code generation that is as close as possible to hand-written assembly. The developer has a high degree of control over the target device, using high-level constructs with low-level hardware support.
+*   **Memory Safety Mitigation:** BML incorporates a comprehensive set of features aimed at mitigating common memory errors at compile time. Static analysis, type constraints, region-based memory management, and hardware-assisted bounds checking provide a layered approach to memory safety, with optional runtime checks available when needed, giving the user more control. BML does not enforce runtime checks, and allows the user to bypass them when needed, to achieve the maximum performance. The tradeoff between safety and performance is up to the user.
+*   **Multi-Target Versatility:** BML supports compilation for diverse architectures through flexible CAM configurations. CAMs abstract away architecture-specific details, promoting code reuse across different platforms.
+*   **Modularity through CAMs:** BML enables the construction of systems from reusable, optimized, and type-safe modules using the Composable Architecture Module system. CAMs provide a powerful mechanism for code reuse and platform specific optimizations.
+*   **Readability and Maintainability:** BML prioritizes clear, concise code to enhance software engineering practices. This improves the understanding of the code, and simplifies long-term maintenance.
+*   **Tooling and Debugging:** BML enables source-level debugging with industry-standard tools (GDB/LLDB), and also provides more advanced debugging output from the compiler, promoting efficient troubleshooting and code understanding. BML also provides advanced tooling to debug CAMs and their code transformations.
+*   **Concurrency and Parallelism:** BML includes built-in language-level support for multi-core processors, offering primitives for concurrent tasks and explicit control over synchronization and memory consistency. BML offers high level concurrency primitives such as threads, mutexes and semaphores that can be used to implement concurrent programs.
+*   **Metaprogramming:** BML provides compile-time computation and reflection capabilities that allow to extend the language and implement advanced optimizations by using traits, compile-time functions, and DSLs. This enables developers to create very flexible CAMs and perform code optimizations at compile time.
+*   **AI-Powered Bit-Level Optimizations:** The compiler uses symbolic execution to analyze the code and optimize bit-level operations, generating optimized sequences of instructions that may depend on the target architecture.
+*   **Fine-Grained Hardware Dispatch:** It provides a mechanism to directly dispatch operations to specific hardware accelerators by using direct memory mapped register accesses, or by using specialized instruction sequences provided by specific CAMs.
+*   **Direct Register Access for AI Ops:** It provides a mechanism to directly access registers related to AI operations, located in hardware components (e.g., DSPs, AI accelerators) using special memory mapped access mechanisms, and through conceptual registers.
+*   **Automatic Generation of CAMs from Hardware Specifications:** BML can now leverage AI to automatically generate CAMs based on hardware specifications, instead of manually writing the CAM code. Meta-CAMs provide a more flexible mechanism to generate new CAMs during compile time, allowing the developers to create new CAMs based on high-level descriptions, or by using specific hardware information.
+*   **Adaptive DSLs:** BML DSLs can be customized by using AI techniques based on the user's needs or the application context. This allows to customize the DSL based on the specific user needs, or on a given target architecture.
+*   **Symbolic Model Checking for Hardware Interaction:** BML will use AI to formally verify that interactions with hardware peripherals (especially memory-mapped registers) adhere to the correct protocol, reducing the risk of hardware malfunctions.
+*   **String Interpolation:** Support for f-strings for more readable output: `print(f"The value is {x}");` allows for more readable output.
+*   **Concise Bitfield Operations:** More concise syntax to access bitfields and bit ranges using `=` and `|=`, and the `with` statement for combined bitfield updates, and implicit bitfield access, which provides more flexibility and improves code readability.
+*   **Array Initialization:** Support for range based initialization provides an easier mechanism to initialize an array.
+*   **Optional Parameter Defaults:** Allows default values for optional function parameters, reducing boilerplate code in function calls.
+*   **More Flexible struct and union Initialization:** Allows initialization using an initializer list, when the `initializerList` attribute is specified, providing a more flexible and concise way to initialize data structures, such as structs and unions.
+*   **Simplified Tuple Declaration:** Allows implicit tuple declaration, which makes tuple initialization and declarations less verbose.
+*   **Expressive Pattern Matching:** Allows more complex pattern matching, which will improve the readability of complex code.
+*   **Idiomatic Error Propagation:** Support for the `?` operator for error propagation: `value = my_function()?;` provides a concise mechanism for propagating errors.
+*   **CAM Composition:** CAMs can now be composed by using the `merge` keyword, which will allow developers to build more complex and reusable components.
+*   **CAM Customization:** CAMs can now be customized using the config section and specific attributes. This provides a very flexible way to generate CAMs that can adapt to specific user needs.
+*  **More Context-Aware AI Optimizations:** The AI optimization engine will now consider the whole program's context when performing code optimizations.
+*  **Automated Code Refactoring:** The compiler will provide an AI-powered refactoring tool to improve code maintainability.
+*  **Automated Hardware Verification:** The automated verification tools will provide more information about the formal verification process, giving the user more visibility of the verification process.
+*  **AI Generated CAM stubs:** Allows the generation of CAM code by only defining the interface intrinsic function, making it faster to create new CAMs.
+*   **Optional Parentheses:** Parentheses are now optional when a function or intrinsic has only one argument, which allows for less verbose code, and more similar to other programming languages.
+*   **Low Level Control through CAMs and DSLs:** The language was not intended to be a low-level assembly replacement, but a high-level alternative, that offers better safety, maintainability, productivity, and portability. Low-level code generation is possible using CAMs and their DSLs.
+*  **Symbolic Execution**: The compiler can now perform symbolic execution by using the `symbolic` keyword and associated operations, allowing advanced code transformations and formal verification techniques to be used during compilation.
+*  **Algorithmic Code Generation**: The compiler will now use specific algorithmic code generators to generate optimized code, when the `@algorithm()` attribute is used, improving code performance in specific scenarios.
+* **CAM based Rule Systems**: CAMs can now define code transformation rules by using the `instrDSL` and associated `match`, `capture` and `apply` statements.
+*  **Algorithmic DSL Adaptation**: DSLs can now be adapted based on user-specified parameters, by adding a `config` block in the DSL definition and specifying parameters with default values.
+*   **Explicit Control and Developer Responsibility:** BML puts a great level of control in the hands of the developer. While providing a high-level abstraction, BML also gives the developer explicit control over low-level aspects, such as memory access and code generation. The programmer is responsible for using the language features correctly to achieve the optimal performance and safety that is needed for their specific application.
 
-A cornerstone of BML's design is aggressive compile-time optimizations, incorporating advanced techniques such as sophisticated loop optimizations, deep static analysis (including region lifetime tracking and abstract interpretation), and Composable Architecture Module (CAM)-driven domain specialization. These optimizations work synergistically to achieve peak performance, often rivaling meticulously hand-optimized assembly code, all automatically generated by the BML compiler directly from high-level BML source code. BML is fundamentally designed with a zero-overhead principle, rigorously striving to eliminate runtime costs and maximize compile-time guarantees wherever possible.
+**Limitations:**
 
-Crucially, BML enables developers to express critical low-level operations, including system bootstrapping, direct register manipulation, and time-sensitive code sequences, all within a high-level, structured, and type-safe syntax. The BML compiler transparently handles the intricate complexity of generating efficient, low-level machine code from these high-level expressions, effectively eliminating the need for hand-written assembly language in the vast majority of embedded development tasks. This transformative capability significantly enhances code portability across architectures, improves inherent memory safety, and dramatically increases code maintainability, all while preserving assembly-level efficiency, starting directly from high-level BML source code. **BML Version 1.5 is production-ready and optimized for building high-performance, reliable, and maintainable bare metal systems.**
+*   **No Direct Instruction Encoding (User-Level):** BML does *not* allow the developer to directly specify instruction encodings, or manually encode an instruction using opcodes, operands, and addressing modes *at user level*. Instead, BML relies on CAMs and their DSLs to generate optimized instruction sequences. This means the developer gives up some direct control over the code generation process, to have a more high-level and maintainable approach.
+*   **Hardware Access Limitations:** BML does not provide direct access to *all* low-level hardware features available in assembly. The developer relies on CAMs for generating the required code to interact with peripherals. If a CAM does not expose a specific hardware feature, it cannot be accessed directly from BML code. The features exposed by BML are limited to the capabilities of the CAMs used in the compilation process.
+*   **Runtime Checks are Optional:** While BML tries to minimize the runtime checks, they are still present, and have some performance impact. The runtime checks are optional, and may be disabled by using compiler flags or pragmas. This gives the user more control, by explicitly disabling the runtime checks, but it also means that the user can create an unsafe program that can crash. Tracked pointers and safe arrays will perform runtime checks, which may have a performance impact, if hardware-assisted bounds checking is not enabled, or if the compiler cannot statically prove that the accesses are safe.
+*   **Debugging Complexity:** While source-level debugging is supported, debugging low-level issues that involve memory corruption and interactions with hardware components may be more difficult in BML compared to the direct observability provided by assembly-level debugging. However, advanced debugging features are provided by the compiler to assist the user in analyzing the compiler's output, and also the code generated by the CAMs.
 
-**Version 1.5 Language Enhancements - Production Ready Core with Advanced Optimization and Metaprogramming Features:** Version 1.5 marks a significant milestone, solidifying BML as a production-ready language for bare metal development. This version introduces cutting-edge features designed to further amplify BML's optimization capabilities and enable advanced metaprogramming techniques for CAMs: **Compile-Time Reflection** for inspecting type information at compile time using the `sizeof()` operator and `isType()` intrinsic function, **Compile-Time Functions (Static Lambdas) for CAMs** defined using the `compileTimeFunction` keyword for executing code during compilation, and **Data-Driven Code Generation with Enhanced Data Layout Attributes** for automatic code specialization based on data organization using the `hasDataLayoutAttribute()` compile-time intrinsic function. These features empower CAM developers to create even more intelligent, adaptive, and performance-optimized modules, pushing the boundaries of zero-overhead abstraction and domain specialization in bare metal programming. **Version 1.5 definitively solidifies BML's position as a leading language for performance-critical bare metal development, seamlessly blending high-level expressiveness with assembly-level efficiency in a production-ready package.**
+**2. Core Language Features**
 
-BML's design philosophy is deeply rooted in these core principles:
+*   **Static Typing:** BML is a statically-typed language, enforcing type rules at compile time to prevent type-related errors, making it easier to reason about the code, and reducing the number of runtime errors.
 
-*   **Performance Primacy:** Performance is paramount. The BML compiler generates highly optimized machine code directly from high-level BML source, rigorously minimizing runtime overhead and maximizing efficiency. BML employs zero-overhead principles, aggressive compile-time optimizations, and CAM-driven domain specialization to achieve peak performance, often rivaling hand-optimized assembly, **all without manual assembly coding.**
-*   **Low-Level Control Imperative:** BML provides explicit and powerful mechanisms for direct hardware interaction, fine-grained memory manipulation, and complete command over system resources. This granular control is essential for tasks such as developing device drivers, implementing custom memory management schemes, and building real-time system components that must respond with precise timing. CAM-driven hardware specialization and optimization significantly amplify low-level control capabilities.
-*   **Memory Safety Mitigation:** Absolute memory safety, while a theoretical ideal in bare metal, is proactively addressed in BML. BML mitigates common memory errors through compile-time checks, runtime mitigations (like `safeArray` and `trackedPtr`), and safety-focused language features like `scopedPtr` and capability-based pointers. While absolute safety is challenging in bare metal, BML provides practical and performant tools to significantly reduce common memory-related errors. Abstract interpretation enables potential runtime check elimination for proven-safe code.  **BML prioritizes memory safety without compromising performance.**
-*   **Multi-Target Architecture Versatility:** BML is fundamentally architecture-agnostic at the source code level, empowering code portability across ARM, RISC-V, x86, and other architectures. CAMs further enhance multi-targeting by providing architecture-specific implementations and optimizations, ensuring that BML code is not only portable but also performs optimally on each target architecture. **Write once, compile for many, with peak performance on each.**
-*   **Modularity and Reusability through CAMs:** Composable Architecture Modules (CAMs) are central to BML, fostering modularity, extensive reusability, and compiler extensibility. CAMs act as "optimization engines," injecting domain-specific and hardware-aware optimizations directly into the compiler pipeline. CAMs are now enhanced with compile-time generics for even greater reusability and abstraction power. **CAMs are the key to building complex, robust, and highly optimized bare metal systems from reusable components.**
-*   **Readability and Maintainability Focus:** BML syntax prioritizes clarity and conciseness, aiming for improved readability and maintainability compared to assembly language or verbose low-level C. Structured control flow, MMR Blocks, and `@boot` functions enhance code organization and comprehension. While `goto` is available for exceptional low-level control needs, structured approaches are strongly encouraged. **BML code is designed to be understandable, maintainable, and evolve gracefully over time.**
-*   **Tooling and Debugging Excellence:** BML is designed for seamless source-level debugging and provides mechanisms for assembly-level inspection when needed for advanced analysis. Robust tooling and debugger integration are key development goals, with plans for IDE plugins to further enhance the developer experience. **BML aims to provide a modern and productive development workflow for bare metal programming.**
-*   **Concurrency and Parallelism Integration:** BML incorporates explicit language constructs for concurrency and parallelism, enabling developers to effectively harness multi-core processors in bare metal environments. Features include threads, parallel blocks, `await`, and `yield`, with CAMs providing further extensibility and optimization for concurrency models. BML aims to support the development of Unix-like operating systems for bare metal environments through CAMs like the envisioned BMUnixCAM. **BML empowers developers to build efficient and reliable concurrent bare metal systems.**
+*   **Data Types:**
+    *   **Integer Types:** `int8`, `uint8`, `int16`, `uint16`, `int32`, `uint32`, `int64`, `uint64`, `int`, `uint`.
+        *   Signed integers (`int` prefix) represent both positive and negative values. `int` is architecture-dependent and defaults to `int32`.
+        *   Unsigned integers (`uint` prefix) represent only non-negative values. `uint` is architecture-dependent and defaults to `uint32`.
+        *   The number after the prefix indicates the size in bits (e.g., `int32` is a 32-bit signed integer).
+        *   **Default value**: The default value for all integer types is `0`.
+        *   Example: `uint32 counter = 10;`, `int16 sensorValue = -20;`, `uint32 myCounter = 10;` (explicit type declaration).
+    *   **Floating-Point Types:** `float32`, `float64`, `float`.
+        *   `float32` represents single-precision floating-point numbers.
+        *   `float64` represents double-precision floating-point numbers.
+        *   `float` defaults to `float32`.
+        *   **Default value:** The default value for all float types is `0.0f` for `float32` and `0.0d` for `float64`.
+        *   Example: `float32 temperature = 25.5f;`, `float64 pi = 3.14159265d;`, `float32 myTemperature = 25.5f;` (explicit type declaration).
+    *   **Address Types:** `address`, `codeAddress`, `dataAddress`, `genericAddress`, `bootAddress`.
+        *   `address` represents a generic memory address, without any specific region association.
+        *   `codeAddress` is used for memory addresses that point to executable code (e.g., function pointers or interrupt handlers).
+        *   `dataAddress` is used for memory addresses that point to data (e.g., variables or memory buffers).
+        *   `genericAddress` is a general-purpose address that does not imply a specific memory region, and can be used as a generic memory address.
+        *   `bootAddress` specifically represents the boot address, the initial address where execution begins after reset.
+        *   **Default Value**: The default value for all address types is `null`. The compiler will issue a warning if the null address is dereferenced without a null check, unless it is annotated with a `!` or `+` modifier, which explicitly states that the pointer can not be null.
+        *   Example: `dataAddress bufferPtr;`, `codeAddress handlerAddress;`, `bootAddress bootPtr = 0x1000;`
+    *   **Boolean:** `boolean` (`true`, `false`).
+        *   Represents logical truth values.
+        *   **Default Value**: The default value for boolean types is `false`.
+        *   Example: `boolean isReady = true;`, `boolean hasError = false;`
+    *   **Character Types:** `char8`, `char16`, `char32`, `char`.
+        *   `char8` is an 8-bit character type, often used for ASCII characters.
+        *   `char16` is a 16-bit character type, often used for UTF-16 encoded characters.
+        *   `char32` is a 32-bit character type, often used for UTF-32 encoded characters.
+        *   `char` defaults to `char8`.
+         *   **Default value**: The default value for all character types is `'\0'`.
+           *   **String Literals:** String literals are encoded using UTF-8. Character literals are encoded using the corresponding character type encoding (UTF-8, UTF-16 or UTF-32).
+        *   Example: `char8 myChar = 'A';`, `char16 unicodeChar = L'Ω';`, `char32 emoji = U'😀';`, `char aChar = 'B';` (explicit type declaration).
+    *   **Raw Byte Type:** `rawbyte` (direct memory access).
+        *   Allows direct access to memory as a sequence of bytes.
+        *   **Caution:** Type conversions to/from `rawbyte` are explicit using `cast` or type conversion functions (e.g., `toUint32`), avoiding implicit conversion. Accessing a `rawbyte` as any other type is an error. When casting to other types, you must ensure that alignment and size constraints are satisfied. The compiler does not perform any automatic alignment check.
+        *   The size of a raw byte is always 8 bits.
+        *   **Default value**: The default value is `0`.
+        *   Example: `rawbyte registerValue = 0xAF;`, `rawbyte^ buffer;`, `uint32 convertedValue = toUint32(registerValue);`, `uint32 otherConvertedValue = cast(uint32) registerValue;`
+    *   **Safe Array Type:** `DataType safe [Size]` (runtime bounds checks).
+        *   A fixed-size array where elements of type `DataType` are allocated contiguously in memory.
+        *   Bounds are checked at runtime for every access. If an access is out-of-bounds, a runtime exception will occur (implementation-defined behavior, possibly an abort or an error handler invocation).
+        *   `Size` must be a compile-time constant or an identifier with a `linearAccessGuaranteed` attribute.
+         *   **Default value**: The default value for all elements in the array is the default value of the `DataType`.
+        *   Example: `uint16 safe [100] sensorReadings;`, `float32 safe [MAX_COEFFICIENTS] coefficients @linearAccessGuaranteed(25);`
+         *    **Concise Array Literals:** Arrays can be initialized by using an initializer list between square brackets: `uint32 safe[5] myArray = [1, 2, 3, 4, 5];` or using range initialization: `uint32 safe[10] myOtherArray = [0..9];`. The compiler will infer the type of the array elements from the array literal or the range expression.
+        *   **Array Slice Type:** `arraySlice<DataType>` (dynamic views).
+            *   Provides a mutable view over an existing `safeArray` or another `arraySlice`. The view does not copy the data, it represents a reference to a portion of the original array, which means that modifications on the slice will be reflected in the underlying array.
+            *   Bounds checks are performed at runtime, using the slice's bounds (not the bounds of the original array). If the slice is out of the bounds of the original safe array or another slice, a runtime exception will occur.
+            *  Multiple slices of the same array are allowed.
+            *  Slices can overlap.
+            *  Slices are fully compatible with capability-based pointers.
+             *   **Default Value**: The default value of a slice is undefined. A warning is generated by the compiler if a slice is accessed without being initialized or having a default value.
+            *   Example:
+                ```baremetal
+                uint32 safe[100] mySafeArray;
+                arraySlice<uint32> mySlice = mySafeArray.slice(0, 10);
+                arraySlice<uint32> anotherSlice = mySlice.slice(2,5);
+                mySlice[0] = 1;  // mySafeArray[0] will be 1
+                anotherSlice[0] = 2; // mySafeArray[2] will be 2
+                ```
+            *   **Range-Based For Loops:** `for (identifier : rangeExpression) { ... }`.
+                *   Iterates over a range of values.
+                *   The `identifier` is a read-only variable within the loop, automatically incremented by one in each iteration.
+                *   Example: `for (uint32 index : 0..10) print(index);`
+    *   **General Pointer:** `DataType^` (unchecked pointer, use with caution).
+        *   Provides direct access to memory using a raw address.
+             *  **Use Cases:**
+                *   `DataType^` should be used only when specific memory manipulation is required and there are no safer alternatives.
+                * When interfacing with hardware that requires explicit memory addresses or when working with existing low-level data structures.
+                *  When it is required to circumvent the compiler safety mechanisms, and handle low level memory accesses, such as when accessing hardware directly.
+                *   It is recommended to use other pointer qualifiers when possible.
+                * When interfacing with legacy code that is already using raw pointers.
+        *   **Caution:** There are no automatic runtime bounds checks or type checks. It is not implicitly convertible to other pointer types. The type signature must match. The user should explicitly convert a `DataType^` pointer to `genericAddress`, `dataAddress` or `codeAddress` if needed, using the `cast` operator.
+        *   Pointer arithmetic is allowed, but it's unsafe; the developer is responsible for not overstepping boundaries, otherwise undefined behavior will occur.
+        *   General pointers can be null; if a null pointer is dereferenced, the behavior is undefined. It is highly recommended to use `!`, `@`, or `+` capability qualifiers whenever a pointer can never be null. The compiler will provide warnings about a potential null dereference if the user attempts to access the pointer without checking for null.
+         *   **Default Value:** The default value for general pointers is null.
+        *   Example: `uint32^ rawPointer;`, `char8^ buffer;`, `uint32+ ptr = &myValue;`
+        *   **Capability-Based Pointer Types:** `DataType +`, `DataType -`, `DataType @regionName`, `DataType !`, `DataType scoped`, `DataType tracked`.
+            *   `+`: A pointer that can not be null and it can read/write to the memory location, unless region restrictions apply, the equivalent to `DataType^ nonnull`. The compiler guarantees that a pointer with a `+` type qualifier will never be null.
+            *   `-`: A pointer that can be null, and it can read/write to the memory location, unless region restrictions apply, the equivalent to `DataType^`. If this pointer is dereferenced without checking if the pointer is null, the compiler may generate a warning.
+            *   `@regionName`: A pointer associated with a specific data region, enabling region-based memory management and access controls enforced at compile-time. Accessing memory outside the specified region will result in a compile-time error. The `regionName` must be defined as a `dataRegion` (or `rodataRegion`, or `stackRegion`, or `peripheralRegion`, or `moduleDataRegion`).
+            *   `!`: A pointer that can not be null, and it can only read from the memory location; write operations are not allowed. If a write operation is performed, it will result in a compile-time error. The compiler guarantees that the pointer will never be null, and that no write operation will be performed using this pointer.
+            *   `scoped`: A pointer that's valid only within its lexical scope. The compiler prevents the pointer from escaping the scope, ensuring that it can not be dangling. This mechanism is mostly implemented at compile time. The compiler will generate errors if the pointer escapes the lexical scope.
+             *   **Default value**: Scoped pointers can not be null.
+            *   `tracked`: A pointer that is tracked by the compiler during runtime. Every access to the tracked pointer incurs a runtime check to prevent dangling pointers. The implementation is target-specific but can be done by using metadata to store the scope of the tracked pointer, and checking for that metadata in every access. If the `boundsCheckRefinement` is enabled, the runtime check may be optimized by using refinement types with more specific constraints.
+             *    **Default Value**: Tracked pointers are initialized with a default null address value. The runtime checks will catch dangling pointers.
+            *   Example: `uint32+ sensorDataPtr = &mySensorData;`, `rawbyte- transmitBuffer;` , `uint32@MyRegion regionPtr;`, `uint32! configPtr = &myConfig;` , `uint8 localPtr = &someArray;` (implicit scope), `uint16 tracked sensorDataPtr = &someValue;`
+    *   **Scope-Bound Pointer:** `DataType scoped` (lexical lifetime management).
+         *   A pointer that's valid only within its lexical scope. The compiler prevents the pointer from escaping the scope, ensuring that it can not be dangling. This mechanism is mostly implemented at compile time. The compiler will generate errors if the pointer escapes the lexical scope.
+        *   The runtime behaviour depends on the compiler flags. For increased runtime safety, the compiler can generate code to trap or invoke a runtime error handler if a scoped pointer is accessed after its scope has finished (e.g. by using guard pages or similar techniques).
+        *   `DataType scoped` cannot be null.
+         *   The `scoped` keyword is optional for local variables, and can be omitted, if the compiler can infer this, using static analysis.
+            *   **Static Analysis Process for Implicit Scope:**
+            *   The compiler performs static analysis to determine if a pointer's lifetime is strictly confined to its lexical scope, specifically its function body or a block inside the function.
+            *   The compiler analyses the code flow to verify if the pointer is never passed as a parameter to a function or stored inside a struct that outlives the scope of the pointer, and if the pointer is never returned to a caller function. If all the conditions are satisfied, the compiler infers that the pointer is scoped and the `scoped` qualifier can be omitted.
+            *   If the compiler detects that the pointer is escaping its lexical scope, a compile time error will be generated.
+        * **Scope Rules:**
+          *  If a `scoped` pointer is stored inside a struct, the struct will inherit the scope of the pointer, and can only be declared in the same scope or a scope that does not outlive the scope of the scoped pointer. If the struct is used outside the scope of the scoped pointer, a compile-time error will be generated. This rule also applies to unions and tuples.
+           *  A `scoped` pointer can not be passed as a parameter to a function or be returned by a function, unless the `scoped` qualifier is also applied to the return value.
+        *   Example:
+           ```baremetal
+              function void myFunction() {
+                  uint32 localValue = 10;
+                  uint32 localPtr = &localValue; // valid pointer (scoped is implicitly added).
+                 // ...
+              } // localPtr is no longer valid
+           ```
+    *   **Runtime-Tracked Pointer:** `DataType tracked` (runtime checks).
+        *   A pointer that is tracked by the compiler during runtime. Every access to the tracked pointer incurs a runtime check to prevent dangling pointers. The implementation is target-specific but can be done by using metadata to store the scope of the tracked pointer, and checking for that metadata in every access. If the `boundsCheckRefinement` is enabled, the runtime check may be optimized by using refinement types with more specific constraints.
+         *   **Runtime Check Implementation Details:**
+            *   **Metadata Approach:** A common implementation involves storing metadata alongside the tracked pointer. This metadata can include information about the allocation's starting address, the size of the allocated region, and a validity flag. Each time the tracked pointer is accessed:
+                1.  The validity flag is checked. If the flag indicates the pointer is invalid (e.g., it has been deallocated), a runtime error is triggered.
+                2.  The access address is compared to the allocation's start address and size. If the access is out of bounds of the allocation region, a runtime error is triggered.
+                3.  The metadata can be updated when the allocation or deallocation occurs.
+            *   **Guard Pages:** Some architectures may utilize guard pages (protected memory regions that surround allocated memory) for more efficient checks. Accessing memory outside the allocation will trigger a hardware exception. The operating system or runtime library can trap the exception, detect a dangling pointer access, and trigger a runtime error.
+            *   **Compiler-Specific Techniques:** The compiler can also use other techniques, such as generating code that performs dynamic range checks on access, but the performance may be slower compared with metadata or guard pages techniques.
+           * The metadata associated with `tracked` pointers is stored in a separate memory region and is managed by the runtime environment.
+           * A common strategy is to store the information of a tracked pointer in a hashmap, associated with the tracked address. The hashmap can be implemented using software or a hardware accelerator if available, to improve its performance.
+            * Metadata includes information about the pointer's allocation scope and validity flags.
+            * Every access to a tracked pointer will incur an overhead, as the runtime must perform the validity checks.
+            * When a tracked pointer is used, the runtime performs the following checks:
+                 * Check if the pointer is valid (not null and allocated).
+                * Check if the memory access is within the boundaries of the valid region.
+             * These checks may be optimized by using specific hardware support, but there is always some overhead when using tracked pointers.
+            * When `boundsCheckRefinement` is enabled, the compiler can use refinement types to specify extra constraints that limit the range of a tracked pointer, and, if the compiler can statically prove the pointer access is valid, the runtime checks can be skipped.
+                *   This means that the overhead for a tracked pointer can be minimal if the access can be statically determined by using refinement type constraints.
+                *   Example:
+                    ```baremetal
+                    type validPointer = uint32 tracked where value > 0x1000;
 
-*   **Low-Level Control Imperative:** BML unequivocally recognizes the absolute necessity for low-level control in bare metal programming. It provides developers with explicit and powerful mechanisms for **direct hardware interaction, fine-grained memory manipulation, and complete command over system resources.** This granular control is essential for tasks such as developing device drivers, implementing custom memory management schemes, and building real-time system components that must respond with precise timing.  BML significantly enhances low-level control by providing powerful **CAM-driven hardware specialization and optimization capabilities.** Memory-Mapped Register Blocks (MMR Blocks) and `@boot` attributed functions are central, and are complemented by **CAM-provided intrinsic functions that map directly to specialized hardware instructions** and CAM-injected optimization passes that tailor code generation to specific hardware and application domains.
+                    function void processData(validPointer ptr) {
+                      // if the compiler can prove that the access to *ptr will be within the valid range, no runtime checks will be needed.
+                      // if the access might be out of the range, a runtime check must be performed.
+                        print(*ptr);
+                  }
+                ```
+        *   Example: `uint16 tracked sensorDataPtr;`
+    *   **Tuple Types:** `tuple<DataType1, DataType2, ...>`.
+        *   A fixed-size, immutable collection of values, which can be accessed by name or by index.
+        *   Tuple values are mutable by adding the `~` modifier at declaration time.
+         *   **Default value**: The default value for a tuple is the tuple of the default values of its members, with no padding between the elements of the tuple. The layout of a tuple is similar to that of a struct, with no padding.
+        *   Destructuring is supported using the `=` operator or the `from` keyword, which allows you to easily access the tuple's values after declaring a variable of the same tuple type.
+         *  Tuples can be initialized using a tuple literal, with implicit mapping by position, where the values in the tuple literal are assigned to the members, based on their position in the tuple type.
+        *   Example:
+            ```baremetal
+             tuple<uint32, boolean> sensorResult = (10, true);
+             (value, status) = sensorResult; // implicit type inference
+            ~tuple<uint32, boolean> (anotherValue, anotherStatus) = (10, true); // explicit mutable tuple declaration
+             tuple<uint32, boolean> (anotherValue, anotherStatus) from sensorResult; //explicit type
+            myImplicitTuple = (10, true); //implicit tuple declaration
+            myOtherTuple = (value1, value2); //Implicit type is tuple <dataType of value1, dataType of value2>
 
-    **Why Low-Level Control is Crucial in Bare Metal:**  In bare metal programming, you are working directly with the hardware. There is no operating system kernel mediating your access.  You are responsible for *everything*, from initializing the clock and memory controllers to directly manipulating peripheral registers to control hardware devices.  This level of control is not just "nice to have"; it is *essential* for tasks like:
+            ```
+    *   **Function Pointer Type:** `function(...) -> ...`.
+        *   A pointer to a function with a specified signature.
+        *   Function pointers are unsafe, similarly to raw pointers, meaning that the compiler does not track if the function pointer is a valid code address.
+        *   Function pointers are not implicitly convertible to other function pointer types. The type signature must match.
+        *   **Default value**: The default value of a function pointer is `null`.
+        * Example: `function(uint32, uint32) -> uint32 MathFunctionType;`
+    *   **Struct and Union Types:** `struct` and `union` for composite data structures.
+        *   `struct` creates a composite data type where members are laid out in a sequence in memory. The members can be of different types.
+           * If a struct contains only one member, curly braces can be removed: `struct MyStruct uint32 value;`
+        *   `union` creates a type where different members share the same memory location. Only one member can be active at a given time, so care must be taken to not corrupt data when accessing members of a union.
+          * **Default value:** The default value for a struct is the struct where all members are set to their default values. The default value of a union is the union where the first member is active and is set to its default value. The members are initialized in the order they are declared, with no padding between them. The members are initialized using the default value of their type.
+           * If the `initializerList` is enabled with the  `@initializerList` attribute, structs and unions can be initialized using implicit initialization syntax.
+         *  Structs and unions can be initialized by using implicit mapping, using the order of the members, or by specifying the name of each member in the initializer list.
+          *  If a member is not present in the initializer list, it will be initialized with its default value.
+        *   Example:
+        ```baremetal
+                type Point = struct @initializerList { int32 x; int32 y; };
+                 Point myPoint = { 10, 20 };  // x=10, y=20 (positional)
 
-    *   **Device Drivers:** Writing device drivers requires direct and precise interaction with hardware peripherals (UART, SPI, I2C, Ethernet, USB, etc.).  You must directly read and write to device registers to configure peripherals, initiate data transfers, and handle interrupts.
-    *   **Bootloaders:** Bootloaders are the very first code that runs on a system. They are responsible for initializing the minimal hardware needed to load and start the operating system or application. Bootloaders require extremely low-level control to set up the memory system, initialize the CPU, and load code from storage.
-    *   **Real-Time Systems:** Real-time systems often have strict timing requirements.  Achieving deterministic timing and minimal latency requires precise control over hardware resources, memory access, and interrupt handling. Languages that abstract away hardware details can make it difficult to meet real-time constraints.
-    *   **Custom Hardware and Specialized Peripherals:**  Embedded systems often use custom hardware or specialized peripherals that are not supported by standard libraries or operating systems. Direct hardware control is necessary to interface with these unique devices.
-    *   **Resource-Constrained Environments:**  In very resource-constrained environments (e.g., microcontrollers with limited memory and processing power), efficiency is paramount. Direct hardware control allows for highly optimized code that minimizes overhead and maximizes resource utilization.
+                 type MyStruct = struct @initializerList { uint32 a; boolean b; uint8 c = 10;};
+                  MyStruct myValue = { 1, true }; // a=1, b=true, c=10, using positional initialization.
 
-    **Example:** Writing a device driver for a complex SPI peripheral necessitates direct and precise access to hardware registers and often involves performance-critical data transfer loops. BML's `#operation` directive, enhanced by CAM-provided intrinsic functions, allows developers to meticulously control register reads and writes, leveraging specialized SPI instructions for optimized data transfer within loops, which is crucial for establishing and maintaining high-speed communication with the SPI device. Furthermore, MMR Blocks provide a structured and type-safe way to access register blocks, while `@boot` functions enable expressing even the most critical bootstrap sequences in BML code, eliminating the need for inline assembly in most scenarios.  CAM-provided optimization passes can further refine the generated code for SPI communication loops, potentially unrolling loops, vectorizing data transfers if the SPI peripheral supports it, and optimizing register access patterns for minimal latency. This level of control enables the precise timing and bit-level manipulation necessary for complex hardware protocols, now achievable entirely within BML, with performance rivaling hand-written assembly.  Compared to languages that abstract away hardware details, BML provides the necessary tools for direct and precise hardware control, essential for bare metal programming, now amplified by CAM-driven hardware specialization and optimization.  Consider a scenario where a developer needs to implement a custom DMA transfer routine for an LCD controller. Using BML's `#operation` directive and MMR Blocks, the developer can directly manipulate DMA controller registers, set up memory transfer parameters, trigger DMA start, and monitor DMA completion status, all within BML code.  For example, setting up a DMA transfer might involve:
+                type Config = struct @initializerList { uint32 baud; boolean enable;  uint8 dataBits = 8;};
+                 Config myConfig = { enable=true, baud=115200 }; // baud=115200, enable=true, dataBits=8, using names for implicit mapping.
 
-    ```baremetal
-    @arc arm {
-        declarations {
-            DmaController mmrBlock DmaControllerType @address(0x40000000); // Example MMR Block declaration
-            DmaChannelSourceAddressRegister volatile register uint32 : offset(0x00);
-            DmaChannelDestinationAddressRegister volatile register uint32 : offset(0x04);
-            DmaChannelTransferLengthRegister volatile register uint32 : offset(0x08);
-            DmaChannelControlRegister volatile register uint32 : offset(0x0C);
-                bitfield ControlBits in RawRegister {
-                    bitSetBit boolean : bits(0..0);
+                  type Config = struct @initializerList { uint32 baud; boolean enable = true;  uint8 dataBits;};
+                 Config myOtherConfig = { 115200, dataBits = 7 }; // baud=115200, enable=true, dataBits=7, mix of positional and name mapping.
+
+               ```
+        *   Example: `struct Point { int32 x; int32 y; };`, `union Packet { uint32 rawData; struct { uint8 highByte; uint8 lowByte; } bytes; };`
+        *   **Memory Mapped Structs:** `struct @mapped` (members are volatile by default, unless specified `nonvolatile`).
+             *   `@mapped` structs defines a memory-mapped region, with an implicit volatility status based on the struct's qualifier, unless specified otherwise on a member-by-member basis, using `volatile` or `nonvolatile`.
+            *   The members are implicitly treated as `volatile`, unless the `nonvolatile` qualifier is used. The compiler will not attempt to optimize accesses to `volatile` variables.
+             *   If the structure is `volatile`, members are `volatile`, unless declared `nonvolatile`.
+            *   If the structure is `nonvolatile`, members are `nonvolatile`, unless declared `volatile`.
+            *   If there is no attribute on the struct, members are volatile, unless declared `nonvolatile`.
+            *   When using memory-mapped structures, the endianness of the members must be carefully considered; if the architecture is little-endian, a `uint32` member will be accessed byte-by-byte in little-endian order.
+            *   Data hazards (multiple reads/writes) are not automatically handled by the compiler. The developer must use memory barriers or other means to manage data hazards in shared memory-mapped regions.
+            *   Example: `type GpioRegisters = struct @mapped(0x40000000) { uint32 dataRegister; nonvolatile uint32 configRegister; };`
+             * When the `initializerList` attribute is added to a `struct`, initialization can be done using a list of initializers: `type GpioRegisters = struct @mapped(0x40000000) @initializerList { uint32 dataRegister; uint32 controlRegister; };  GpioRegisters myGpio = { 10, 20 };`
+             *  Memory-mapped structure access should be performed via an instance of the struct that is mapped to a given base address, for example:
+                ```baremetal
+                type GpioRegisters = struct @mapped { uint32 dataRegister;  uint32 controlRegister; };
+                 function void initGpio(dataAddress base) {
+                    GpioRegisters myGpio = base; //maps the memory region
+                     myGpio.controlRegister = 1;
+                }
+                ```
+             * **Bitfield members can be accessed with the `=` operator and initialized by using an initializer list, without the `with` statement: `myGpioRegisters.controlRegister = { enableBit = 1, dataBit = someValue };`.**
+            * **Bit Ranges can be accessed with the syntax `myGpioRegisters.controlRegister[0..3] = 0b101;`.**
+              *  Bitfield updates should be performed using a `with` statement, to minimize the overhead of reading and writing to memory mapped registers. The `with` statement groups multiple bitfield updates into a single operation.
+          *    **"with" statement optimization:** The compiler analyses the `with` block, to check if a specific write or read operation to a memory
+                 *   This mechanism is automatically performed by the compiler and requires no additional effort from the user, enabling zero-overhead high-performance bitfield access.
+             *   Example:
+                ```baremetal
+                type GpioRegisters = struct @mapped { uint32 controlRegister; };
+                GpioRegisters myGpioRegisters = 0x40000000;
+                myGpioRegisters.controlRegister = {
+                    enableBit = 1,
+                    dataBit = someValue
+                };
+                 myGpioRegisters.controlRegister[0..3] = 0b101;
+                  with (myGpioRegisters) {
+                         enableBit := 1;
+                          dataBit := someValue;
+                     }
+            ```
+         *  **Memory Mapped Registers**: Specific registers can be defined using the following syntax:
+        *   `DataType @register("regionName", "stringLiteral")  registerName;` This syntax defines a memory-mapped register located in a specific peripheral region. The `stringLiteral` is CAM specific and is intended to provide additional information to CAM implementations. The type must be a base type, and can not be a struct or a union. This attribute can only be used with `register` declarations.
+        *   The compiler will perform checks to guarantee that the data type of the declared register matches the register's underlying size. If there is a mismatch, a compile-time error will be generated.
+        *   The register name can be accessed and modified as if it was a regular variable. The compiler will emit code that directly reads/writes to that memory location.
+            *  Example: `uint32 @register("MyAiCore", "control_reg") myMatrixAControl;`
+    *   **Enum Types:** `enum` (named constants).
+        *   A way to define named constants, improving the readability of the code. If the enum is declared with a simple comma separated list of values, curly braces can be removed: `enum ErrorCode Ok, NotFound, AccessDenied;`
+         *   **Default Value:** The default value for an enum is the first member of the enum.
+        *   Example: `enum ErrorCode Ok, NotFound, AccessDenied;`, `enum ErrorCode { Ok, NotFound, AccessDenied };`
+    *   **Thread Handle Type:** `threadHandle`.
+        *   A handle to a concurrent task that allows the developer to interact with the task.
+         *   **Default value:** The default value for a `threadHandle` is `null`.
+        *   Example: `threadHandle myThread;`
+    *   **Mutex Type:** `mutex`.
+        *   A synchronization primitive used to implement critical sections, protecting shared memory from data races, guaranteeing atomic access to shared resources by different threads.
+        *    **Default value**: The default value of a mutex is an unlocked mutex.
+        *   Example: `mutex myMutex;`
+    *   **Semaphore Type:** `sync`.
+        *   A synchronization primitive that provides signaling with a counting capability, useful for limiting the number of concurrent accesses to a specific resource.
+         *   **Default value**: The default value of a `sync` is a semaphore with its counter set to `0`.
+        *   Example: `sync mySemaphore(10);`
+    *   **Awaitable Type:** `DataType await`.
+        *   A type used to represent an asynchronous computation that produces a value of type `DataType`. Can be used in conjunction with the `await` and `yield` keywords.
+         *  **Default value**: The default value of an awaitable is implementation specific.
+        *   Example: `uint32 await asyncResult;`
+    *   **Generic Modules and Functions:** `generic <DataType>`.
+        *   Allows code to be parameterized with types, which allows creating reusable and type-safe components.
+        *   Example: `generic <DataType> module MyModule { ... };`, `generic <DataType> function DataType myFunc (DataType value) -> DataType { ... };`
+    *   **Result Type:** `Result<OkType, ErrType>` for explicit error handling.
+        *   A type that represents either a successful result (`OkType`) or an error (`ErrType`), improving the clarity of the error handling code and making the compiler enforce error checking.
+        *   Pattern matching or a method to easily get the data value from the `Result` type is implementation-specific.
+        *   The user must propagate the error up the call stack and implement a proper error handling policy. The default value is a result where the Ok value is the default value of `OkType`, and the Err value is the default value of `ErrType`.
+          *   **Error Handling and Propagation:**
+            * The `Result` type is intended to enforce proper error handling at compile time. The user must explicitly handle the results, by checking if there is a valid `Ok` value or an `Err` value. The user can propagate errors using different techniques, such as using a chain of functions that explicitly propagate the errors using the `Result` type.
+            * The `Result` type is designed to improve the code clarity and to provide static checks to avoid runtime errors. The user must use CAMs or user-defined types to implement specific error reporting and handling strategies.
+            *   **Accessing `Ok` and `Err` Values:** Accessing data from a result type is implementation-specific. The compiler may use an `isOk()` or `isErr()` method for checking the state of the result and a `getOk()` or `getErr()` function to extract the values from a given `Result` variable. For example:
+              ```baremetal
+               function Result<uint32, ErrorCode> performOperation() {
+                 // ...
+                  if (/* condition */) {
+                    return Ok(10);
+                  } else {
+                     return Err(ErrorCode.InvalidInput);
+                  }
+               }
+                function void main() {
+                    Result<uint32, ErrorCode> myResult = performOperation();
+                    if (myResult.isOk()) {
+                       uint32 value = myResult.getOk();
+                      print("Operation success, data:", value);
+                    } else {
+                      ErrorCode code = myResult.getErr();
+                      print("Operation error, code:", code);
+                    }
+                }
+               ```
+           *  **Error Handling Policy:** BML does not enforce a specific error handling policy, and it is the user's responsibility to handle errors correctly. If an error is not properly handled or ignored by the user, the behaviour is implementation specific.
+           * **Example (Error handling):**
+              ```baremetal
+                 enum ErrorCode { Ok, InvalidInput, ResourceUnavailable };
+                 function Result<uint32, ErrorCode> readSensor() {
+                    if (/*Sensor is not ready*/) {
+                      return Err(ResourceUnavailable);
+                   } else {
+                     return Ok(100); //read from sensor
+                   }
+                }
+                function Result<uint32, ErrorCode> processSensor() {
+                  Result<uint32, ErrorCode> result = readSensor();
+                   if (result.isErr()) {
+                      return Err(result.getErr()); // propagate the error
+                   }
+                   uint32 value = result.getOk();
+                  //do something with value, and return a result
                  }
-            DmaChannelStatusRegister volatile register uint32 : offset(0x10);
-                bitfield StatusBits in RawRegister {
-                    transferCompleteFlag boolean : bits(0..0);
+                  function void main () {
+                     Result<uint32, ErrorCode> result = processSensor();
+                   if(result.isOk()) {
+                    print("Data:", result.getOk());
+                     print("Error:", result.getErr()); //handle the error here
+                 }
+              }
+              ```
+        *   Example: `Result<uint32, ErrorCode> myResult;`
+    *   **Refinement Types:** `type identifier = baseType where constraint` (type constraints).
+        *   Allows to define custom data types with compile-time constraints, adding extra static type checks to the language.
+        *   The constraint can be an arbitrary expression, a range, or a length constraint.
+          *   **Default Value**: The default value of a refinement type is the default value of the underlying base type.
+        *   **Examples:**
+            *   **Bounds Checks:**
+
+                ```baremetal
+                type ValidSensorReading = uint16 where value in range(0..1000);
+                function void processSensorData(ValidSensorReading reading) {
+                    // Reading is guaranteed to be within 0 and 1000
+                    print("Sensor reading:", reading);
                 }
-        }
-        statements {
-            DmaController.DmaChannelSourceAddressRegister = dataBufferAddress; // Set DMA source address using MMR Block
-            DmaController.DmaChannelDestinationAddressRegister = lcdDataRegisterAddress; // Set DMA destination address using MMR Block
-            DmaController.DmaChannelTransferLengthRegister = dataSize; // Set DMA transfer size
-            #operation memoryBarrier fullFence; // Ensure memory operations are ordered before DMA start
-            DmaController.DmaChannelControlRegister.bitSetBit = true; // Trigger DMA start using MMR Block and bit manipulation #operation
-            while (!DmaController.DmaChannelStatusRegister.transferCompleteFlag) {}; // Wait for DMA completion using MMR Block and bit test #operation
-        }
-    }
-    ```
+                 function void main() {
+                     ValidSensorReading myValue = 500; // ok
+                      processSensorData(myValue); //ok
+                   // ValidSensorReading invalidValue = 1001; // compile-time error, not a valid value for ValidSensorReading
+                  }
+                ```
 
-    This BML code directly manipulates DMA controller registers defined in an MMR Block, using bitfield access for bit-level control and `#operation memoryBarrier` for synchronization, providing the fine-grained hardware control needed for efficient DMA-based data transfers, without resorting to inline assembly. CAMs can further enhance this by providing intrinsic functions for DMA setup and transfer, potentially generating even more optimized machine code sequences tailored to specific DMA controller architectures. **For even finer control, CAMs can provide intrinsic functions for bit-level manipulation, allowing operations like bit setting, clearing, testing, rotating, and shifting at individual bit levels, going beyond the structured bitfield access in MMR Blocks.**
+            *   **Specific Value Ranges:**
 
-*   **Memory Safety Mitigation:** Absolute memory safety, while a desirable goal, is often a theoretical ideal difficult to fully achieve in the inherently unsafe environment of bare metal systems. BML acknowledges this reality and proactively integrates features and coding paradigms to *mitigate* common memory errors, **with a strong emphasis on minimizing runtime overhead to maintain peak performance**. These mitigations are specifically targeted at vulnerabilities such as buffer overflows, dangling pointers, and memory leaks. **BML's `scopedPtr`, a unique zero-overhead pointer type with compile-time enforced lexical lifetimes, is a cornerstone of its dangling pointer prevention strategy. Capability-based pointers (`DataType ^readonly`, `DataType ^writeonly`, `DataType ^region(RegionName)`, `DataType ^nonnull`) enforce compile-time access control, enhancing safety without performance cost. In advanced compilation modes, *abstract interpretation* provides the potential for formal memory safety proofs and elimination of runtime checks.** By addressing these common pitfalls, BML significantly enhances code robustness and overall system reliability, even within the constraints of bare metal programming.  Memory safety features and best practices are detailed throughout this document.  BML takes a multi-faceted approach to memory safety, combining compile-time checks, runtime mitigations (like `safeArray` and `trackedPtr`), and a *strong emphasis on compile-time dangling pointer prevention with `scopedPtr` and compile-time capability enforcement with capability-based pointers*.  While no system can guarantee absolute safety in all scenarios, especially in bare metal, BML strives to provide practical and performant tools to significantly reduce common memory-related errors.  Developer discipline and understanding of memory management principles remain crucial, even with BML's safety features, but `scopedPtr` offers a powerful, zero-cost tool for scope-bound pointer safety, capability-based pointers offer zero-cost access control, and `trackedPtr` offers runtime safety for critical sections.  **Extreme caution must be exercised when using raw pointers (`DataType^`) and the `raw byte` type, as these bypass BML's type safety mechanisms and require manual safety management. *Use `raw byte` and `DataType^` only as a last resort and with meticulous validation.***
-
-    **Why Memory Safety is a Challenge in Bare Metal:** Bare metal environments present unique challenges to memory safety that are less prominent in higher-level, OS-managed systems:
-
-    *   **No Memory Protection Unit (MMU) in Simple Microcontrollers:** Many smaller microcontrollers (e.g., ARM Cortex-M0/M3) lack a Memory Management Unit (MMU). Without an MMU, there is no hardware-enforced memory protection between different parts of the program or between different tasks. A memory error in one part of the code can easily corrupt memory used by other parts, leading to unpredictable behavior and crashes.
-    *   **Direct Memory Access:** Bare metal code often directly accesses memory addresses, including memory-mapped peripheral registers.  Incorrect address calculations, off-by-one errors, or using the wrong pointer type can lead to unintended memory writes, corrupting data or system state.
-    *   **Manual Memory Management (Often Implicit):** While BML provides region-based memory management, memory allocation is often more implicit in bare metal than in languages with automatic garbage collection or dynamic allocation.  Region lifetimes are tied to scope, but developers still need to understand region semantics and avoid exceeding region bounds. Memory leaks (in the traditional sense of heap leaks) are less of a concern with region-based management, but other forms of memory mismanagement are possible.
-    *   **Concurrency and Shared Memory:** Bare metal systems are increasingly multi-core or concurrent.  Without careful synchronization, concurrent access to shared memory can lead to data races and memory corruption.
-    *   **Security Implications:** Memory errors in bare metal systems can have serious security implications, potentially leading to vulnerabilities that can be exploited by attackers to gain control of the system or compromise sensitive data. Buffer overflows, for example, are a classic vulnerability in embedded systems.
-
-    **Example:** The `safeArray` type in BML is designed to prevent buffer overflows by ensuring that array bounds are checked at runtime (or compile time whenever possible, and with potential for runtime check elimination via abstract interpretation in future versions). Buffer overflows are a frequent source of crashes and security vulnerabilities in embedded systems, and `safeArray` provides a robust defense against them, significantly improving system stability and security. While not providing complete formal memory safety guarantees like some higher-level languages, BML actively mitigates common memory errors through language features and coding practices, and strives to maximize compile-time safety checks whenever feasible.  **In cases where runtime bounds checks in `safeArray` fail, or `trackedPtr` invariants are violated, the BML runtime environment (if present, as in non-bare-metal scenarios) will typically trigger a runtime error or exception, leading to program termination to prevent further memory corruption. In true bare metal scenarios without a runtime environment, the behavior upon such errors is platform-dependent and may result in program termination or undefined behavior. Robust error handling in boot code and critical sections is paramount (see "Error Handling in Boot Code" in the Appendix below).** Consider a scenario where a developer is processing sensor data and storing it in an array:
-
-    ```baremetal
-    @arc arm {
-        declarations {
-            safeArray<uint16, 100> sensorReadings; // Safe array for sensor readings - Bounds checked
-            uint32 readingIndex;
-        }
-        function void processSensorData(uint16 sensorValue) {
-            if (readingIndex < sensorReadings.size()) { // Explicit bounds check (redundant but illustrative - safeArray provides implicit checks)
-                sensorReadings[readingIndex] = sensorValue; // Safe access - Bounds checked by safeArray
-                readingIndex++;
-            } else {
-                // Error handling - Buffer overflow condition (though safeArray prevents this in normal usage)
-                uartSendString("Sensor data buffer overflow!\n");
-            }
-        }
-    }
-    ```
-
-    In this example, `sensorReadings` is declared as a `safeArray`. Even though the code includes an explicit bounds check (for illustration), the `safeArray` itself guarantees runtime bounds checking. If `readingIndex` were to exceed the array bounds due to a programming error, a runtime error would be triggered by the `safeArray` access, preventing a buffer overflow and potential memory corruption.  This runtime check, while introducing a small overhead, is a crucial safety net in bare metal environments where memory errors can be catastrophic. BML strives to maximize compile-time safety checks, and in many cases, bounds checks for `safeArray` can be optimized away at compile time when the compiler can statically prove that accesses are always within bounds. **Furthermore, with future advancements in abstract interpretation integration, BML aims to achieve formal compile-time proofs of memory safety for even more code sections, enabling automatic elimination of runtime checks and truly zero-overhead safety in proven-safe code.**
-
-*   **Multi-Target Architecture Versatility:** BML is fundamentally designed to be architecture-agnostic at the source code level. This architectural neutrality empowers developers to write code that can be compiled and executed across a wide range of processor architectures (e.g., ARM, RISC-V, x86) with minimal, or ideally no, code modifications. This cross-architecture compatibility significantly reduces the effort required for porting code and promotes extensive code reuse across different projects and hardware platforms.  CAMs further enhance multi-targeting by providing architecture-specific implementations and optimizations, ensuring that BML code is not only portable but also performs optimally on each target architecture.  Multi-targeting capabilities and architecture blocks are detailed in Section 7.
-
-    **Why Multi-Targeting is Essential for Embedded Systems:** The embedded systems landscape is incredibly diverse, with a vast array of processor architectures used in different applications.  Multi-targeting is crucial for several reasons:
-
-    *   **Hardware Platform Choice:** Developers often need to choose the best hardware platform for a specific embedded application based on factors like performance requirements, power consumption, cost, and available peripherals.  Multi-targeting allows them to select the optimal architecture without rewriting their entire codebase.
-    *   **Code Reusability Across Projects:**  Organizations often work on multiple embedded projects targeting different architectures. Multi-targeting enables code reuse across projects, saving development time and effort. Common algorithms, data structures, and even higher-level application logic can be shared across platforms.
-    *   **Ecosystem Diversity (ARM, RISC-V, x86):**  The embedded market is not dominated by a single architecture. ARM, RISC-V, and x86 (in embedded forms) are all significant players.  Multi-targeting ensures that BML can be used effectively across this diverse ecosystem.
-    *   **Future-Proofing Code:**  Hardware architectures evolve over time.  Multi-targeting helps future-proof codebases, making it easier to adapt to new architectures or migrate to more advanced platforms as they become available.
-    *   **CAM Ecosystem Portability:**  A thriving CAM ecosystem relies on multi-targeting. CAMs are designed to provide architecture-specific implementations while maintaining a common interface.  Multi-targeting ensures that CAMs can be reused across different architectures, maximizing their value and promoting code sharing.
-
-    **Example:** A BML program designed to control a generic sensor, including performance-critical data processing loops, can be compiled for both an ARM Cortex-M microcontroller and a RISC-V processor with only minimal changes, primarily confined to architecture blocks used for platform-specific adaptations. CAMs can provide architecture-specific sensor driver implementations and optimization passes that leverage unique features of each architecture (e.g., ARM NEON vector instructions for signal processing, RISC-V custom extensions). This greatly reduces the burden of maintaining separate codebases for different architectures, accelerating development and reducing maintenance costs.  Compared to architecture-specific languages or codebases, BML's multi-targeting, enhanced by CAM-driven architecture specialization, significantly enhances portability and reduces development overhead while ensuring optimal performance on each platform.  Consider a sensor driver CAM designed for a generic I2C sensor:
-
-    ```baremetal
-    module GenericI2cSensorDriver {
-        export {
-            functions { sensorInit, readSensorData, writeSensorConfig }
-        }
-        config {
-            config i2cBusInstance : string = "I2C0";
-            config sensorAddress : uint8 = 0x40;
-        }
-        @arc arm { // ARM-specific implementation
-            statements {
-                intrinsic function void sensorInit() { /* ARM-specific I2C sensor initialization - Uses ARM I2C peripheral intrinsics */ }
-                intrinsic function uint16 readSensorData() -> uint16 { /* ARM-specific I2C sensor data read - Uses ARM I2C peripheral intrinsics and optimized data transfer */ return 0; }
-                intrinsic function void writeSensorConfig(uint8 configData) { /* ARM-specific I2C sensor config write - Uses ARM I2C peripheral intrinsics */ }
-            }
-        }
-        @arc riscv { // RISC-V specific implementation
-            statements {
-                intrinsic function void sensorInit() { /* RISC-V specific I2C sensor initialization - Uses RISC-V I2C peripheral intrinsics */ }
-                intrinsic function uint16 readSensorData() -> uint16 { /* RISC-V specific I2C sensor data read - Uses RISC-V I2C peripheral intrinsics and optimized data transfer */ return 0; }
-                intrinsic function void writeSensorConfig(uint8 configData) { /* RISC-V specific I2C sensor config write - Uses RISC-V peripheral intrinsics */ }
-            }
-        }
-    }
-    ```
-
-    This `GenericI2cSensorDriver` CAM provides architecture-specific implementations within `@arc arm` and `@arc riscv` blocks. The user code using this CAM via `#use module "GenericI2cSensorDriver"` remains architecture-agnostic. When compiled for ARM, the ARM-specific implementation within the CAM is used; when compiled for RISC-V, the RISC-V implementation is used. This ensures portability and optimal performance on each platform without requiring changes to the user code that *uses* the CAM.
-
-*   **Modularity and Reusability through CAMs:** Composable Architecture Modules (CAMs) are central to the BML ecosystem. CAMs are more than just libraries; they are ArchitectureCentric, FeatureOriented, and CompilerExtensible units of functionality, specifically designed to empower developers in building complex, dependable, and concurrent systems from reusable, pre-verified, and crucially, safe components. They foster code modularity, promote extensive reusability, and provide a structured framework for compiler extensibility. CAMs enable component-based development, making it easier to build complex systems from well-defined, pre-verified modules. This approach accelerates development cycles and improves overall code quality by leveraging a vibrant ecosystem of reusable components.  Furthermore, CAMs are elevated to "optimization engines," injecting domain-specific and hardware-aware optimizations directly into the compiler pipeline, ensuring that BML code is not only modular and reusable but also achieves peak performance on each target architecture.  Composable Architecture Modules (CAMs) are discussed comprehensively in Section 5.  While CAMs are fundamental to BML's advanced features and optimization capabilities, the core BML language is designed to be robust and functional even without extensive CAM usage.  The core language provides a solid foundation for bare metal programming with static typing, essential data types, control flow, functions, and basic hardware interaction directives. CAMs *extend* this baseline functionality by offering pre-built modules for common peripherals, algorithms, and system components, and they *optimize* BML code through domain-specific optimizations and hardware-aware code generation. Developers can leverage CAMs to accelerate development and achieve peak performance, but it is not mandatory for utilizing the basic functionalities of BML for smaller or simpler embedded projects. BML aims to strike a balance between a functional core language and a powerful, extensible CAM ecosystem. A thriving ecosystem of CAMs is envisioned, encompassing modules for device drivers (UART, SPI, I2C, Ethernet, USB, etc.), communication protocols (TCP/IP, CAN, etc.), DSP algorithms (FFT, filters, etc.), real-time operating system components (schedulers, memory managers, etc.), and domain-specific libraries.  The process for developers to create and contribute CAMs is detailed in the "BML CAM Development Guide" document (available at: [https://www.baremetallanguage.org/cam-development-guide-v1.5](https://www.baremetallanguage.org/cam-development-guide-v1.5)).
-
-    **Why Modularity and Reusability are Key in Software Engineering (Especially Embedded):** Modularity and reusability are fundamental principles in software engineering, and they are even more critical in the context of embedded systems development:
-
-    *   **Complexity Management:** Embedded systems are often complex, involving intricate hardware interactions, real-time constraints, and diverse functionalities. Modularity breaks down complex systems into smaller, more manageable, and understandable modules (CAMs in BML's case). This reduces cognitive load, simplifies development, and makes it easier to reason about and maintain the code.
-    *   **Code Reuse and Reduced Development Time:** Reusable components (CAMs) eliminate the need to "reinvent the wheel" for common functionalities. Device drivers, communication protocols, algorithms, and data structures can be packaged as CAMs and reused across multiple projects. This significantly reduces development time, effort, and costs.
-    *   **Improved Code Quality and Reliability:** Reusable CAMs are typically developed and tested more rigorously than code written from scratch for each project.  By leveraging pre-verified and well-tested CAMs, developers can improve the overall quality and reliability of their embedded systems.
-    *   **Ecosystem Building and Collaboration:** A vibrant ecosystem of CAMs fosters collaboration and knowledge sharing within the BML community. Developers can contribute CAMs, share best practices, and build upon each other's work, accelerating innovation and creating a rich library of reusable components.
-    *   **Maintainability and Evolution:** Modular code is easier to maintain and evolve over time. Changes or updates to one module (CAM) are less likely to impact other parts of the system, reducing the risk of introducing bugs and simplifying long-term maintenance.
-
-*   **Readability and Maintainability Focus:** BML syntax is meticulously designed for clarity and conciseness. The language prioritizes code readability and maintainability, aiming to provide a significantly improved developer experience compared to the often cryptic nature of assembly language or the verbosity of other low-level languages. Clear syntax reduces cognitive load, minimizes errors, and simplifies long-term code management, making it easier for developers to understand, modify, and maintain BML codebases over time.  The structured nature of BML, combined with features like MMR Blocks and `@boot` functions, further enhances readability and maintainability, especially in low-level and boot code, traditionally domains where assembly language's inherent complexity often hinders comprehension and modification.
-
-    **Why Readability and Maintainability are Crucial for Long-Term Success:** While performance and low-level control are essential in bare metal, readability and maintainability are equally important for the long-term success of embedded projects:
-
-    *   **Reduced Development Time and Errors:** Readable code is easier to understand and write correctly in the first place. Clear syntax, structured control flow, and meaningful naming conventions reduce the likelihood of introducing bugs and accelerate the development process.
-    *   **Simplified Debugging and Testing:** Readable code is significantly easier to debug. When errors do occur, clear and well-organized code makes it faster to identify the root cause and implement fixes.  Testing is also simplified when code is modular and easy to understand.
-    *   **Team Collaboration and Knowledge Transfer:** In team-based projects, readability is paramount for effective collaboration.  Developers need to be able to understand and modify code written by others.  Readable code facilitates knowledge transfer, onboarding new team members, and code reviews.
-    *   **Long-Term Code Evolution and Maintenance:** Embedded systems often have long lifecycles, requiring maintenance and updates over many years.  Readable and well-maintained codebases are much easier to evolve, adapt to changing requirements, and fix bugs over the long term.  Unreadable "spaghetti code" becomes a maintenance nightmare.
-    *   **Reduced Technical Debt:**  Unreadable and unmaintainable code contributes to technical debt, making future development and maintenance increasingly costly and risky.  Prioritizing readability and maintainability from the start helps minimize technical debt and ensures the long-term health of embedded projects.
-
-    **Example:** BML's structured control flow statements (`if`, `while`, `for`) and function definitions promote well-organized and readable code compared to unstructured assembly language or verbose low-level C code. This structured approach makes BML code easier to understand and debug, especially in complex embedded systems with intricate control logic and performance-critical loops, reducing development time and improving long-term maintainability.  Compared to assembly language and verbose C, BML's syntax prioritizes readability and ease of maintenance for embedded systems code, even for highly optimized, low-level routines. **While BML offers a `goto` statement for exceptional low-level control and error handling scenarios, its use is STRONGLY DISCOURAGED.  Overuse of `goto` can severely hinder code readability, maintainability, and increase debugging difficulty, leading to unstructured "spaghetti code."  Prioritize structured control flow using `if`, `for`, `while`, and `switch` whenever possible.  Only resort to `goto` when structured approaches become demonstrably inadequate or inefficient for specific, well-justified low-level control or error handling needs, typically within `archCodeBlock` or `@boot` functions.  When using `goto`, always document its purpose clearly and restrict its scope to a small, localized code section.  In general, strive for code that is self-documenting through clear naming conventions, modular function design, and effective use of comments to explain complex logic or hardware interactions.  Adopt consistent coding styles and formatting conventions within BML projects to further enhance readability and maintainability for collaborative development and long-term code evolution.**
-
-*   **Tooling and Debugging Excellence:** BML recognizes that effective development critically depends on robust tooling and debugging capabilities. The language is designed to facilitate seamless source-level debugging, enabling developers to step through BML code, inspect variables, and understand program flow directly at the source level. It also provides mechanisms for assembly-level inspection **(for advanced users who require it)** when granular hardware interaction or performance analysis is needed. BML aims for robust integration with standard debugging tools and environments, ensuring a productive and efficient development workflow from coding to debugging and testing.  Future development includes plans for dedicated IDE plugins (like a BML plugin for VS Code) and enhanced debugger features to further streamline the development process. Tooling and debugging capabilities are detailed in Section 10.
-
-    **Why Tooling and Debugging are Paramount for Developer Productivity:** Even the most powerful language is ineffective without excellent tooling and debugging support.  Robust tooling is essential for maximizing developer productivity and ensuring code quality in embedded systems development:
-
-    *   **Faster Development Cycles:**  Good tooling accelerates the entire development cycle, from writing code to testing, debugging, and deployment.  Features like syntax highlighting, code completion, integrated build systems, and debuggers streamline the workflow and reduce development time.
-    *   **Reduced Debugging Time and Effort:** Debugging embedded systems can be notoriously challenging, often involving hardware-in-the-loop debugging and complex interactions between software and hardware.  Powerful debuggers that allow source-level stepping, variable inspection, and memory analysis are crucial for quickly identifying and fixing bugs.
-    *   **Improved Code Quality and Reliability:** Static analysis tools, linters, and integrated testing frameworks help developers catch errors early in the development process, before they manifest as runtime bugs. This leads to higher code quality and more reliable embedded systems.
-    *   **Enhanced Developer Experience:** A user-friendly and well-integrated development environment makes coding more enjoyable and less frustrating.  Features like IDE plugins, code navigation, and refactoring tools improve the overall developer experience and boost productivity.
-    *   **Easier Onboarding and Learning:** Good tooling makes it easier for new developers to learn BML and become productive quickly.  Well-documented tools, tutorials, and examples lower the learning curve and accelerate adoption.
-
-    **Example:** A BML debugger allows setting breakpoints directly in BML source code, inspecting variables by name, and stepping through code at the BML source level, even within performance-critical loops or boot sequences implemented using `@boot` functions. This greatly simplifies the debugging process compared to relying solely on assembly-level debugging, which can be time-consuming and error-prone.  Furthermore, the debugger provides a mixed-level view, allowing seamless transition between source and assembly code for detailed analysis when needed, especially when investigating the impact of loop optimizations or CAM-driven code generation.  BML aims to provide a modern debugging experience for bare metal development, bridging the gap between high-level source and low-level hardware interaction.
-
-*   **Concurrency and Parallelism Integration:** BML embraces the increasing prevalence of multi-core architectures in embedded systems and the growing demand for concurrent real-time applications. It incorporates explicit language constructs for concurrency and parallelism, enabling developers to effectively harness the power of multi-core processors in a safe and efficient manner. These features, including threads, parallel blocks, `await`, and `yield`, are designed to be seamlessly integrated within the bare metal context and are further extensible and customizable through Composable Architecture Modules (CAMs). Concurrency support in BML prioritizes both performance and safety, providing primitives that facilitate robust and predictable concurrent execution even in resource-constrained environments. Robust concurrency management and safety are paramount design goals for BML.  CAMs can provide specialized concurrency abstractions and optimization passes tailored to specific multi-core architectures or concurrency models, further enhancing BML's concurrency capabilities and performance.  BML’s concurrency model and CAM-driven concurrency extensions are detailed in Section 2 and Section 5.5.  BML’s concurrency model, in its baseline implementation, employs a cooperative multitasking approach for threads. Threads voluntarily yield control using `yield` or `await` keywords, allowing other threads to execute. This model is well-suited for real-time embedded systems where predictable execution and minimal context switching overhead are critical. However, the actual scheduling policy and underlying implementation details are intended to be configurable and potentially extensible through Concurrency CAMs.  This allows for customization based on target architecture capabilities and application real-time requirements.  For multi-core architectures, the `parallel` block provides a hint for potential parallel execution, but the actual level of parallelism achieved is dependent on the target hardware and the capabilities of the concurrency CAM used.  BML aims to provide primitives for building robust concurrent systems but may not offer strict real-time guarantees in the core language itself.  Real-time capabilities and deterministic behavior are intended to be enhanced and guaranteed through specialized Real-Time CAMs that can provide priority-based scheduling, deterministic synchronization primitives, and mechanisms for analyzing and bounding worst-case execution times.  The memory model for concurrent BML programs is intended to be sequentially consistent by default, with memory barriers (`#operation memoryBarrier`) provided for enforcing specific memory ordering when needed, particularly in multi-core and hardware interaction scenarios.  BML's concurrency features are implemented directly within the compiler and runtime library (if a minimal runtime is needed for certain features like thread creation and synchronization primitives).  In true bare metal scenarios, BML concurrency features operate without relying on a traditional operating system kernel.  Thread context switching, synchronization primitives (mutexes, semaphores), and await/yield mechanisms are implemented through compiler-generated code and minimal runtime support library functions, ensuring low overhead and predictable execution behavior, essential for real-time embedded systems. **BML is designed to enable the development of Unix-like operating systems for bare metal environments, supporting x64, ARM, and RISC-V architectures.  While BML itself is not a full-fledged OS, its features and CAM extensibility make it an ideal language for building key OS components and abstractions.  A "Bare Metal Unix CAM" (BMUnixCAM) is envisioned as a flagship CAM for BML, providing a foundation for Unix-like OS development.  BMUnixCAM would offer:**
-
-    *   **Process and Thread Management:** Abstractions for processes and preemptive threads, including process creation, thread spawning, scheduling policies (priority-based, time-sliced), and inter-process communication (IPC) mechanisms.
-    *   **Virtual Memory Management:**  CAM-provided virtual memory management unit (MMU) drivers and abstractions, enabling memory protection, address space isolation, and demand paging (for more advanced OS features).
-    *   **File System Abstraction:**  A virtual file system (VFS) layer and CAMs for implementing various file systems (e.g., FAT32, ext2, lightweight embedded file systems), allowing BML applications to interact with storage devices in a portable and structured manner.
-    *   **Networking Stack CAMs:**  Integration with networking stack CAMs (e.g., lwIP CAM) to provide TCP/IP networking capabilities, enabling BML-based embedded devices to communicate over networks.
-    *   **Device Driver Framework:** A structured device driver framework within the BMUnixCAM, simplifying the development and integration of device drivers for various hardware peripherals.  CAM-provided device drivers would encapsulate hardware-specific details, offering a consistent and portable API for BML applications.
-    *   **Shell and Utilities:** A basic command-line shell and essential Unix utilities (e.g., `ls`, `cat`, `mkdir`, basic system configuration tools) implemented in BML, providing a functional user interface for the bare metal OS.
-    *   **Performance Optimization Focus:** The BMUnixCAM would be designed with a strong emphasis on performance and minimal overhead, leveraging BML's optimization capabilities and hardware-specific features to create a fast and efficient bare metal OS foundation.
-
-    **By leveraging BML and the BMUnixCAM, developers can build custom bare metal operating systems tailored to specific embedded application needs, achieving a balance of high-level programmability, low-level control, and optimal performance, rivaling hand-optimized assembly-level OS implementations.  BML and BMUnixCAM are intended to empower the creation of production-ready bare metal operating systems for a wide range of embedded platforms, from resource-constrained microcontrollers to powerful multi-core processors.** **BML's concurrency model and CAM ecosystem are designed to enable efficient and predictable concurrent execution with minimal runtime overhead, critical for real-time bare metal systems.**
-
-    **Why Concurrency and Parallelism are Increasingly Important in Embedded Systems:** Concurrency and parallelism are no longer just features for high-performance computing; they are becoming increasingly essential in modern embedded systems:
-
-    *   **Multi-Core Microcontrollers and Processors:** Multi-core architectures are becoming more common in embedded systems, even in microcontrollers. To fully utilize the processing power of multi-core chips, applications need to be designed for concurrency and parallelism.
-    *   **Complex Real-Time Applications:** Many embedded applications are becoming more complex and demanding, requiring real-time responsiveness and the ability to handle multiple tasks concurrently. Real-time control systems, robotics, industrial automation, and advanced sensor processing often require concurrent execution of different tasks.
-    *   **Improved Responsiveness and Throughput:** Concurrency allows applications to be more responsive to user input or external events. Parallelism can significantly increase system throughput for computationally intensive tasks by distributing the workload across multiple processor cores.
-    *   **Event-Driven Programming:** Many embedded systems are event-driven, reacting to asynchronous events from sensors, peripherals, or networks. Concurrency primitives (threads, semaphores, await/yield) are essential for managing event-driven applications and handling asynchronous operations efficiently.
-    *   **Operating System Development:** Building a modern operating system (even a bare metal OS) requires robust concurrency management. OS kernels need to handle multiple processes, threads, interrupts, and system calls concurrently and safely.
-
-    **Example:** Using BML's `thread` statement, developers can create concurrent tasks that run in parallel on a multi-core processor, improving application responsiveness and overall system throughput, even for performance-intensive concurrent algorithms. Mutexes and semaphores provide the necessary synchronization mechanisms for safe concurrent access to shared resources, preventing data races and ensuring data integrity in concurrent programs. The `parallel` block allows for structured concurrency, while `await` and `yield` enable fine-grained control over asynchronous operations and cooperative multitasking within threads.  CAMs can provide optimized implementations of synchronization primitives, potentially leveraging hardware-specific features for efficient inter-thread communication and synchronization in performance-critical concurrent applications.  BML aims for robust concurrency management and safety to enable the development of reliable concurrent embedded systems. BML's concurrency features are designed to be both performant and safe within the constraints of bare metal environments, enabling developers to build modern concurrent embedded applications with demanding performance requirements.  Consider a real-time control system running on a multi-core processor where multiple tasks need to execute concurrently:
-
-    ```baremetal
-    @arc multiCoreArm { // Example for a multi-core ARM architecture
-        declarations {
-            mutex sharedDataMutex; // Mutex for protecting shared data
-            semaphore dataReadySemaphore(0); // Semaphore for signaling data availability
-            ~uint32 sharedData; // Shared mutable data
-        }
-
-        function void dataProducerThread() { // Data producer thread - Example producer thread
-            while (true) {
-                uint32 newData = readSensorData(); // Read new data from sensor - Example sensor read function
-                lock(sharedDataMutex); // Acquire mutex - Protect shared data access
-                sharedData = newData; // Update shared data
-                unlock(sharedDataMutex); // Release mutex
-                signal(dataReadySemaphore); // Signal data availability to consumer thread
-                sleepThread(100); // Sleep for 100ms - Example thread sleep
-            }
-        }
-
-        function void dataConsumerThread() { // Data consumer thread - Example consumer thread
-            while (true) {
-                wait(dataReadySemaphore); // Wait for data to become available - Block until data is ready
-                lock(sharedDataMutex); // Acquire mutex - Protect shared data access
-                uint32 dataToProcess = sharedData; // Read shared data
-                unlock(sharedDataMutex); // Release mutex
-                processData(dataToProcess); // Process the received data - Example data processing function
-            }
-        }
-
-        function void controlLoopThread() { // Control loop thread - Example control thread
-            while (true) {
-                // ... read sensor inputs ... - Read sensor inputs
-                // ... perform control calculations ... - Perform control algorithm calculations
-                // ... actuate control outputs ... - Actuate control outputs
-                sleepThread(10); // Sleep for 10ms - Example control loop frequency
-            }
-        }
-
-        statements {
-            sharedDataMutex = mutex(); // Initialize mutex
-            thread producer thread dataProducerThread(); // Create producer thread
-            thread consumer thread dataConsumerThread(); // Create consumer thread
-            thread controller thread controlLoopThread(); // Create control loop thread
-            // All threads run concurrently on multi-core processor
-        }
-    }
-    ```
-
-    In this example, three threads are created: `producer`, `consumer`, and `controller`, running concurrently. A `mutex` and `semaphore` are used for thread synchronization and safe shared data access. The `parallel` block (though not explicitly used in this example, it could be used for parallelizing sections within the `controlLoopThread` or `processData` function) and `await`/`yield` (not used here but could be employed for asynchronous I/O operations within threads) provide further concurrency control and potential parallelism. BML's concurrency features enable developers to build complex concurrent embedded applications with clear and structured concurrency management, ensuring both performance and safety in multi-threaded bare metal systems. **The memory model for concurrency in BML is sequentially consistent by default, ensuring predictable behavior in multi-threaded code. Memory barriers (`#operation memoryBarrier`) are available for fine-grained control over memory ordering when needed in advanced concurrent scenarios or hardware interactions. Developers should carefully consider memory barriers when dealing with shared mutable data in multi-core systems or when interacting with memory-mapped peripherals from multiple threads to prevent data races and ensure data consistency.  CAMs can provide further abstractions and utilities for concurrent programming, potentially offering higher-level synchronization primitives or patterns tailored to specific application needs or hardware architectures.**
-
-### 3. Core Language Features
-
-*   **Static Typing Discipline:** BML is a statically typed language. This fundamental design choice enables rigorous compile-time type checking. The compiler meticulously verifies type correctness before code generation, facilitating early error detection and significantly enhancing code reliability. Static typing catches type-related errors during compilation, preventing them from manifesting as runtime bugs, which are often more difficult and costly to debug in embedded systems.
-
-    **Why Static Typing is Critical for Bare Metal:** Static typing is particularly beneficial in bare metal environments where runtime debugging can be challenging and errors can have severe consequences:
-
-    *   **Early Error Detection:** Static typing catches type errors at compile time, before the code is even run on the target hardware. This allows developers to fix errors early in the development cycle, saving significant debugging time and effort.
-    *   **Improved Code Reliability:**  Static typing helps prevent a wide range of common programming errors related to type mismatches, incorrect data usage, and unexpected type conversions. This results in more robust and reliable code, reducing the risk of runtime crashes or unexpected behavior.
-    *   **Enhanced Code Maintainability:** Statically typed code is often easier to understand and maintain. Type annotations make the code more self-documenting, clearly specifying the expected data types for variables, function parameters, and return values. This improves code readability and reduces the cognitive load for developers working with the codebase.
-    *   **Compiler Optimizations:** Static type information enables the compiler to perform more aggressive optimizations.  Knowing the data types allows the compiler to generate more efficient machine code, optimize memory access, and perform type-specific optimizations that would not be possible in a dynamically typed language.
-    *   **Reduced Runtime Overhead:** Static typing eliminates the need for runtime type checks, which are necessary in dynamically typed languages. This reduces runtime overhead and improves performance, which is crucial in resource-constrained embedded systems.
-
-    **Example:**
-    ```baremetal
-    @arc arm {
-        declarations {
-            uint32 counter;
-        }
-        statements {
-            counter = 10; // Correct: assigning integer to uint32
-            // counter = "hello"; // Compile-time error: type mismatch (string to uint32)
-        }
-    }
-    ```
-    In this example, assigning an integer value (`10`) to a `uint32` variable (`counter`) is valid and type-correct, while attempting to assign a string literal (`"hello"`) to the same `uint32` variable results in a compile-time error, preventing a potential runtime type mismatch error. Static typing ensures that type-related errors are caught during compilation, improving code robustness and preventing unexpected runtime behavior.
-
-*   **Comprehensive Data Type System:** BML provides a rich palette of built-in data types, specifically chosen for their relevance and efficiency in embedded systems programming:
-    *   **Integer Types (Signed and Unsigned):** `int8`, `uint8`, `int16`, `uint16`, `int32`, `uint32`, `int64`, `uint64`. These types represent signed and unsigned integers of varying bit widths (8-bit, 16-bit, 32-bit, and 64-bit). They offer developers precise control over integer representation and memory usage, which is crucial in resource-constrained environments where memory efficiency is paramount. These types can represent numbers up to the maximum values defined by their respective bit widths, with the choice depending on the required range and memory footprint.  This direct mapping of data types to specific memory representations is a key characteristic of languages designed for systems-level and embedded development.
-
-        **Why Specific Integer Types are Essential in Bare Metal:** In bare metal programming, the precise size and representation of integer data types are critical for several reasons:
-
-        *   **Memory Efficiency:** Embedded systems often have very limited memory resources. Using the smallest integer type that can represent the required range of values (e.g., `uint8` for values 0-255) is essential to conserve memory and optimize resource utilization.
-        *   **Hardware Register Compatibility:** Hardware registers in peripherals and memory-mapped devices often have specific bit widths (8-bit, 16-bit, 32-bit). Using integer types that match the register widths ensures efficient and correct hardware interaction.
-        *   **Data Alignment and Packing:**  Integer type sizes affect data alignment and packing in memory. Choosing appropriate integer types can optimize memory layout for cache efficiency and reduce memory access overhead.
-        *   **Bit Manipulation and Bitfields:** Low-level programming often involves bit manipulation and working with bitfields within registers or data structures.  Precise integer types allow for efficient bitwise operations and manipulation of individual bits or bit ranges.
-        *   **Avoiding Unintentional Overflow or Truncation:** Using the correct integer type prevents unintentional integer overflow or truncation errors. For example, using a `uint8` when the value might exceed 255 can lead to data loss or incorrect calculations.
-
-        **Example:**
-        ```baremetal
-        @arc arm {
-            declarations {
-                uint8  smallValue;
-                uint16 sensorValue;
-                uint32 largeCounter;
-            }
-            statements {
-                smallValue = 255; // Maximum value for uint8 - Valid assignment
-                sensorValue = 2048; // Valid assignment for uint16
-                largeCounter = 1000000; // Valid assignment for uint32
-                // smallValue = 300; // Compile-time error: Value out of range for uint8 (0-255)
-            }
-        }
-        ```
-        In this example, `smallValue` is declared as `uint8`, capable of holding values from 0 to 255. Assigning `255` is valid, while attempting to assign `300` (which is out of the `uint8` range) would result in a compile-time error, preventing potential data truncation or overflow issues at runtime.  BML's integer type system ensures that integer values are represented accurately and efficiently, and that out-of-range assignments are detected during compilation, enhancing code correctness and preventing unexpected integer overflow or truncation errors.
-
-    *   **Floating-Point Types:** `float32`, `float64`. These types represent floating-point numbers according to the IEEE 754 standard.
-        *   `float32` (Single-precision floating-point): Represents single-precision floating-point numbers. Suitable for general-purpose floating-point calculations where memory efficiency is important. `float32` provides approximately 7 decimal digits of precision and is typically represented using 32 bits of memory.  Example literals: `3.14f`, `-2.7f`, `1.0e6f`.
-        *   `float64` (Double-precision floating-point): Represents double-precision floating-point numbers. Provides higher precision for demanding numerical computations. `float64` provides approximately 15-16 decimal digits of precision and is typically represented using 64 bits of memory. Example literals: `3.14159d`, `-2.71828d`, `6.022e23d`.
-
-        **When to Use Floating-Point Types in Bare Metal:** While integer types are often preferred for performance and efficiency in bare metal, floating-point types are essential for certain applications:
-
-        *   **Sensor Data Processing:** Many sensors (e.g., accelerometers, gyroscopes, temperature sensors, pressure sensors) output data in floating-point format or require floating-point calculations for data processing, filtering, or sensor fusion algorithms.
-        *   **Control Systems:** Advanced control algorithms, especially in areas like robotics, aerospace, and industrial automation, often rely heavily on floating-point math for representing continuous variables, performing complex calculations, and implementing control laws.
-        *   **Signal Processing (DSP):** Digital Signal Processing (DSP) algorithms, such as audio processing, image processing, and communication systems, frequently involve floating-point arithmetic for filtering, transformations (e.g., FFT), and other signal manipulation tasks.
-        *   **Scientific and Engineering Applications:** Embedded systems used in scientific instrumentation, data acquisition, and engineering simulations may require floating-point types for accurate representation and computation of physical quantities.
-
-        **Example:**
-        ```baremetal
-        @arc arm {
-            declarations {
-                float32 singlePrecisionValue;
-                float64 doublePrecisionValue;
-            }
-            statements {
-                singlePrecisionValue = 3.14159f; // Single-precision float literal - 'f' suffix
-                doublePrecisionValue = 2.718281828459045d; // Double-precision float literal - 'd' suffix
-                // float32 largeDoubleValue = 3.14159265358979323846d; // Compile-time warning: potential loss of precision (double to float32)
-            }
-        }
-        ```
-        In this example, `singlePrecisionValue` is assigned a single-precision float literal (suffix `f`), and `doublePrecisionValue` is assigned a double-precision float literal (suffix `d`). Attempting to assign a double-precision literal to a `float32` variable might result in a compile-time warning, alerting the developer to potential loss of precision due to type conversion. BML's floating-point types adhere to the IEEE 754 standard, ensuring consistent and predictable floating-point behavior across different architectures, and providing developers with the choice of precision based on application requirements and memory constraints.
-
-    *   **Address Types (Semantic Distinction):** `address`, `codeAddress`, `dataAddress`, `genericAddress`, `bootAddress`. These types are specifically designed for representing memory addresses. They provide semantic distinctions between different types of addresses: `codeAddress` for addresses pointing to executable code, `dataAddress` for addresses pointing to data, `genericAddress` for addresses without a specific semantic type, and **`bootAddress` specifically for addresses used in boot code, potentially with stricter alignment or memory region constraints.** The `address` type serves as a general-purpose address type. This type system enhances type safety and allows the compiler to perform address-related optimizations and checks, ensuring that pointers are used correctly and safely within the system.
-
-        **Why Semantic Address Types are Important in Bare Metal:** In bare metal programming, memory addresses are not just raw numbers; they have semantic meaning based on *what* they point to.  BML's semantic address types help enforce this meaning and improve code safety and clarity:
-
-        *   **Type Safety for Pointers:**  Distinguishing between `codeAddress` and `dataAddress` enhances type safety. The compiler can prevent accidental attempts to treat code as data or data as code, reducing the risk of memory corruption or security vulnerabilities.  This semantic distinction helps enforce the principle of least privilege and prevents unintended operations on different memory regions.
-        *   **Code and Data Separation:**  In many embedded architectures, code and data are stored in separate memory regions (e.g., Flash memory for code, SRAM for data). Semantic address types reinforce this separation at the type level, making it clearer in the code which pointers are intended for code and which are for data.
-        *   **Boot Code Address Semantics:**  `bootAddress` provides a specialized type for addresses used in boot code. Boot code often has stricter memory alignment requirements or may need to reside in specific memory regions (e.g., ROM, Flash). `bootAddress` can be used to enforce these constraints and improve the robustness of boot code.
-        *   **Compiler Optimizations:** Semantic address types can enable the compiler to perform address-related optimizations.  For example, the compiler might be able to make assumptions about memory access patterns or pointer aliasing based on whether a pointer is declared as `codeAddress` or `dataAddress`.
-        *   **Clarity and Intent:** Using semantic address types improves code readability and clarifies the programmer's intent.  When a developer declares a pointer as `codeAddress`, it immediately signals to other developers (and to the compiler) that this pointer is intended to point to executable code.
-
-    **Pointer Type Conversions:** BML provides explicit functions for safe and semantically meaningful conversions between address types, replacing potentially unsafe C-style casts for pointer type transformations. These functions are designed to preserve type safety and clearly indicate the programmer's intent when converting between different address semantics.
-
-    *   `toCodeAddress(dataAddress ptr) -> codeAddress`: Converts a `dataAddress` pointer to a `codeAddress` pointer. Use this function when you need to treat a memory location, initially typed as data, as executable code. **Example:** Converting a data buffer address to a function pointer to execute code located in the data buffer (advanced technique, use with extreme caution).
-    *   `toDataAddress(codeAddress ptr) -> dataAddress`: Converts a `codeAddress` pointer to a `dataAddress` pointer. Use this function when you need to access a memory location, initially typed as code, as data. **Example:**  Accessing read-only data embedded within the code segment (e.g., string literals, constant tables).
-    *   `toGenericAddress(address ptr) -> genericAddress`: Converts any `address` type pointer (`codeAddress`, `dataAddress`, `bootAddress`, or `address`) to a `genericAddress` pointer. This is useful when you need to remove the specific semantic type and treat the address as a generic memory location. **Example:** Passing an address to a generic memory dump function or a low-level memory manipulation routine where the specific address semantics are not relevant.
-
-    These functions are intended for explicit type conversions where the semantic change is intentional.  The compiler may optimize these conversions to no-ops at runtime when only the type interpretation changes and no actual address manipulation is required.
-
-    **Example (Address Type Conversions):**
-    ```baremetal
-    @arc arm {
-        declarations {
-            dataAddress dataPointer;
-            codeAddress functionAddress;
-            genericAddress genericPointer;
-        }
-        statements {
-            dataPointer = 0x20000000; // Address pointing to data memory
-            functionAddress = toCodeAddress(dataPointer); // Explicitly convert dataAddress to codeAddress
-            genericPointer = toGenericAddress(codeAddress); // Explicitly convert codeAddress to genericAddress
-            genericPointer = toGenericAddress(dataPointer); // Explicitly convert dataAddress to genericAddress directly
-
-            // codeAddress = dataPointer; // Compile-time error: Type mismatch (cannot implicitly assign dataAddress to codeAddress) - Implicit conversion is prevented
-        }
-    }
-    ```
-    In this example, explicit conversion functions are used to convert between address types. Direct assignment between incompatible address types (like `codeAddress = dataPointer;`) is prevented by the static type system, enforcing explicit and safe conversions through the provided functions. These functions improve code clarity and type safety when working with different address semantics.
-
-    *   **Boolean Type (Logical Truth):** `boolean` (values: `true`, `false`). The `boolean` type represents logical truth values. It is fundamental for conditional expressions and logical operations, providing clarity and type safety for boolean logic within BML programs. Example literals: `true`, `false`.
-
-        **Why a Dedicated Boolean Type is Beneficial:** While boolean values can be represented with integers (0 and 1), a dedicated `boolean` type offers several advantages:
-
-        *   **Type Safety:** A `boolean` type enforces type safety for logical operations. The compiler prevents accidental use of integers or other types in boolean contexts, catching type errors at compile time. This improves code robustness and prevents unexpected behavior due to type mismatches.
-        *   **Clarity and Readability:**  Using `boolean` variables and literals (`true`, `false`) makes code more readable and self-documenting.  It clearly signals the intent of logical expressions and conditional statements, improving code comprehension.  `if (isValid)` is more immediately understandable than `if (isValid == 1)`.
-        *   **Reduced Errors:**  A dedicated `boolean` type reduces the risk of errors associated with implicit type conversions or misinterpretations of integer values as boolean conditions.  It eliminates the need for developers to remember conventions about which integer values represent true and false.
-        *   **Potential Compiler Optimizations:**  A `boolean` type can enable the compiler to perform boolean-specific optimizations, potentially generating more efficient code for logical operations and conditional branches.
-
-        **Example:**
-        ```baremetal
-        @arc arm {
-            declarations {
-                boolean isReady;
-                boolean debugMode;
-            }
-            statements {
-                isReady = true; // Assign boolean literal 'true'
-                debugMode = false; // Assign boolean literal 'false'
-                if (isReady && !debugMode) { // Logical AND and NOT operations
-                    // ... perform action when ready and not in debug mode ...
-                } else {
-                    // ... perform alternative action ...
+                ```baremetal
+                type ClockDivider = uint8 where value in range(1..10);
+                function void setClockDivider(ClockDivider divider) {
+                   // ... configure the clock divider, it's guaranteed to be in range 1..10
                 }
-            }
-        }
-        ```
-        In this example, `isReady` and `debugMode` are declared as `boolean` variables. Boolean literals `true` and `false` are assigned to them. The `if` statement uses logical operators `&&` (AND) and `!` (NOT) to evaluate a boolean expression. BML's `boolean` type ensures type safety for logical operations, preventing accidental use of integer or other types in boolean contexts and improving code clarity and correctness for conditional logic.
-
-    *   **Character Types (Textual Representation):** `char8`, `char16`, `char32`. BML offers character types of varying widths to support different character encodings.
-        *   `char8` (8-bit character): Represents 8-bit characters, typically used for ASCII or UTF-8 encoding. The range of `char8` is typically 0 to 255, representing ASCII characters or UTF-8 code units. Example literals: `'A'`, `'z'`, `'%'`.
-        *   `char16` (16-bit character): Represents 16-bit characters, suitable for UTF-16 encoding. `char16` can represent Unicode characters in the Basic Multilingual Plane (BMP). For internal text representation, UTF-16 provides a good balance between memory efficiency and broad character coverage for applications requiring extensive Unicode support. Example literals: `L'Ω'`, `L'é'`, `L'中'`. (Note the `L` prefix for `char16` literals).
-        *   `char32` (32-bit character): Represents 32-bit characters, suitable for UTF-32 encoding. `char32` can represent the full range of Unicode characters, including supplementary planes. UTF-32 provides fixed-width representation for all Unicode code points, simplifying some text processing operations. Example literals: `U'😀'`, `U'🚀'`, `U'🌟'`. (Note the `U` prefix for `char32` literals).
-
-    **Character Encoding Considerations and Internationalization:**
-
-    > BML provides `char8`, `char16`, and `char32` character types to support various character encodings and internationalization needs in embedded systems.
-
-    > **Encoding Recommendations:**
-
-    > *   **External Encoding (Communication, File I/O):** For external communication protocols (e.g., UART, network protocols) and file I/O (if CAMs provide file system support), **UTF-8 encoding is generally recommended**. UTF-8 is a widely adopted, variable-width encoding that is highly compatible with ASCII and efficient for text that is primarily in English or uses ASCII characters. Its internet standard status and broad tooling support make it a practical choice for external data representation.
-
-    > *   **Internal Encoding (Application Logic, CAMs):** For internal text representation within BML applications or CAMs, developers have more flexibility.
-        *   **UTF-16:**  For applications requiring extensive Unicode character support, especially for languages with characters outside the Basic Multilingual Plane (BMP), **UTF-16 (16-bit Unicode Transformation Format) is a good option**. UTF-16 is a variable-width encoding that can represent most commonly used Unicode characters in 16 bits, offering a balance between memory efficiency and broad character coverage.
-        *   **UTF-32:** For applications requiring fixed-width character representation and the ability to represent *all* Unicode code points without variable-width encoding complexities, **UTF-32 (32-bit Unicode Transformation Format) can be used**.  However, UTF-32 is the least memory-efficient option, as it uses 4 bytes per character, even for ASCII characters.
-        *   **char8 (ASCII or Extended ASCII):** For applications primarily dealing with ASCII characters or extended ASCII character sets, `char8` (8-bit characters) can be sufficient and the most memory-efficient option.
-
-    > **BML Flexibility:** BML does not enforce a specific character encoding at the language level. This design choice provides flexibility for developers and CAM authors to choose the appropriate character encoding based on their application's specific requirements, target hardware constraints, and internationalization needs.  When developing CAMs that handle text, CAM authors should clearly document the character encoding(s) used by the CAM and provide options for configuration or conversion if necessary to ensure interoperability and internationalization support."
-
-        **Why Multiple Character Types and Encoding Considerations Matter:** In today's globalized world, embedded systems often need to handle text in various languages and character sets.  BML's character type system and encoding considerations are crucial for internationalization (i18n) and proper text handling:
-
-        *   **Unicode Support:**  Unicode is the dominant standard for representing text in most languages.  `char16` and `char32` types enable BML to support Unicode, allowing embedded applications to handle a wide range of characters from different scripts and languages.
-        *   **Internationalization (i18n):**  Support for different character encodings is essential for internationalizing embedded systems. Applications that need to display text in multiple languages, process user input in different locales, or communicate with systems using different character sets require robust encoding support.
-        *   **UTF-8 for Interoperability:**  Recommending UTF-8 for external communication and file I/O recognizes UTF-8's dominant role on the internet and in many modern systems.  UTF-8's ASCII compatibility and efficiency for English text make it a practical default choice for interoperability.
-        *   **Memory Efficiency vs. Character Coverage:** Providing `char8`, `char16`, and `char32` types allows developers to choose the character type that best balances memory efficiency (important in embedded systems) with the required character coverage.  `char8` is the most memory-efficient for ASCII-centric applications, while `char32` offers the broadest Unicode coverage but is the least memory-efficient.
-        *   **Flexibility for CAM Authors:**  Allowing CAM authors to choose character encodings within CAMs provides flexibility for CAMs to be tailored to specific application domains or hardware constraints.  However, clear documentation of encoding choices within CAMs is essential for interoperability.
-
-        **Example:**
-        ```baremetal
-        @arc arm {
-            declarations {
-                char8 asciiChar;
-                char16 utf16Char;
-                char32 utf32Char;
-            }
-            statements {
-                asciiChar = 'A'; // ASCII character literal
-                utf16Char = L'Ω'; // UTF-16 character literal (Unicode Omega) - 'L' prefix
-                char32 utf32Char = U'😀'; // UTF-32 character literal (Unicode Smiling Face) - 'U' prefix
-                // char8 wideChar = L'Ω'; // Compile-time error: Type mismatch (cannot assign char16 to char8)
-            }
-        }
-        ```
-        In this example, `asciiChar` is assigned an ASCII character literal, `utf16Char` is assigned a UTF-16 character literal (using the `L` prefix), and `utf32Char` is assigned a UTF-32 character literal (using the `U` prefix). Attempting to assign a `char16` literal to a `char8` variable would result in a compile-time error due to type mismatch. BML's character types provide flexibility for handling different character encodings and Unicode support, allowing developers to choose the appropriate character type based on the required character set and memory considerations. The use of prefixes `L` and `U` explicitly denotes `char16` and `char32` literals, enhancing code clarity and type safety.
-
-    *   **Raw Byte Type (Direct Memory Access):** `raw byte`. The `raw byte` type provides direct byte-level memory access. It is intended for low-level operations where direct manipulation of individual bytes is necessary, such as interacting with hardware registers or memory-mapped peripherals.  **EXTREME CAUTION MUST BE EXERCISED WHEN USING `raw byte`. This type COMPLETELY BYPASSES BML's TYPE SAFETY MECHANISMS. The programmer assumes ABSOLUTE RESPONSIBILITY for ensuring correct memory access and data interpretation. Misuse of `raw byte` can lead to severe memory corruption, system instability, and critical security vulnerabilities.  It is STRONGLY RECOMMENDED to avoid `raw byte` whenever possible and utilize safer, type-aware alternatives like Memory-Mapped Register Blocks (MMR Blocks) for hardware register access. Only resort to `raw byte` when absolutely necessary for highly specialized low-level operations where no type-safe abstraction is feasible, and even then, use it with meticulous care and thorough validation.**  Example literals: `0x10`, `0b01010101`, `255`.
-
-        **Why `raw byte` Exists (and Why to Use it Sparingly):** While BML emphasizes type safety, `raw byte` is provided for those rare but critical situations where direct byte-level memory manipulation is unavoidable in bare metal programming.  However, it should be used with extreme caution:
-
-        *   **Direct Hardware Register Access (Last Resort):** In some very low-level hardware interactions, particularly with legacy peripherals or specialized hardware, direct byte-level register access using `raw byte` might be the only option if no suitable MMR Block abstraction or CAM is available.  Even in these cases, consider whether a CAM or MMR Block abstraction *can* be created to encapsulate the raw byte access and provide a safer interface.
-        *   **Manual Memory Layout and Data Packing (Advanced):** In very specific performance-critical scenarios, developers might need to manually control the byte-level layout of data structures or pack data into memory in a non-standard format. `raw byte` can provide the necessary flexibility for such advanced memory manipulation, but again, consider if there are safer, more type-aware alternatives.
-        *   **Interfacing with External Binary Data:**  When interacting with external binary data formats or protocols that are not easily represented with BML's structured types, `raw byte` might be used to read or write raw byte streams.  However, consider wrapping raw byte operations within type-safe CAMs or functions to minimize the unsafe exposure in the main codebase.
-        *   **Implementing Very Low-Level Algorithms (Extreme Optimization):** In extremely performance-critical algorithms where every byte and every cycle counts, and where compiler optimizations are insufficient, developers *might* (very rarely) consider using `raw byte` for highly specialized byte-level operations.  However, profile and benchmark thoroughly to justify such low-level manual optimization, as it often comes at the cost of readability, maintainability, and safety.
-
-        **Example:**
-        ```baremetal
-        @arc arm {
-            declarations {
-                raw byte registerByte;
-                peripheralRegion raw byte^ controlRegister : device; // Raw byte pointer to peripheral region - Direct byte-level access
-            }
-            statements {
-                registerByte = 0x10; // Assign byte value
-                controlRegister[0x00] = registerByte; // Directly write byte to peripheral register at offset 0x00 - Unsafe raw byte access - EXERCISE EXTREME CAUTION
-                raw byte readByte = controlRegister[0x04]; // Directly read byte from peripheral register at offset 0x04 - Unsafe raw byte access - VALIDATE ADDRESS AND DATA INTERPRETATION CAREFULLY
-                // uint32 integerValue = controlRegister[0x08]; // Compile-time error: Type mismatch (cannot assign raw byte to uint32 without explicit cast)
-            }
-        }
-        ```
-        In this example, `registerByte` is declared as `raw byte`, and `controlRegister` is declared as a `raw byte^` pointer to a peripheral region.  The code directly writes a byte value to a peripheral register using `controlRegister[0x00] = registerByte;` and reads a byte value using `raw byte readByte = controlRegister[0x04];`. Attempting to assign a `raw byte` value directly to a `uint32` variable (e.g., `uint32 integerValue = controlRegister[0x08];`) would result in a compile-time error due to type mismatch, enforcing explicit type conversion (casting) if byte-level data is to be interpreted as a different data type.  The `raw byte` type provides ultimate flexibility for byte-level memory manipulation but requires developers to exercise extreme caution and understand the potential safety implications of bypassing type safety. MMR Blocks are strongly recommended as a safer and more structured alternative for hardware register access whenever possible, as they provide type-safe access to registers and reduce the risks associated with raw pointer manipulation.
-
-    *   **Safe Array Type (Bounds-Checked Arrays):** `safeArray<DataType, Size>`. The `safeArray` type is a built-in array type that incorporates runtime bounds checking. Accesses to `safeArray` elements are automatically checked at runtime to ensure they are within the valid array bounds. This prevents buffer overflows, a common source of memory errors and security vulnerabilities in embedded systems. `safeArray` enhances memory safety by preventing out-of-bounds memory access.  **(While `safeArray` provides runtime bounds checking, it's important to note that BML's *primary goal* is to **eliminate runtime bounds checks whenever statically provable**. The BML compiler is designed to aggressively optimize away runtime bounds checks for `safeArray` when it can be determined at compile time that array accesses are always within bounds through advanced static analysis and potentially through formal proofs using abstract interpretation.  For performance-critical code sections where bounds are statically known or checked through other means, consider using regular arrays with optional compile-time or attribute-based bounds checking for fine-grained performance control.  However, for the vast majority of embedded applications, the safety benefits of `safeArray` outweigh the minimal runtime overhead, making it the RECOMMENDED array type in BML.)** Example declaration: `safeArray<uint32, 100> myArray;`.
-
-        **Why `safeArray` is the Recommended Array Type in BML:** In bare metal programming, buffer overflows are a critical security vulnerability and a common source of crashes. `safeArray` is designed to provide a robust defense against these issues:
-
-        *   **Buffer Overflow Prevention:** Runtime bounds checking in `safeArray` is a primary defense against buffer overflows.  Every array access is verified to be within the valid bounds, preventing writes outside the allocated memory region for the array. This significantly enhances system security and stability.
-        *   **Early Error Detection (Runtime):** If a bounds check fails, `safeArray` triggers a runtime error (or exception in environments with runtime support). This allows developers to detect and diagnose buffer overflow errors early in the development and testing process, rather than having them manifest as silent memory corruption or crashes later on.
-        *   **Improved Code Robustness:** By preventing buffer overflows, `safeArray` makes BML code inherently more robust and less prone to memory-related errors. This leads to more reliable embedded systems that are less likely to crash or exhibit unpredictable behavior due to memory corruption.
-        *   **Reduced Debugging Time for Array-Related Errors:**  When using `safeArray`, array-related errors (out-of-bounds accesses) are caught immediately at runtime with informative error messages. This greatly simplifies debugging and helps developers quickly pinpoint and fix array access issues.
-        *   **Compile-Time Optimization Potential:**  While `safeArray` provides runtime bounds checking for safety, BML's compiler is designed to aggressively optimize away these runtime checks whenever it can statically prove that array accesses are always within bounds.  This allows for achieving both safety and performance: runtime safety when needed, and zero-overhead performance when safety can be guaranteed at compile time.
-
-        **Example:**
-        ```baremetal
-        @arc arm {
-            declarations {
-                safeArray<uint32, 10> dataArray; // Safe array of 10 uint32 elements - Bounds checked
-            }
-            statements {
-                dataArray[5] = 100; // Valid access within bounds (index 5)
-                dataArray[0] = 20; // Valid access at index 0
-                dataArray[9] = 30; // Valid access at index 9 (last element)
-                // dataArray[10] = 200; // Runtime error: out-of-bounds access (index 10 is invalid for size 10 array) - Runtime error will be triggered
-                // dataArray[-1] = 50; // Runtime error: out-of-bounds access (negative index is invalid) - Runtime error will be triggered
-            }
-        }
-        ```
-        In this example, `dataArray` is declared as `safeArray<uint32, 10>`, creating a bounds-checked array of 10 `uint32` elements. Accesses to indices 0 through 9 are valid. Attempting to access `dataArray[10]` or `dataArray[-1]` (out-of-bounds accesses) would result in a runtime error (e.g., an exception or program termination), preventing a buffer overflow and potential memory corruption. `safeArray` provides a robust mechanism to prevent out-of-bounds array accesses, enhancing memory safety and system stability. The runtime overhead of bounds checking is typically minimal for most embedded applications, but for extremely performance-critical loops where bounds are statically known or checked through other means, developers may choose to use regular arrays with carefully managed bounds checks for fine-grained performance optimization.  With future advancements in abstract interpretation integration, BML aims to achieve formal compile-time proofs of memory safety for even more code sections, enabling automatic elimination of runtime checks and truly zero-overhead safety in proven-safe code.
-
-    *   **Array Slice Type (Dynamic Views of Arrays):** `arraySlice<DataType>`.  The `arraySlice` type provides dynamic, function-like views into existing `safeArray` instances. Array slices are declared with the type `arraySlice<DataType>`, where `DataType` corresponds to the data type of the elements within the slice. The size of an `arraySlice` is dynamic and determined at runtime based on the slice creation parameters. `arraySlice` instances are views into existing `safeArray` data and modifications made to an `arraySlice` directly affect the corresponding elements in the original `safeArray`. Runtime bounds checking during both slice creation and element access prevents out-of-bounds memory operations.  **Array slices are a zero-copy abstraction, meaning they do not allocate new memory for the slice itself. They provide efficient and safe access to portions of `safeArray` data without incurring memory allocation overhead.** Example declaration: `arraySlice<uint32> mySlice;`.
-
-        **Why Array Slices are Useful in Bare Metal:** Array slices provide a powerful and efficient way to work with portions of arrays in bare metal programming, without the overhead of copying data or managing separate array instances:
-
-        *   **Zero-Copy Abstraction:** Array slices are "views" into existing `safeArray` data. They do not create copies of the data, which is crucial for memory efficiency in embedded systems, especially when dealing with large arrays. Slice creation and manipulation have minimal overhead, as they primarily involve pointer and size calculations.
-        *   **Function Parameters and Data Passing:** Array slices are ideal for passing portions of arrays to functions without incurring the overhead of copying array data. Functions can operate directly on slice views, modifying the original `safeArray` data if needed.
-        *   **Sub-Array Operations:** Array slices enable efficient operations on sub-arrays or sections of larger arrays. Developers can easily create slices representing specific ranges of elements within an array and perform operations (e.g., processing, filtering, data transfer) on these slices.
-        *   **Dynamic Array Views:** The size of an `arraySlice` is dynamic and determined at runtime. This allows for creating slices based on runtime conditions or user input, providing flexibility in how array data is accessed and processed.
-        *   **Bounds Safety for Sub-Array Access:** Even when working with slices, runtime bounds checking is still enforced during slice creation and element access. This ensures that slice operations remain within the valid bounds of both the original `safeArray` and the slice itself, preventing out-of-bounds errors even when working with array views.
-
-        **Example (Array Slice Type):**
-        ```baremetal
-        @arc arm {
-            declarations {
-                safeArray<uint32, 100> largeArray; // Large safe array
-                arraySlice<uint32> sliceView; // Array slice view
-            }
-            statements {
-                // ... initialize largeArray ...
-                sliceView = largeArray.slice(20, 50); // Create slice from index 20 to 50 (exclusive) - Bounds checked during slice creation
-                for (uint32 i = 0; i < sliceView.size(); i++) {
-                    sliceView[i] = i * 2; // Safe access through slice - Bounds checked access within slice view
+                 function void main() {
+                   ClockDivider myDivider = 5; // valid
+                  setClockDivider(myDivider);
+                    //ClockDivider invalidDivider = 0; // compile-time error, not in valid range
                 }
-                // largeArray[30] will now be modified due to sliceView access
-                // sliceView[60] = 100; // Runtime error: Out-of-bounds access - Slice view is limited to indices 0-29 in this case
-            }
-        }
-        ```
-+        **Range-Based For Loops for Array Iteration:** BML Version 1.2 introduces range-based for loops, which provide a concise and readable way to iterate over arrays and array slices. Range-based for loops simplify array iteration and reduce the boilerplate code associated with traditional index-based loops.
-+
-+        **Syntax:** `for (Identifier in RangeExpression) { /* ... loop body ... */ }`
-+
-+        *   `Identifier`:  The loop variable that will take on values from the range.
-+        *   `in`: Keyword indicating range-based iteration.
-+        *   `RangeExpression`:  Defines the range of values for iteration. In Version 1.2, `RangeExpression` supports the `start..end` syntax, where `start` and `end` are expressions evaluating to integer values. The range includes values from `start` up to, but *excluding*, `end`.
-+
-+        **Stepping in Range-Based For Loops (Future Feature):** While stepping (e.g., iterating with a step of 2, 3, etc.) is not directly supported in range-based for loops in Version 1.2, it is considered for future versions.  For Version 1.2, stepping can be achieved using manual increment/decrement logic within the loop body if needed, or by using index-based for loops for more complex stepping patterns.
-+
-+        **Iterating over `safeArray` and `arraySlice`:** Range-based for loops are particularly well-suited for iterating over `safeArray` and `arraySlice` instances.  When used with `arraySlice.size()`, range-based for loops provide a safe and convenient way to access all elements within an array or a slice view.
-+
-+        **Example (Range-Based For Loops with `safeArray` and `arraySlice`):**
-+        ```baremetal
-+        @arc arm {
-+            declarations {
-+                safeArray<uint32, 10> myArray;
-+                arraySlice<uint32> mySlice = myArray.slice(2, 7); // Slice of myArray
-+            }
-            statements {
-                for (uint32 index in 0..myArray.size()) { // Range-based for loop for safeArray - Iterating over indices 0 to 9
-                    myArray[index] = index * 3;
+                ```
+            * **More Detailed Bounds Checks:**
+              ```baremetal
+                  type SmallBuffer = uint8^ where length < 100;
+
+                  function void processBuffer(SmallBuffer buffer) {
+                    // code that uses buffer, assuming that the length is less than 100
+                   // ...
+                      print(sizeof buffer); // will always be less than 100
+                  }
+                  function void main() {
+                    uint8 safe[50] mySafeBuffer;
+                   SmallBuffer myBuffer = &mySafeBuffer[0]; //ok
+                   processBuffer(myBuffer);
+                   uint8 safe[120] otherSafeBuffer; //this will generate a compilation error because otherSafeBuffer has a size bigger than 100
+                    // SmallBuffer anotherBuffer = &otherSafeBuffer[0]; //compile-time error: length is not correct
+                  }
+                 ```
+            *  **Type Enforcement:**
+                ```baremetal
+                type EvenNumber = uint32 where value % 2 == 0;
+
+                function void processEvenNumber(EvenNumber number) {
+                     // This function is guaranteed to only get even numbers
+                   print("Number is even:", number);
                 }
-                for (uint32 index in 0..mySlice.size()) { // Range-based for loop for arraySlice - Iterating over slice indices
-                    mySlice[index] += 100; // Modifies original myArray elements through slice view
+                function void main () {
+                    EvenNumber myNumber = 4; // valid
+
+processEvenNumber(myNumber);
+                     //EvenNumber invalidNumber = 5; // compile-time error, invalid value
                 }
-            }
-        }
-+        ```
+               ```
+           * **Refinement types are fully compatible with other language features** such as type attributes, scoped pointers, and so on, as they are just types with additional constraints:
 
-    *   **`DataType^` (General Pointer):** `DataType^` denotes a general, unchecked pointer to `DataType`.  **Developers are responsible for ensuring memory safety when using `DataType^` pointers, including null checks and bounds checks (if applicable).**  `DataType^` pointers provide maximum performance and flexibility but require careful manual management of pointer validity.  **For safer pointer alternatives, consider `DataType ^scoped` for scope-bound pointers, capability-based pointers for compile-time access control, and `DataType ^tracked` for runtime-checked pointers.  *Use `DataType^` only when performance is absolutely critical and safety can be rigorously guaranteed through other means. Otherwise, prefer safer pointer types.* ** Example declaration: `uint32^ myRawPointer;`.
+                ```baremetal
+                type validPointer = uint32 tracked where value > 0x1000;
 
-        **When to Use `DataType^` Pointers (and When to Avoid Them):** `DataType^` pointers provide maximum flexibility and minimal overhead, but they also place the greatest responsibility on the developer for memory safety:
-
-        *   **Performance-Critical Code (with Statically Provable Safety):** In performance-critical code sections where pointer safety can be statically guaranteed through careful design, rigorous analysis, or formal verification (using abstract interpretation, for example), `DataType^` pointers can be used to avoid the runtime overhead of safer pointer types.  *However, this should be done only after thorough performance profiling and with extreme caution.*
-        *   **Low-Level System Code (Experienced Developers):**  Experienced bare metal developers who are deeply familiar with memory management principles and pointer safety best practices might choose to use `DataType^` pointers in low-level system code where maximum performance and fine-grained control are paramount.  *However, even experienced developers should prefer safer pointer types (`scopedPtr`, capability-based pointers, `trackedPtr`) whenever feasible to reduce the risk of errors.*
-        *   **Interfacing with External C Code or Libraries:** When interfacing with external C code or libraries that use raw pointers, `DataType^` pointers might be necessary to maintain compatibility.  *However, try to wrap the raw pointer interactions within BML functions or CAMs that provide a safer, type-safe interface to the rest of the BML codebase.*
-
-        **When to AVOID `DataType^` Pointers:** In general, **avoid using `DataType^` pointers unless absolutely necessary** for the reasons outlined above.  For most embedded development tasks, the safer pointer alternatives (`scopedPtr`, capability-based pointers, `trackedPtr`) provide a much better balance of safety and performance, and significantly reduce the risk of memory errors.  Specifically, avoid `DataType^` pointers in:
-
-        *   **Application Logic:**  In general application logic, prioritize `scopedPtr`, capability-based pointers, and `safeArray` for memory safety and code robustness.
-        *   **Code Where Pointer Safety is Uncertain:**  If there is any doubt about pointer validity, potential null dereferences, or the possibility of dangling pointers, *never* use `DataType^`.  Use `scopedPtr` or `trackedPtr` instead.
-        *   **Code that is Not Performance-Critical:**  For code sections that are not in performance-critical inner loops or time-sensitive routines, the minimal runtime overhead of `trackedPtr` or the zero-overhead safety of `scopedPtr` is almost always worth the safety benefits.
-        *   **Code Developed by Less Experienced Developers:**  For developers who are newer to BML or bare metal programming, it is strongly recommended to avoid `DataType^` pointers altogether and rely on the safer pointer types provided by the language.
-
-    *   **Capability-Based Pointer Types (`DataType ^readonly`, `DataType ^writeonly`, `DataType ^region(RegionName)`, `DataType ^nonnull`): Compile-Time Capability Enforcement - ZERO OVERHEAD ACCESS CONTROL:** BML introduces **capability-based pointer type qualifiers** to enhance compile-time memory safety and enable further performance optimizations. These qualifiers are applied *in addition* to the base pointer type (`DataType^`, `DataType ^scoped`, `DataType ^tracked`) and specify access permissions or properties of the pointer at compile time.  These qualifiers introduce **zero runtime overhead** as they are purely compile-time type system features.
-
-        **Syntax Rationale: Postfix Capability Qualifiers**
-
-        The syntax for capability-based pointers in BML, using postfix qualifiers (`^readonly`, `^region(...)`, etc.) was deliberately chosen for clarity and readability, especially in complex pointer declarations.  While different from the prefix-style pointer syntax common in C/C++, the postfix approach offers several advantages in BML's context:
-
-        *   **Readability Flow:** Postfix qualifiers improve the visual flow and readability of pointer declarations.  Reading from left to right, you first see the base `DataType^` indicating "this is a pointer," and then the postfix qualifiers further *refine* the properties of that pointer.  This contrasts with prefix qualifiers, where the qualifiers might visually interrupt the flow of reading the base type and pointer nature.
-
-            **Conceptual Example (Illustrative - Not BML Syntax):**
-
-            ```c++  // Conceptual C++-like prefix syntax (for comparison - NOT BML)
-            readonly region(DataRegion) uint32* ptr; // Prefix qualifiers visually interrupt the base type and pointer
-
-            // BML Postfix Syntax (Actual BML)
-            uint32^ readonly region(DataRegion) ptr; // BML postfix - Base type and pointer first, then qualifiers as modifiers - More readable flow
+                function void processData(validPointer ptr) {
+                      // if the compiler can prove that the access to *ptr will be within the valid range, no runtime checks will be needed.
+                      // if the access might be out of the range, a runtime check must be performed.
+                        print(*ptr);
+                  }
+                ```
+        *   Example: `type ValidSensorReading = uint16 where value in range(0..1000);`, `type SmallBuffer = uint8^ where length < 100;`, `type EvenNumber = uint32 where value % 2 == 0;`
+    *   **Region-Based Types:** `type identifier = baseType @region(regionName)`
+        *   Allows to define types that are associated with a specific data region, enabling region-based memory management and access controls enforced at compile time.
+         *   **Default value**: The default value of a region-based type is the default value of the underlying base type.
+       *  **Memory Access and Region Interaction:**
+         *  Pointers with the `@region` modifier can only access the specified memory region. The compiler may generate a compile-time error if the pointer attempts to access memory outside of the region where it is defined.
+          *    `dataRegion` declarations do not directly grant access to the data to other memory regions. To transfer data across regions, a CAM will have to explicitly read from one region and write to another region, using memory copy functions, or by transferring using memory mapped peripherals.
+          * CAMs can also define their own memory regions using the `CAMDataRegion` specifier. This data region has the same scope as the CAM, and can be used to perform calculations, store intermediate results, or implement other internal logic within a given CAM. CAM data regions can also be used to store CAM configurations, parameters or other persistent state for that CAM.
+        *   Example: `type SecureData = uint32 @region("secureRegion");`
+    *    **Capability-Based Regions:** `dataRegion regionName capabilities(read, write) { ... };`
+        *   Data regions are used for compile-time region-based memory access controls and memory management, allowing compile-time checking of memory accesses and capabilities, increasing memory safety. If only one member is present, curly braces can be removed. `dataRegion MySecureData uint32 secretKey;`
+        *   The `capabilities` argument specifies which permissions are available: `read`, `write`, `execute`, `capability_derive`.
+          *   If only `read` or `read, write` capabilities are needed, the `capabilities` keyword can be omitted: `dataRegion @read MySecureData uint32 secretKey;`, `dataRegion DeviceData { uint8 safe[100] buffer; };` (implicit read, write capabilities).
+        *   `capability_derive` allows to create new pointers with limited capabilities from a pointer that has the `capability_derive` permission, granting a way to control how a pointer is used within a specific scope or region.
+        *   A memory region must be declared using this syntax to be used in `@region(regionName)` pointers, otherwise, the compiler will generate a compile-time error.
+        *   Example: `dataRegion @read secureData { uint32 myData; };`, `dataRegion DeviceData { uint8 safe[100] buffer; };`
+    *   **Compile-Time Stack-Only Allocation:** `@stackOnly` for stack allocation.
+        *   Forces the variable, struct, or array to be allocated in the stack, which avoids the overhead of dynamic memory allocation and provides a predictable memory allocation, which is useful for real-time systems.
+         *   **Default value**: Stack only types have the default value of the underlying base type.
+        *   Example: `@stackOnly uint32 myStackValue;` , `stackOnly uint8 safe[10] localBuffer;`
+    *   **Hardware-Assisted Bounds Checking:** Optional using a compiler flag or pragma if the hardware supports it.
+        *   Requires specific hardware support, like memory management units, for actual hardware-based checking of memory accesses, improving security and performance.
+        *   If hardware support is not available, a runtime software-based implementation may be used by the compiler.
+        *   Example: `#pragma enable_hardware_bounds_checking; uint32 safe[10] myArray;`
+    *   **Data-Layout Attributes:** `@packed`, `@aligned(4)`, `@row_major`, `@array_of_structures`.
+        *   `packed`: Removes padding from structs, resulting in a smaller memory footprint, at the cost of potential alignment problems, which can affect the performance of certain memory accesses, or cause errors on specific architectures. The compiler does not perform any alignment checks.
+        *   `aligned(N)`: Aligns the data at a memory address that's a multiple of N (where N is a power of 2), useful to improve memory access performance, especially when dealing with SIMD instructions.
+        *   `row_major`: Arranges multi-dimensional arrays in row-major order (C/C++ standard), which is important when interfacing with code or data from other languages and libraries. This attribute is useful when performing memory accesses in row-major order. For example when accessing a matrix sequentially, accessing the elements in this order will result in better cache usage. For a 2-dimensional array: `data[row][col]`, when traversing the array, the row will be incremented before the column. If this attribute is not used, the compiler may choose other layout strategies, depending on the architecture.
+          *  Example: `uint32 safe[10] safe[10] myMatrix @row_major;`
+        *   `array_of_structures`: forces the array to have the following structure: `[ { member_1, member_2, ..., member_n}, {member_1, member_2, ..., member_n}, ..., ]`. This forces the data to be laid out in the most cache-friendly way for algorithms where all members of a given struct element are accessed sequentially. For example, when you have an array of structs, if you access all members of a given struct sequentially, this is the most cache-friendly layout. If this attribute is not used, the compiler may choose other layout strategies depending on the architecture.
+           *  Example:
+             ```baremetal
+             type MyStruct = struct {
+                  uint32 a;
+                  float32 b;
+               };
+              MyStruct safe[10] myData @array_of_structures;
             ```
-
-        *   **Separation of Concerns:** The `^` symbol in BML primarily denotes "pointer-ness," similar to `*` in C/C++. The postfix qualifiers then act as modifiers, adding access control or property constraints to that base pointer type. This visual separation emphasizes that the core pointer type is `DataType^`, and the qualifiers are *additional attributes*.
-
-        *   **Consistency with `scopedPtr` and `trackedPtr`:** BML already uses the postfix `^` for `scopedPtr` and `trackedPtr` (`DataType ^scoped`, `DataType ^tracked`). Capability-based pointers extend this existing pattern, creating a more consistent and unified pointer type system within BML.
-
-        *   **Less Ambiguity in Complex Declarations:** In complex pointer declarations involving multiple qualifiers or nested types, prefix qualifiers can sometimes lead to visual clutter and parsing ambiguities. Postfix qualifiers tend to be less ambiguous and easier to parse both visually and programmatically in more intricate scenarios.
-
-        While familiarity with C-style prefix pointer syntax is common, BML's postfix capability qualifier syntax is designed to enhance readability and clarity within the specific context of BML's type system and memory safety features. It is a deliberate design choice to improve the developer experience and make BML code more maintainable and less error-prone, especially when working with advanced pointer types and memory safety mechanisms.
-
-        *   **`DataType ^readonly`:**  Declares a pointer that is **guaranteed at compile time to only be used for reading data**.  The compiler enforces that no write operations are performed through `^readonly` pointers. This enables aggressive compiler optimizations based on the guarantee that the pointed-to data will not be modified through this pointer. Example declaration: `uint32^ readonly sensorDataPtr;`.
-
-            **Example:**
+        *   Example: `struct MyStruct @packed { uint8 a; uint32 b; };`, `uint32 safe[100] myArray @row_major;`
+    *   **Compile-Time Reflection:** `sizeof` and `isType` intrinsics.
+        *   `sizeof DataType`: Returns the size (in bytes) of the specified type at compile time, which allows CAMs to generate optimized code based on the data structure sizes.
+         * `sizeof (DataType)` is also a valid syntax when parentheses are used.
+        *   `isType(DataType, "Integer")`: Returns `true` or `false` if the first argument is of the specified type, which is useful to implement compile-time checks and to conditionally compile CAM code based on the type of the data. Possible types are defined in `enum TypeKind { Integer, Float, Struct, Enum, Pointer, Array, Tuple, Result, Refinement };`.
+        *   Example: `sizeof uint32`, `isType(DataType, "Integer")`, `sizeof(uint32)`,
+    *   **Compile-Time Functions:** Code execution during compilation via `compileTimeFunction`.
+        *   `compileTimeFunction` functions have specific limitations: they cannot perform dynamic memory allocation, and cannot call non `compileTimeFunction` functions, because these restrictions are needed to execute code during compilation,
+        *   They can be used for static analysis of the data structures or code, or generate code based on compile time parameters.
+        *    Compile-time variables that are declared in a `compileTimeFunction` must be initialized with a compile-time constant value. It is an error to use run-time variables in `compileTimeFunction` functions.
+           *   **Debugging Compile-Time Functions:**
+                *   Debugging compile-time functions directly is not supported by traditional debuggers (GDB/LLDB) because they execute during the compiler's runtime, not the target's runtime.
+                *   The compiler may offer options to inspect compile-time variables and function execution during compilation by using debug flags or a compiler API. The user can use the `print` function, which can be used to print debugging information during compilation.
+                *   The compiler can also provide information about how the code was transformed by a compile-time function using debug flags or an output file format that shows which transformations occurred in each compilation step.
+                *   The user can also inspect the generated intermediate representation of the code using compiler flags.
+                *  `compileTimeFunction` can call other `compileTimeFunction` functions, as long as no cyclic dependency is generated. The dependency will be checked by the compiler during the compile-time phase.
+        *   Example:
             ```baremetal
-            dataRegion { uint32 sensorReading; }
-            function void processSensor(uint32^ readonly sensorDataPtr) { // Using symbol syntax
-                uint32 value = *sensorDataPtr; // Valid: Read operation
-                // *sensorDataPtr = 100; // Compile-time error: Invalid write operation through ^readonly pointer
-                // sensorDataPtr[0] = 200; // Compile-time error: Invalid write operation through ^readonly pointer
-                uartSendInteger(value);
-            }
-            statements {
-                processSensor(&sensorReading); // Pass address of mutable variable as ^readonly - Safe for read-only access
+            compileTimeFunction void myFunc() {
+               //Code to be executed during compilation
+             print("Hello from compile time function");
             }
             ```
-
-        *   **`DataType ^writeonly`:** Declares a pointer that is **guaranteed at compile time to only be used for writing data**.  The compiler enforces that no read operations are performed through `^writeonly` pointers. This qualifier is useful for scenarios where data is written to a memory location but never read back through the same pointer, enabling write-specific optimizations. Example declaration: `raw byte^ writeonly bufferPtr;`.
-
-            **Example:**
+    *  **Data-Driven Code Generation:** CAMs use `hasDataLayoutAttribute()`.
+        *  `hasDataLayoutAttribute(DataType, "packed")` returns `true` if the data type has the "packed" layout attribute. This is used by CAMs to make decisions about code generation based on the data structure layout. Possible layout attributes are defined in `enum LayoutAttributeKind { Packed, Aligned, RowMajor, ArrayOfStructures };`.
+        *   Example:
             ```baremetal
-            peripheralRegion raw byte^ uartTransmitBuffer : device;
-            function void transmitByte(raw byte^ writeonly bufferPtr, raw byte data) { // Using symbol syntax
-                *bufferPtr = data; // Valid: Write operation
-                // raw byte readByte = *bufferPtr; // Compile-time error: Invalid read operation through ^writeonly pointer
-                // raw byte peekByte = bufferPtr[0]; // Compile-time error: Invalid read operation through ^writeonly pointer
-            }
-            statements {
-                transmitByte(uartTransmitBuffer, 0x41); // Write byte to UART transmit buffer using ^writeonly pointer
-            }
-            ```
-
-        *   **`DataType ^region(RegionName)`:** Declares a pointer that is **guaranteed at compile time to always point within the specified memory region (`RegionName`)**. The compiler enforces that pointer arithmetic and assignments involving `^region(RegionName)` pointers maintain this region constraint. This allows for static bounds checking and elimination of runtime bounds checks in many region-local memory access scenarios. Example declaration: `uint16^ region(SensorDataRegion) readingPtr;`.
-
-            **Example:**
-            ```baremetal
-            dataRegion SensorDataRegion { safeArray<uint16, 256> sensorBuffer; }
-            function void processSensorReadings(uint16^ region(SensorDataRegion) readingPtr, uint32 index) { // Using symbol syntax
-                if (index < SensorDataRegion.sensorBuffer.size()) { // Explicit check (may be optimizable by compiler in some cases)
-                    readingPtr[index] = readSensorValue(); // Safe access within SensorDataRegion - ^region guarantees region confinement
-                    // uint16^ region(stackRegion) stackPtr;
-                    // readingPtr = stackPtr; // Compile-time error: Type mismatch - Cannot assign ^region to different region
-                }
-            }
-            statements {
-                processSensorReadings(SensorDataRegion.sensorBuffer.dataPtr(), 10); // Pass pointer to sensorBuffer as ^region(SensorDataRegion)
-            }
-            ```
-
-        *   **`DataType ^nonnull`:** Declares a pointer that is **guaranteed at compile time to never be null**. The compiler, through static analysis and initialization checks, ensures that `^nonnull` instances are always initialized with valid, non-null addresses. This eliminates the need for explicit null checks before dereferencing `^nonnull` instances, improving code efficiency and readability. Example declaration: `uint32^ nonnull configPtr;`.
-
-            **Example:**
-            ```baremetal
-            dataRegion { uint32 configData; }
-            function void configurePeripheral(uint32^ nonnull configPtr) { // Using symbol syntax
-                *configPtr = 0xABCD; // Safe dereference - compiler guarantees configPtr is not null
-                // if (configPtr == null) { ... } // Compile-time error: Redundant null check - ^nonnull is guaranteed non-null
-            }
-            function uint32^ nonnull getConfigPointer() -> uint32^ nonnull { // Using symbol syntax
-                return &configData; // Compiler must ensure &configData is non-null at this point (in this simplified example, it is)
-            }
-            statements {
-                uint32^ nonnull ptr = getConfigPointer(); // Using symbol syntax
-                configurePeripheral(ptr); // Pass ^nonnull - No null check needed in configurePeripheral
-            }
-            ```
-
-    *   **`DataType ^scoped` (Scope-Bound Pointer):** `DataType ^scoped` is a unique pointer type in BML that enforces lexical lifetime management. `DataType ^scoped` instances are valid only within the lexical scope (code block) where they are declared. The compiler enforces this lexical lifetime, ensuring that `DataType ^scoped`s cannot become dangling pointers within their defined scope. `DataType ^scoped` provides a zero-overhead mechanism for scope-bound pointer safety. Example declaration: `uint8^ scoped localPtr;`.
-
-        **When to Use `DataType ^scoped` Pointers:** `DataType ^scoped` is the *primary and most performant* choice for managing pointers with lexical lifetimes.  It is ideal for scenarios where pointers are used within a limited scope and should not outlive that scope, providing strong dangling pointer prevention with zero runtime overhead:
-
-        *   **Local Pointers in Functions:**  For pointers that are declared and used only within a function's body, `DataType ^scoped` ensures that these pointers cannot become dangling once the function returns. This is the most common use case for `scopedPtr`, providing automatic safety for function-local pointers.
-        *   **Pointers within Blocks (`if`, `for`, `while`, `parallel`):** When pointers are used within code blocks (e.g., inside `if` statements, loops, `parallel` blocks), `DataType ^scoped` guarantees that these pointers are valid only within the block's scope.  Once the block is exited, the `scopedPtr` becomes invalid, preventing accidental dangling pointer access.
-        *   **Temporary Pointers and Buffers:** For temporary pointers that point to stack-allocated buffers or data structures, `DataType ^scoped` ensures that these pointers are valid only as long as the stack allocation is active.  This is useful for stack-based memory management and prevents dangling pointers when stack frames are popped.
-        *   **Resource Management within Scope:**  `DataType ^scoped` can be combined with resource acquisition and release patterns within a scope.  For example, a `scopedPtr` could point to a dynamically allocated resource that is automatically released when the `scopedPtr` goes out of scope (though BML primarily uses region-based allocation, this could apply to resources managed by CAMs or external libraries).
-
-        **Benefits of `DataType ^scoped`:**
-
-        *   **Zero-Overhead Dangling Pointer Prevention:** `DataType ^scoped` provides compile-time guaranteed dangling pointer safety with absolutely zero runtime overhead.  There are no runtime checks or performance penalties associated with using `scopedPtr`.
-        *   **Simplified Memory Management:**  `DataType ^scoped` automates the management of pointer lifetimes within lexical scopes. Developers do not need to manually track pointer validity or worry about dangling pointers in scope-bound scenarios.
-        *   **Improved Code Safety and Reliability:**  By preventing dangling pointers, `DataType ^scoped` significantly improves code safety and reliability. Dangling pointers are a common source of memory errors, crashes, and unpredictable behavior in bare metal systems. `DataType ^scoped` eliminates this class of errors for scope-bound pointers.
-        *   **Enhanced Code Readability and Maintainability:**  Using `DataType ^scoped` makes code more readable and easier to understand.  It explicitly signals to other developers that a pointer is intended to be valid only within a specific scope, improving code clarity and maintainability.
-
-    *   **`DataType ^tracked` (Runtime-Tracked Pointer):** `DataType ^tracked` is a pointer type that incorporates runtime tracking and safety checks. `DataType ^tracked` provides runtime null pointer checks and best-effort dangling pointer detection. It offers a higher level of runtime memory safety compared to raw pointers (`DataType^`) but introduces some runtime overhead due to the tracking mechanisms. `DataType ^tracked` is intended for use in safety-critical sections of code where runtime memory safety is paramount. Example declaration: `uint16^ tracked sensorDataPtr;`.
-
-        **When to Use `DataType ^tracked` Pointers (Safety-Critical Sections):** `DataType ^tracked` provides a runtime safety net when dealing with pointers where compile-time safety guarantees are difficult to achieve, or in safety-critical parts of the code where robustness is paramount, even at the cost of some runtime overhead:
-
-        *   **Pointers from Untrusted Sources:** When dealing with pointers that originate from external sources, hardware peripherals, or other untrusted components where pointer validity cannot be fully guaranteed at compile time, `DataType ^tracked` provides runtime checks to mitigate potential errors.
-        *   **Safety-Critical System Components:** In safety-critical parts of the system (e.g., in medical devices, automotive systems, industrial control), where memory errors could have catastrophic consequences, `DataType ^tracked` can be used to provide an extra layer of runtime safety, even if there is a small performance penalty.
-        *   **Debugging and Testing Phases:** During development, debugging, and testing, `DataType ^tracked` can be used to help identify memory errors and pointer-related bugs early on. The runtime checks provided by `trackedPtr` can make it easier to detect and diagnose issues that might be harder to find with raw pointers.
-        *   **Code with Complex Pointer Lifetimes:** In code sections with complex pointer lifetimes or intricate pointer manipulations where static analysis might not be able to guarantee safety completely, `DataType ^tracked` can provide runtime protection against potential memory errors that might be missed at compile time.
-
-        **Runtime Checks Provided by `DataType ^tracked`:**
-
-        *   **Null Pointer Checks:** `DataType ^tracked` automatically performs null pointer checks before every dereference operation. If a `trackedPtr` is null, a runtime error is triggered, preventing null pointer dereference crashes.
-        *   **Best-Effort Dangling Pointer Detection:** `DataType ^tracked` incorporates runtime mechanisms (implementation-dependent) to detect potential dangling pointer accesses. This might involve techniques like pointer tagging, metadata tracking, or heap metadata checks (if dynamic allocation is used in conjunction with `trackedPtr` via CAMs or external libraries). Dangling pointer detection is "best-effort" and might not catch all dangling pointer errors in all scenarios, but it provides a significant improvement over raw pointers.
-        *   **Region-Aware Bounds Checking (Optional):** Depending on the BML compiler implementation and target architecture capabilities, `DataType ^tracked` might also incorporate region-aware bounds checking when used in conjunction with region-based memory management. This could provide runtime checks to ensure that `trackedPtr` accesses remain within the bounds of the memory region they are intended to point to.
-
-        **Performance Overhead of `DataType ^tracked`:**
-
-        It is important to understand that `DataType ^tracked` *does* introduce some runtime overhead compared to raw pointers (`DataType^`) and `scopedPtr`. The runtime overhead is due to the null pointer checks and dangling pointer detection mechanisms performed by `trackedPtr`.  The exact performance overhead will depend on the BML compiler implementation and the target architecture.  In general, the overhead is expected to be relatively small for most embedded applications, but it should be considered in performance-critical code sections.
-
-    *   **Tuple Types (Grouped Data):** `tuple<DataType1, DataType2, ...>`. BML introduces tuple types as a lightweight way to group together a fixed-size, ordered sequence of elements of potentially different data types. Tuples are useful for returning multiple values from a function, grouping related data together, and for destructuring declarations. **Tuples in BML are designed to be zero-overhead abstractions.  Tuple creation and access are intended to be as efficient as working with individual variables, with the compiler optimizing tuple operations to minimize runtime costs.  Tuples are primarily a compile-time construct for structuring data.** Example declaration: `tuple<uint32, boolean> sensorResult;`.
-
-        **Why Tuples are Useful in Bare Metal (Despite Zero Overhead):** Even though tuples are zero-overhead at runtime, they provide valuable organizational and code clarity benefits in bare metal programming:
-
-        *   **Returning Multiple Values from Functions:** Functions in bare metal often need to return multiple related values (e.g., sensor reading and status code, coordinates and color, data packet and checksum). Tuples provide a clean and type-safe way to return multiple values without resorting to output parameters or complex struct definitions for simple return scenarios.
-        *   **Grouping Related Data:** Tuples can be used to group together related data elements that are logically connected but might not warrant the creation of a full struct definition.  This can improve code organization and readability for small, ad-hoc data groupings.
-        *   **Destructuring Declarations:** Tuple destructuring simplifies accessing tuple elements by allowing developers to unpack tuple values directly into individual variables in a single declaration. This makes code more concise and readable when working with tuples.
-        *   **Improved Function Signatures:**  Using tuples for return types makes function signatures more expressive and easier to understand.  A function that returns `tuple<uint32, boolean>` clearly signals that it returns two related values: a `uint32` and a `boolean` flag, without needing to look into the function body to understand the return values.
-        *   **Zero Runtime Cost:**  Because tuples are zero-overhead, they can be used freely to improve code structure and readability without any performance penalties, making them a valuable tool for enhancing code organization in performance-sensitive bare metal environments.
-
-        **Example (Tuple Types):**
-        ```baremetal
-        @arc arm {
-            function tuple<uint32, boolean> processSensorReading() -> tuple<uint32, boolean> { // Function returning a tuple
-                uint32 rawValue = readRawSensorValue();
-                boolean isValid = validateSensorValue(rawValue);
-                return tuple(rawValue, isValid); // Return a tuple
-            }
-
-            function void mainFunction() {
-                tuple<uint32, boolean> sensorResult = processSensorReading(); // Receive tuple
-                uint32 processedValue = tupleItemAt(sensorResult, 0); // Access tuple element at index 0
-                boolean validityFlag = tupleItemAt(sensorResult, 1); // Access tuple element at index 1
-
-                // Tuple destructuring (see Destructuring Declarations below) provides a more concise way to access tuple elements:
-                uint32 value;
-                boolean valid;
-                tuple(value, valid) = sensorResult; // Tuple destructuring assignment
-
-                if (valid) {
-                    uartSendString("Sensor value: "); uartSendInteger(value); uartSendString("\n");
-                }
-            }
-        }
-        ```
-
-    *   **Function Pointer Type (Higher-Order Functions):** `function(...) -> ...`. The `function pointer` type enables higher-order functions, callbacks, and dynamic function dispatch, increasing code flexibility and modularity. Function pointers allow for runtime polymorphism and event-driven programming paradigms. Example declaration: `function(int32, int32) -> int32 MathFunctionType;`.
-
-        **Why Function Pointers are Valuable in Bare Metal:** Function pointers, while sometimes seen as a higher-level abstraction, are surprisingly useful in bare metal programming for several reasons:
-
-        *   **Callbacks and Event Handling:** Function pointers are essential for implementing callback mechanisms and event-driven programming patterns.  In embedded systems, interrupt handlers, asynchronous event listeners, and timer callbacks are often implemented using function pointers. This allows for flexible and modular event handling.
-        *   **Driver and Library Abstraction:** Function pointers can be used to create abstract interfaces for device drivers and libraries.  A driver CAM might export a set of function pointers that represent the driver's operations (e.g., `uart_send_byte`, `uart_receive_byte`).  User code can then call these function pointers without needing to know the specific driver implementation, enabling driver abstraction and modularity.
-        *   **Dynamic Function Dispatch:** Function pointers enable dynamic function dispatch or runtime polymorphism.  The specific function to be called can be determined at runtime based on configuration parameters, user input, or system state. This can be useful for implementing configurable behavior or runtime extensibility.
-        *   **State Machines and Table-Driven Programming:** Function pointers are often used in implementing state machines and table-driven programming techniques, which are common patterns in embedded systems.  State transition tables can store function pointers representing the actions to be performed in each state, allowing for flexible and configurable state-based logic.
-        *   **Code Reusability and Algorithm Abstraction:** Function pointers facilitate code reusability by allowing algorithms to be written in a generic way, independent of the specific functions they operate on.  A generic sorting algorithm, for example, can take a function pointer as a parameter to compare elements, making it reusable for sorting different data types and using different comparison criteria.
-
-        **Example (Function Pointer Type):**
-        ```baremetal
-        @arc arm {
-            declarations {
-                type MathFunctionType = function(int32, int32) -> int32; // Define function pointer type
-                MathFunctionType addFunctionPtr; // Function pointer variable
-                function int32 add(int32 a, int32 b) -> int32 { return a + b; } // Regular function
-                function int32 subtract(int32 a, int32 b) -> int32 { return a - b; } // Another function
-            }
-            statements {
-                addFunctionPtr = add; // Assign 'add' function address to function pointer
-                int32 result1 = addFunctionPtr(5, 3); // Call function through function pointer - result1 = 8
-                uartSendInteger(result1);
-
-                addFunctionPtr = subtract; // Reassign to 'subtract' function
-                int32 result2 = addFunctionPtr(10, 4); // Call different function through same pointer - result2 = 6
-                uartSendInteger(result2);
-            }
-        }
-        ```
-
-    *   **Struct and Union Types (Composite Data Structures):** `struct`, `union`, **`mmrBlock`**. `struct` and `union` types allow developers to define composite data structures. `struct` defines structures where members are laid out sequentially in memory, while `union` defines structures where members share the same memory location. **`mmrBlock` (Memory-Mapped Register Block) is a specialized struct-like type specifically designed for representing memory-mapped hardware register blocks.  MMR Blocks provide a structured, type-safe, and high-level way to access hardware registers, significantly reducing the need for manual `#operation` directives and raw pointer manipulation for peripheral access. MMR Blocks are the RECOMMENDED and SAFE mechanism for hardware register interaction in BML.** Example declarations: `struct PointType { int32 x; int32 y; };`, `union DataPacketType { uint32 rawData; struct { uint16 highByte; uint16 lowByte; } byteData; };`, `mmrBlock GpioRegistersType @address(0x40010000) { ... };`.
-
-        **Why Structs, Unions, and MMR Blocks are Essential for Bare Metal:** These composite data types are fundamental for organizing and working with data and hardware in bare metal systems:
-
-        *   **Data Aggregation (Structs):** `struct` types allow developers to group together related data elements of different types into a single, cohesive unit. Structs are used to represent complex data structures, records, or objects, improving code organization and data management.  They are crucial for representing data packets, sensor readings, configuration structures, and other complex data entities.
-        *   **Memory Optimization (Unions):** `union` types allow multiple members to share the same memory location. Unions are used to save memory when different data types need to be stored in the same memory location at different times or when representing data that can have multiple interpretations (e.g., different data formats within a communication protocol). Unions are valuable for memory-constrained embedded systems.
-        *   **Hardware Register Abstraction (MMR Blocks):** `mmrBlock` is a specialized struct-like type specifically designed for representing memory-mapped hardware register blocks. MMR Blocks provide a type-safe, structured, and high-level way to access hardware registers, significantly improving the developer experience and reducing the risk of errors when interacting with hardware peripherals. MMR Blocks encapsulate register addresses, offsets, data types, and volatility information, making hardware register access more manageable and less error-prone.  **MMR Blocks are the *recommended* and *safest* mechanism for hardware register interaction in BML, replacing manual `#operation` directives and raw pointer manipulation in most cases.**
-
-        **Example (Struct, Union, and MMR Block Types):**
-        ```baremetal
-        @arc arm {
-            declarations {
-                type PointType = struct { // Struct definition - Represents a 2D point
-                    int32 x;
-                    int32 y;
-                };
-                type DataPacketType = union { // Union definition - Represents different data interpretations
-                    uint32 rawData;
-                    struct { // Anonymous struct within union
-                        uint16 highByte;
-                        uint16 lowByte;
-                    } byteData;
-                };
-                mmrBlock GpioRegistersType @address(0x40010000) { // MMR Block definition - GPIO peripheral registers
-                    volatile register uint32 DataRegister : offset(0x00); // Volatile register member
-                    volatile register uint32 ControlRegister : offset(0x04);
-                };
-                PointType myPoint; // Struct variable
-                DataPacketType packet; // Union variable
-                GpioRegistersType Gpio = GpioRegistersType; // MMR Block variable (instance)
-            }
-            statements {
-                myPoint.x = 10; // Access struct member
-                myPoint.y = 20;
-
-                packet.rawData = 0xABCD1234; // Access union member as uint32
-                uint16 lowByte = packet.byteData.lowByte; // Access union member as struct and then member - lowByte = 0x1234
-                uartSendInteger(lowByte);
-
-                Gpio.DataRegister = 0xFF; // Access MMR Block register member - Write to GPIO Data Register
-                uint32 gpioData = Gpio.ControlRegister; // Read from GPIO Control Register
-                uartSendInteger(gpioData);
-            }
-        }
-        ```
-
-    *   **Enum Types (Enumerated Values):** `enum`. The `enum` type defines enumerated types. It allows developers to create named constants, improving code readability and maintainability by using symbolic names for constant values. Enums enhance code clarity and reduce the risk of errors associated with magic numbers. Example declaration: `enum ErrorCodeEnum { NoError, FileNotFoundError, AccessDeniedError };`.
-
-        **Why Enums Improve Code Quality in Bare Metal:** Enums are a simple but powerful feature that significantly enhances code quality, readability, and maintainability in bare metal development:
-
-        *   **Readability and Self-Documentation:** Enums replace "magic numbers" with meaningful symbolic names. Instead of using raw integer constants like `0`, `1`, `2`, etc., enums allow developers to use descriptive names like `ErrorCodeEnum.NoError`, `ErrorCodeEnum.FileNotFoundError`, etc. This makes code much more self-documenting and easier to understand.
-        *   **Reduced Errors and Typos:** Enums reduce the risk of errors associated with using magic numbers.  Typos or incorrect numerical values are common sources of bugs when using raw integer constants. Enums enforce type safety and prevent accidental use of incorrect enum values. The compiler will catch errors if you try to assign an invalid enum value or compare an enum with an incompatible type.
-        *   **Maintainability and Code Evolution:**  Enums improve code maintainability. If the meaning or numerical values associated with certain states or constants change, you only need to update the enum definition, rather than searching and replacing magic numbers throughout the entire codebase. This makes code evolution much safer and easier.
-        *   **Code Organization and Structure:** Enums help organize and structure code by grouping related constants together under a meaningful enum type. This improves code modularity and makes it easier to understand the different states, options, or error codes within a system.
-        *   **Compiler Optimization Potential:**  Enums can enable the compiler to perform enum-specific optimizations. The compiler might be able to generate more efficient code for switch statements or conditional logic based on enum values.
-
-        **Example (Enum Types):**
-        ```baremetal
-        @arc arm {
-            declarations {
-                enum ErrorCodeEnum { // Enum definition - Represents error codes
-                    NoError = 0,
-                    FileNotFoundError = 1,
-                    AccessDeniedError = 2,
-                    InvalidParameterError = 3
-                };
-                ErrorCodeEnum errorCode; // Enum variable
-            }
-            statements {
-                errorCode = ErrorCodeEnum.FileNotFoundError; // Assign enum value
-                if (errorCode == ErrorCodeEnum.FileNotFoundError) {
-                    uartSendString("File not found error occurred!\n");
-                } else if (errorCode == ErrorCodeEnum.NoError) {
-                    uartSendString("No error.\n");
-                } else {
-                    uartSendString("Another error occurred.\n");
-                }
-                uartSendInteger(errorCode); // Enum values can be treated as integers
-            }
-        }
-        ```
-
-    *   **Thread Handle Type (Concurrency Management):** `threadHandle`. The `threadHandle` type represents a handle to a thread. It is used for managing threads, such as joining threads or signaling events, providing a way to interact with and control thread execution. Example declaration: `threadHandle myThread;`.
-
-        **Why `threadHandle` is Necessary for Concurrency:** In concurrent programming, especially in bare metal environments, thread handles are essential for managing and controlling threads:
-
-        *   **Thread Identification and Management:** `threadHandle` provides a unique identifier for each thread, allowing the system to distinguish between different threads and manage their execution. Thread handles are used to perform operations on specific threads, such as joining threads, suspending or resuming threads (in more advanced concurrency models), or setting thread priorities (in RTOS environments).
-        *   **Synchronization and Communication:**  Thread handles can be used in conjunction with synchronization primitives (mutexes, semaphores, condition variables - if provided by CAMs or runtime) to enable inter-thread communication and synchronization.  For example, a thread handle might be associated with a semaphore or event that another thread can signal to notify the first thread of a particular event or data availability.
-        *   **Thread Lifecycle Management:** `threadHandle` is used to manage the lifecycle of threads, including thread creation, starting, running, and termination. Functions like `joinThread(threadHandle)` rely on thread handles to wait for a thread to complete its execution.
-        *   **Abstraction of Thread Implementation:** `threadHandle` provides an abstract interface for working with threads, hiding the underlying implementation details of thread management and scheduling. This allows user code to interact with threads at a higher level of abstraction, without needing to be concerned with low-level thread context switching or thread scheduling mechanisms.
-        *   **Integration with Concurrency CAMs:**  In BML's CAM ecosystem, `threadHandle` is designed to be extensible and customizable through Concurrency CAMs.  CAMs can provide specialized thread management functionalities, scheduling policies, and synchronization primitives that are integrated with the `threadHandle` type.
-
-        **Example (Thread Handle Type):**
-        ```baremetal
-        @arc multiCoreArm {
-            declarations {
-                threadHandle myThread; // Thread handle variable
-                mutex myMutex;
-            }
-            function void threadFunction() {
-                lock(myMutex);
-                uartSendString("Hello from thread!\n");
-                unlock(myMutex);
-            }
-            statements {
-                myMutex = mutex();
-                myThread = thread myThreadFunc threadFunction(); // Create a thread and get its handle
-                // ... main thread code ...
-                joinThread(myThread); // Wait for the thread to complete
-                uartSendString("Thread joined.\n");
-            }
-        }
-        ```
-
-    *   **Mutex Type (Mutual Exclusion):** `mutex`. The `mutex` type represents a mutex (mutual exclusion lock). Mutexes are used to protect shared resources from concurrent access by multiple threads, preventing data races and ensuring data integrity in concurrent programs. Mutexes are fundamental for thread synchronization and critical section protection. Mutexes and semaphores are fundamental synchronization primitives in BML, designed to protect shared resources, including mutable variables and pointers, from concurrent access by multiple threads. They are crucial for preventing data races and ensuring data integrity in concurrent bare metal programs. Example declaration: `mutex myMutex;`.
-
-        **Why Mutexes are Essential for Concurrency Safety:** In concurrent programs, especially in bare metal systems where memory protection might be limited or absent, mutexes are indispensable for ensuring data integrity and preventing race conditions:
-
-        *   **Critical Section Protection:** Mutexes are used to define critical sections in code – code blocks that access shared resources and must be executed atomically (i.e., without interruption or concurrent access from other threads).  `lock(mutex)` acquires exclusive access to the critical section, and `unlock(mutex)` releases the lock, allowing other threads to acquire it.
-        *   **Data Race Prevention:** Data races occur when multiple threads access shared mutable data concurrently, and at least one thread modifies the data, without proper synchronization. Data races can lead to unpredictable behavior, data corruption, and crashes. Mutexes prevent data races by ensuring that only one thread can access and modify shared data within a critical section at any given time.
-        *   **Shared Resource Protection:** Mutexes are used to protect any shared resource that needs exclusive access, not just shared data.  This can include hardware peripherals, global variables, shared data structures, or any resource that could be corrupted or lead to inconsistent state if accessed concurrently.
-        *   **Mutual Exclusion (Mutual Exclusion):** The term "mutex" stands for "mutual exclusion." Mutexes enforce mutual exclusion, meaning that only one thread can hold the lock at a time. If a thread tries to acquire a mutex that is already held by another thread, the thread will block (wait) until the mutex is released. This ensures exclusive access to the protected resource.
-        *   **Sequential Consistency (Memory Model):** Mutexes, in conjunction with memory barriers (like `#operation memoryBarrier`), help enforce sequential consistency in BML's concurrency model. Memory barriers ensure that memory operations within a critical section are properly ordered and visible to other threads in a predictable manner, even in multi-core systems with relaxed memory models.
-
-        **Example (Mutex Type):**
-        ```baremetal
-        @arc multiCoreArm {
-            declarations {
-                mutex myMutex; // Mutex variable
-                ~uint32 sharedCounter; // Shared mutable counter
-            }
-            function void incrementCounterThread() {
-                for (uint32 i = 0; i < 1000; i++) {
-                    lock(myMutex); // Acquire mutex - Enter critical section
-                    sharedCounter++; // Increment shared counter - Protected by mutex
-                    unlock(myMutex); // Release mutex - Exit critical section
-                }
-            }
-            function void decrementCounterThread() {
-                for (uint32 i = 0; i < 1000; i++) {
-                    lock(sharedDataMutex); // Acquire mutex - Enter critical section
-                    sharedCounter--; // Decrement shared counter - Protected by mutex
-                    unlock(sharedDataMutex); // Release mutex - Exit critical section
-                }
-            }
-            statements {
-                myMutex = mutex(); // Initialize mutex
-                thread thread1 incrementThread incrementCounterThread(); // Create increment thread
-                thread thread2 decrementCounterThread(); // Create decrement thread
-                joinThread(thread1); // Wait for threads to complete
-                joinThread(thread2);
-                uartSendInteger(sharedCounter); // Output final counter value (should ideally be close to 0)
-            }
-        }
-        ```
-
-    *   **Semaphore Type (Synchronization and Resource Control):** `semaphore`. The `semaphore` type represents a semaphore. Semaphores are used for thread synchronization and controlling access to limited resources. They can be used for signaling events, implementing producer-consumer patterns, and managing resource pools, offering versatile synchronization capabilities. Example declaration: `semaphore mySemaphore(5);` (semaphore initialized with count 5).
-
-        **Why Semaphores are Versatile Synchronization Primitives:** Semaphores are more general-purpose synchronization primitives than mutexes, offering a wider range of use cases in concurrent programming:
-
-        *   **Resource Counting and Limiting:** Semaphores are used to control access to resources that have a limited number of instances or can only be used by a limited number of threads concurrently.  A semaphore can be initialized with a count representing the number of available resources. Threads acquire a semaphore (decrementing the count) before using a resource and release it (incrementing the count) when done. If the count is zero, threads trying to acquire the semaphore will block until a resource becomes available.
-        *   **Signaling and Event Notification:** Semaphores can be used for signaling events between threads. A thread can wait on a semaphore until another thread signals it (increments the semaphore count). This is useful for implementing producer-consumer patterns, where a producer thread signals a consumer thread when new data is available. Semaphores used for signaling are often initialized with a count of 0.
-        *   **Producer-Consumer Patterns:** Semaphores are a fundamental building block for implementing producer-consumer patterns, where one or more producer threads generate data and one or more consumer threads process that data. Semaphores are used for both signaling data availability from producers to consumers and for controlling the buffer size between producers and consumers.
-        *   **Thread Rendezvous and Synchronization Points:** Semaphores can be used to create synchronization points where multiple threads need to wait until all threads have reached a certain point before proceeding.  This is useful for coordinating parallel tasks and ensuring that threads execute in a specific order.
-        *   **Generalized Mutual Exclusion:** While mutexes are specifically designed for mutual exclusion (exclusive access), semaphores can also be used to implement mutual exclusion by initializing a semaphore with a count of 1 (a binary semaphore). In this case, the semaphore behaves similarly to a mutex. However, mutexes are often preferred for mutual exclusion due to their clearer semantics and potential for optimizations specific to mutual exclusion scenarios.
-
-        **Example (Semaphore Type):**
-        ```baremetal
-        @arc multiCoreArm {
-            declarations {
-                semaphore dataReadySemaphore(0); // Semaphore initialized to 0 - Signals data availability
-                ~uint32 sharedData; // Shared data
-            }
-            function void dataProducerThread() {
-                uint32 dataToProduce = 123;
-                sharedData = dataToProduce; // Produce data
-                signal(dataReadySemaphore); // Signal that data is ready - Increment semaphore count
-                uartSendString("Data produced and signaled.\n");
-            }
-            function void dataConsumerThread() {
-                uartSendString("Waiting for data...\n");
-                wait(dataReadySemaphore); // Wait for data to be signaled - Decrement semaphore count, blocks if count is 0
-                uint32 receivedData = sharedData; // Consume data
-                uartSendString("Data consumed: "); uartSendInteger(receivedData); uartSendString("\n");
-            }
-            statements {
-                thread producer producerThread dataProducerThread(); // Create producer thread
-                thread consumer consumerThread dataConsumerThread(); // Create consumer thread
-                joinThread(producerThread); // Wait for threads to complete
-                joinThread(consumerThread);
-            }
-        }
-        ```
-
-    *   **Awaitable Type (Asynchronous Operations):** `awaitable<DataType>`. The `awaitable` type represents an asynchronous operation that will eventually produce a value of `DataType`. It is used in conjunction with the `await` keyword to pause execution until an `awaitable` operation completes and returns a result, facilitating asynchronous programming patterns. Example declaration: `awaitable<uint32> asyncResult;`.
-
-        **Why `awaitable` and Asynchronous Programming are Relevant in Bare Metal:** Asynchronous programming, enabled by `awaitable` and `await`, is increasingly important in bare metal systems for improving responsiveness and efficiency, especially when dealing with I/O operations and real-time constraints:
-
-        *   **Non-Blocking I/O Operations:** In embedded systems, I/O operations (e.g., reading from sensors, communicating over networks, accessing storage devices) can be relatively slow compared to CPU processing speed. Asynchronous operations allow threads to initiate I/O operations without blocking and continue executing other tasks while waiting for the I/O to complete. This improves system responsiveness and prevents threads from being idle while waiting for I/O.
-        *   **Real-Time Responsiveness:** Asynchronous programming is crucial for real-time systems that need to respond to events or external stimuli quickly and predictably.  `awaitable` and `await` allow threads to handle asynchronous events and I/O operations without blocking the main control loop or other time-critical tasks.
-        *   **Concurrency and Parallelism Efficiency:** Asynchronous operations improve the efficiency of concurrent and parallel programs by allowing threads to utilize CPU time more effectively while waiting for I/O or other long-latency operations to complete.  Threads can switch to other tasks or execute in parallel while asynchronous operations are in progress, maximizing resource utilization.
-        *   **Event-Driven Architectures:** Asynchronous programming is a natural fit for event-driven architectures, which are common in embedded systems.  `awaitable` and `await` provide a structured way to handle asynchronous events and callbacks, making event-driven code more readable and easier to manage compared to traditional callback-based approaches.
-        *   **Simplified Asynchronous Code (Compared to Callbacks):**  `awaitable` and `await` provide a more structured and synchronous-looking syntax for asynchronous operations compared to traditional callback-based asynchronous programming.  `await` makes asynchronous code look more like sequential, blocking code, improving readability and reducing the complexity of managing asynchronous control flow.
-
-        **Example (Awaitable Type):**
-        ```baremetal
-        @arc multiCoreArm {
-            declarations {
-                awaitable<uint32> asyncResult; // Awaitable variable to hold asynchronous result
-            }
-            function awaitable<uint32> asynchronousOperation() -> awaitable<uint32> { // Asynchronous function returning awaitable
-                // ... simulate asynchronous operation (e.g., I/O, network request) ...
-                sleepThread(200); // Simulate delay
-                return awaitable<uint32>(42); // Return awaitable with result value 42
-            }
-            function void mainThread() {
-                uartSendString("Starting asynchronous operation...\n");
-                asyncResult = asynchronousOperation(); // Initiate asynchronous operation
-                uartSendString("Waiting for result...\n");
-                uint32 result = await asyncResult; // Await the completion of asynchronous operation - Execution pauses until result is ready
-                uartSendString("Asynchronous result received: "); uartSendInteger(result); uartSendString("\n");
-            }
-            statements {
-                thread main mainThreadFunc mainThread(); // Create main thread
-                joinThread(mainThreadFunc);
-            }
-        }
-        ```
-
-    *   **Generic Modules and Functions (Compile-Time Generics - Version 1.4 Feature):** BML Version 1.4 introduces **compile-time generics** for modules and functions. Generics allow developers to write code that is parameterized by types, enabling the creation of reusable components that can work with different data types without incurring runtime overhead. Generics in BML are implemented using monomorphization, meaning the compiler generates specialized, optimized code for each concrete type instantiation at compile time, ensuring zero runtime cost for type abstraction. Example generic module declaration: `generic <DataType> module GenericVector { ... };`. Example generic function declaration: `generic <DataType> function DataType genericMax(DataType a, DataType b) -> DataType { ... };`.
-
-        **Syntax Rationale: Generic Module Instantiation with `<Type>`**
-
-        The syntax for generic module instantiation in BML, using angle brackets `<Type>` in `#use module "GenericModule<Type>"` directives, was chosen to align with established conventions for generics in modern programming languages and to clearly communicate the concept of type parameterization.  While different from C-style `#include`, the `<Type>` syntax offers significant advantages for expressing generics:
-
-        *   **Standard Generics Syntax Convention:** The `<Type>` syntax for specifying type arguments in generics is a widely adopted and de-facto standard in many languages that support generics or parametric polymorphism, including C++, Java, C#, Rust, Swift, and others.  Adopting this convention in BML ensures familiarity for developers coming from other languages and promotes consistency with established programming practices.
-        *   **Explicit Type Parameterization:** The `<Type>` syntax explicitly signals that the module being used is a *generic* module and that type parameters are being provided to *instantiate* it for a specific data type. This makes it immediately clear in the code that a type substitution or specialization is occurring, rather than just a simple module inclusion.  `#use module "GenericVector<uint32>"` clearly indicates "use the GenericVector module, instantiated for `uint32` type."
-        *   **Distinction from C-style `#include` (Semantic Import vs. Textual Inclusion):**  The `#use module "GenericModule<Type>"` syntax, especially with the `<Type>` part, emphasizes that this is not a simple textual inclusion like C's `#include`.  `#use module` is a *semantic import* mechanism that brings in pre-compiled module functionalities, and with generics, it also involves *type-driven code specialization*.  It's a more sophisticated and type-aware mechanism than simple textual inclusion, and the `<Type>` syntax reinforces this distinction.
-        *   **Clarity and Readability for Generic Code:** The `<Type>` syntax makes generic code more readable and understandable. It clearly separates the generic module name (`GenericVector`) from the concrete type parameter (`uint32`), making it easy to identify and reason about generic instantiations.
-        *   **Future Extensibility (Type Constraints):** The `<Type>` syntax provides a natural and extensible framework for future enhancements to generics, such as adding type constraints or more complex type parameter lists.  Type constraints (e.g., `#use module "GenericAlgorithm<DataType where SupportsComparison>"`) could be readily integrated within the `<Type>` syntax, further extending the power and flexibility of BML generics.
-
-        **Example (Generic Module Syntax):** Modules can be declared as generic using the `generic <TypeParameterList>` syntax before the `module` keyword. `TypeParameterList` is a comma-separated list of type parameter names (identifiers).
-
-            ```baremetal
-            generic <DataType> module GenericVector { // Generic module declaration with type parameter 'DataType'
-                export {
-                    types { Vector; }
-                    functions { vectorCreate, vectorPush, vectorGet }
-                }
-                type Vector = struct { safeArray<DataType, 128> data; }; // Using type parameter 'DataType'
-
+            module MyCam {
                 @arc arm {
-                    statements {
-                        intrinsic function Vector vectorCreate() -> Vector { /* ARM-specific generic vector creation */ return Vector(); }
-                        intrinsic function void vectorPush(Vector ~vector, DataType value) { /* ARM-specific generic vector push */ }
-                        intrinsic function DataType vectorGet(Vector vector, uint32 index) -> DataType { /* ARM-specific generic vector get */ return DataType(0); }
+                   function void optimizeData(DataType value) {
+                     if (hasDataLayoutAttribute(value, "packed")) {
+                        //generate code for packed struct
+                     } else {
+                     // generate standard code
+                     }
+                }
+            }
+            }
+            ```
+    *   **Linear Access Attributes:** `@linearAccess`, `@linearAccessGuaranteed(size)`.
+        *   `@linearAccess`: Marks an array as being accessed sequentially. The compiler may use this information to perform optimizations.
+        *   `@linearAccessGuaranteed(size)`: Guarantees that the array access is linear, and the size is a compile-time constant or an identifier marked with `linearAccessGuaranteed`, which is required to generate code for hardware accelerators that perform linear memory access. The compiler must ensure that all accesses to that array are linear, otherwise, it is a compile-time error.
+        *   When `size` is not specified, the compiler must infer it from the array declaration.
+        *   Example: `uint32 safe [100] myArray @linearAccess;`, `uint32 safe[MAX_SIZE] myLinearArray @linearAccessGuaranteed(100);`, `uint32 safe[MAX_SIZE] myLinearArray @linearAccessGuaranteed;`
+    *   **Circular Buffer Attribute:** `@circularBuffer`.
+        *   Marks an array as a circular buffer, enabling specific code optimizations and transformations by using modulo operations or other strategies to implement a ring buffer.
+        *  The compiler must verify that the size of the buffer is a power of 2, otherwise, it is a compile-time error.
+        * Example: `uint32 safe [1024] myBuffer @circularBuffer;`
+    *   **Read and Write Once Attributes:** `@readOnce`, `@writeOnce`
+        *   The `@readOnce` attribute guarantees that a given variable or memory region will be read only once. The compiler may perform optimizations or generate specialized code for that.
+         *  If the variable or memory region is read more than once, the behaviour is undefined. No guarantees about the order of the access are provided. The compiler will not check or generate a warning if the `readOnce` attribute is violated.
+        *   The `@writeOnce` attribute guarantees that a given variable or memory region will be written only once. The compiler may perform optimizations or generate specialized code for that.
+          *   If the variable or memory region is written more than once, the behaviour is undefined. No guarantees about the order of the access are provided. The compiler will not check or generate a warning if the `writeOnce` attribute is violated.
+        *   Example: `uint32 counter @readOnce;`, `uint8 safe [10] buffer @writeOnce;`
+    *  **Cache Line Aligned Attribute:** `@cacheLineAligned`
+         *  Guarantees that the data will be aligned to the size of the processor cache line, which enables better cache utilization and access performance, preventing issues related to false sharing.
+         *  The size of the cache line depends on the target architecture.
+         * Example: `struct MyStruct @cacheLineAligned { ... };`
+    *   **Register and Schedule Attributes:** `@register("stringLiteral", "stringLiteral")`, `@schedule("stringLiteral")`
+        *   These attributes provide hints to the CAM about how to assign registers and schedule the execution of a given function. The `stringLiteral` is CAM specific and should be used by the CAM developer to provide additional information to the code generator. For example:
+            *  `register("r0")`: The `r0` string can be used by the ARM CAM to associate this variable to the `r0` register.
+            * `register("offset0x20")`: The `offset0x20` string can be used by a CAM to access an offset of 0x20 from the address where the variable is located.
+            *`schedule("low")`: The `low` string can be used to mark that a function should be scheduled with low priority, when possible.
+         *   Example: `function processData() @register("r1") @schedule("low") { ... };`,  `uint32 @register("MyAiCore", "control_reg") myMatrixAControl;`
+    *   **No Overlap Guaranteed Attribute:** `@noOverlapGuaranteed`
+        *  Guarantees that a given memory region does not overlap with any other memory region, allowing for potential optimizations, if the compiler can enforce this at compile time.
+         * It's the programmer's responsibility to ensure that this is true. If two memory regions marked with `@noOverlapGuaranteed` do overlap, the behaviour is undefined. The compiler does not provide a mechanism to verify this property at compile time.
+         * Example: `uint8 safe[100] array1 @noOverlapGuaranteed; uint8 safe[100] array2 @noOverlapGuaranteed;`
+    *   **Vectorization Attributes:** `@vector(N)`, `@vectorAligned`.
+        *   The `@vector(N)` attribute enables vectorization of a specific data access, and the compiler is in charge of generating vectorized instructions. `N` is the vector size in bytes.
+        *    If `N` does not match the expected vector size of the target architecture, the behaviour is undefined.
+        *   The `@vectorAligned` attribute guarantees that the data is aligned with the vector size, which is useful for SIMD operations.
+         *  The vector size depends on the target architecture.
+        *   Example: `uint32 safe[100] myVector @vector(16);`, `uint8 safe[1024] bigBuffer @vectorAligned;`
+    *   **Function Inlining Attributes:** `@inlineAlways`, `@noinline`, `@inlineIfSmall`.
+        *   `@inlineAlways`: Forces the inlining of the function. The compiler will emit an error if the function can not be inlined.
+        *   `@noinline`: Prevents inlining of the function, even if optimizations suggest it's beneficial.
+        *   `@inlineIfSmall`: Suggests to the compiler to inline the function only if it's considered small.
+        *   Example: `function mySmallFunction() @inlineIfSmall { ... };`, `function myBigFunction() @noinline { ... };`, `function myFunction() @inlineAlways { ... };`
+    *   **Dataflow Attributes:** `@in`, `@out`, `@inOut`.
+        *   These attributes are used in CAMs to track how data is passed through the system, enabling optimizations and compiler checks based on the data flow.
+         *    These attributes do not change the code behaviour; they are used by CAMs for code generation and analysis.
+            *  **Dataflow Example:**
+               *   CAMs use the `@dataFlow` attributes to analyze how data is passed through the system and use this information to perform optimizations. For example, an optimization can be to perform computations in a different order to minimize cache misses, or to perform memory access in a different order to improve performance.
+                   *  Example:
+                     ```baremetal
+                    module DataFlowCam {
+                        export {
+                            interface intrinsic function void processData(uint32 input @in, uint32 output @out) -> void;
+                        }
+                        @arc arm {
+                           function void processData(uint32 input @in, uint32 output @out) {
+                                // code to analyze the dataflow graph
+                                 print("DataFlow: Analyzing the flow of data");
+                               memoryBarrier();  // memory barrier can be moved by the optimizer if it's guaranteed that the read/write operation will always be performed in the right order.
+                              // ... generate the optimized code
+                            }
+                      }
                     }
-                }
-                @arc riscv { /* ... RISC-V specific implementation ... */ }
-            }
-            ```
+                     module MyModule {
+                      #use "DataFlowCam";
+                        function void main() {
+                            uint32 data = 10;
+                            uint32 result;
+                            processData(data, result);
+                           print("Processed data:", result);
 
-        **Example (Generic Function Syntax):** Functions within modules (or potentially top-level functions in future extensions) can also be declared as generic using the `generic <TypeParameterList>` syntax before the `function` keyword.
-
-            ```baremetal
-            generic <DataType> function DataType genericMax(DataType a, DataType b) -> DataType { // Generic function declaration
-                if (a > b) {
-                    return a;
-                } else {
-                    return b;
-                }
-            }
-            ```
-
-        **Example (Module and Function Instantiation):** Generic modules and functions are instantiated with concrete types using the `<ConcreteTypeList>` syntax after the module or function name in `#use module` directives or function calls.  `ConcreteTypeList` is a comma-separated list of concrete data types that will replace the type parameters.
-
-            ```baremetal
-            #use module "GenericVector<uint32>" as Uint32Vector; // Instantiate GenericVector CAM for uint32
-            #use module "GenericVector<float32>" as Float32Vector; // Instantiate GenericVector CAM for float32
-
-            @arc arm {
-                declarations {
-                    Uint32Vector.Vector uint32Vec;
-                }
-                statements {
-                    uint32 maxUint32 = genericMax<uint32>(10, 20); // Instantiate and call generic function for uint32
-                    uint32Vec = Uint32Vector.vectorCreate(10);
-                    Uint32Vector.vectorPush(~uint32Vec, maxUint32);
-                    uint32 value = Uint32Vector.vectorGet(uint32Vec, 0);
-
-                    float32Vec = Float32Vector.vectorCreate(5);
-                    Float32Vector.vectorPush(~float32Vec, 3.14f);
-                    float32 floatValue = Float32Vector.vectorGet(float32Vec, 0);
-                }
-            }
-            ```
-
-        *   **Compile-Time Specialization (Monomorphization):** The BML compiler performs compile-time specialization (monomorphization) for generics.  For each unique instantiation of a generic module or function with concrete types, the compiler generates a specialized version of the code tailored to those types. This ensures zero runtime overhead for generic abstractions, as all type substitutions and specializations are resolved during compilation.
-
-        *   **Type Constraints (Future Extension):** Future versions of BML may explore adding type constraints to generic type parameters, allowing developers to specify requirements or interfaces that type parameters must satisfy (e.g., requiring a type to implement a specific interface or have certain operations defined).
-
-    *   **Result Type for Error Propagation (Version 1.4 Feature):** BML Version 1.4 introduces a built-in `Result<OkType, ErrType>` type for explicit and type-safe error handling and propagation. The `Result` type is an enum-like type that can hold either a successful value of type `OkType` or an error value of type `ErrType`. This provides a structured alternative to traditional error codes or exception handling, promoting more robust and readable error management in bare metal code, especially within CAMs.  The `Result` type itself introduces zero runtime overhead; the overhead comes from the explicit error handling logic implemented by the developer. Example declaration: `Result<uint32, ErrorCodeEnum> sensorResult;`.
-
-        **Why `Result` Type Improves Error Handling:** The `Result` type is a significant improvement over traditional error handling mechanisms in low-level languages like C, offering enhanced type safety, clarity, and robustness:
-
-        *   **Explicit Error Handling:** The `Result` type forces developers to explicitly handle potential errors. Functions that can fail are declared to return a `Result` type, making it clear to the caller that error handling is necessary. This contrasts with traditional error codes, which are often ignored or mishandled.
-        *   **Type Safety for Error Values:**  With `Result<OkType, ErrType>`, the type of the error value (`ErrType`) is explicitly specified. This ensures type safety for error handling code. The compiler can enforce that error values are of the expected type, preventing type-related errors in error handling logic.
-        *   **Clear Separation of Success and Failure:** The `Result` type clearly separates the successful return value (`Ok` variant) from the error value (`Err` variant). This makes code more readable and easier to understand the intended outcome of a function call.
-        *   **Improved Error Propagation:** The `Result` type facilitates error propagation in a type-safe manner. Functions can return `Result` values, and callers can easily propagate errors up the call stack by returning `Err` variants from their own functions. This creates a clear and structured way to handle errors across function boundaries.
-        *   **Alternatives to Exceptions (Zero-Overhead Option):** The `Result` type provides a zero-overhead alternative to exception handling, which is often not desirable or feasible in bare metal environments due to runtime overhead and complexity. `Result` types provide structured error handling at the language level without introducing runtime exception handling mechanisms.
-
-        **Example ( `Result<OkType, ErrType>` Type Syntax):** The `Result` type is declared using `Result<OkType, ErrType>`, where `OkType` is the type of the successful value and `ErrType` is the type of the error value. Both `OkType` and `ErrType` must be explicitly specified.
-
-            ```baremetal
-            function Result<uint32, UartErrorEnum> uartReceiveData() -> Result<uint32, UartErrorEnum> { // Function returning Result type
-                // ... UART receive logic ...
-                if (dataReceived) {
-                    return Result<uint32, UartErrorEnum>.Ok(receivedData); // Return Ok with received data
-                } else {
-                    return Result<uint32, UartErrorEnum>.Err(UartErrorEnum.ReceiveTimeout); // Return Err with error code
-                }
-            }
-            ```
-
-        **Example (`Ok(value)` and `Err(error)` Constructors):** The `Result` type provides static constructor functions `Ok(value)` and `Err(error)` to create instances of the `Result` type representing success and failure, respectively. `Ok(value)` creates a `Result` instance holding a successful value of `OkType`, and `Err(error)` creates a `Result` instance holding an error value of `ErrType`.
-
-        **Example (Zero Runtime Overhead):** The `Result` type itself is designed to be a zero-overhead abstraction.  It is essentially a type-safe way to represent a value that may or may not be present due to success or failure. The runtime overhead is determined by the error handling logic implemented by the developer to check and process `Result` values, which can be optimized by the compiler.
-
-        **Example (Example Usage):**
-
-            ```baremetal
-            enum UartErrorEnum { Ok, InvalidConfiguration, HardwareError, ReceiveTimeout }; // Enum for UART errors
-
-            function Result<void, UartErrorEnum> uartInit(UartConfigType config) -> Result<void, UartErrorEnum> {
-                // ... UART initialization logic ...
-                if (configInvalid) { return Result<void, UartErrorEnum>.Err(UartErrorEnum.InvalidConfiguration); }
-                if (hardwareError) { return Result<void, UartErrorEnum>.Err(UartErrorEnum.HardwareError); }
-                return Result<void, UartErrorEnum>.Ok(); // Return Ok indicating success (void OkType)
-            }
-
-            function void sendData() {
-                Result<void, UartErrorEnum> initResult = uartInit(uartConfig);
-                if (initResult is Err) { // Check if Result is Err (failure)
-                    UartErrorEnum error = initResult.unwrapErr(); // Access error value (unwrapErr - conceptual, may need different syntax)
-                    // Handle initialization error based on error value
-                    if (error == UartErrorEnum.InvalidConfiguration) {
-                        uartSendString("UART Init Error: Invalid Configuration\n");
-                    } else if (error == UartErrorEnum.HardwareError) {
-                        uartSendString("UART Init Error: Hardware Failure\n");
+                         }
                     }
-                } else { // Result is Ok (success)
-                    // UART initialized successfully, proceed with data transmission
-                    uartSendString("UART Initialized Successfully.\n");
-                    // ... data transmission logic ...
+                     ```
+
+        *   Example: `function void processData(uint32 input @in, uint32 output @out) { ... };`
+    *   **Transformation Attribute:** `@transform(stringLiteral)`.
+        *   This attribute allows to transform the data using target-specific transformations. The `stringLiteral` is CAM specific.
+         * This attribute does not change the code behaviour; it is used by CAMs for code generation and analysis.
+        *   Example: `function void applyTransform(uint32 data) @transform("myTransform") { ... };`
+    *   **Allocator and Unit Attributes**: `@allocator(stringLiteral)`, `@unit(stringLiteral)`
+        *   `@allocator(stringLiteral)` is used to specify the allocator to be used for a specific memory allocation. The `stringLiteral` is CAM specific.
+          *    This attribute does not change the code behaviour; it is used by CAMs for code generation and analysis.
+        *   `@unit(stringLiteral)` is used to mark a specific part of a CAM with a specific unit or component, which is used to group related functionalities and perform analysis on a unit basis. The `stringLiteral` is CAM specific.
+           *    This attribute does not change the code behaviour; it is used by CAMs for code generation and analysis.
+        *   Example: `type MyType = struct @allocator("myAllocator") { ... };`, `module MyCam @unit("myUnit") { ... };`
+    *  **Lifetime Attribute:** `@lifetime(stringLiteral)`
+        *  The `@lifetime(stringLiteral)` attribute provides a way to assign a lifetime to a pointer, which can be tracked by the compiler to prevent dangling pointers. The `stringLiteral` is CAM specific.
+        *    This attribute does not change the code behaviour; it is used by CAMs for code generation and analysis.
+        * Example: `uint32^ data @lifetime("myLifetime");`
+    * **Capability Attribute:** `@capability(capabilityList)`
+        *   Used to specify the capabilities of a given data type. The `capabilityList` is a list of capabilities (read, write, execute, capability_derive) that the data type has.
+          *    This attribute does not change the code behaviour; it is used by CAMs for code generation and analysis.
+        *   Example `struct Data @capability(read, write, execute) { ... };`
+    *   **Limit Attribute:** `@limit(stringLiteral)`
+        *   Provides a way to limit a specific resource, useful for CAM implementations. The `stringLiteral` is CAM specific.
+         *    This attribute does not change the code behaviour; it is used by CAMs for code generation and analysis.
+        *   Example: `module MyCam { ... config { config maxThreads: uint32 @limit("threadLimit"); } }`
+      *  **Register Attribute:** `@register("regionName", "stringLiteral")`.
+           * This attribute is used to specify a mapping to a memory mapped register. The stringLiteral is CAM specific and is intended to provide additional information for code generation. This attribute can only be used with `register` declarations.
+          * This attribute does not change the code behaviour; it is used by CAMs for code generation and analysis.
+          *  Example: `uint32 @register("MyAiCore", "control_reg") myMatrixAControl;`
+     * **Hardware Description Attribute:** `@hardwareDescription(stringLiteral)`.
+         * This attribute allows to associate a specific hardware description to a given interface intrinsic function. This attribute is used when CAMs are automatically generated from hardware descriptions. The `stringLiteral` is CAM specific.
+          * This attribute does not change the code behaviour; it is used by CAMs for code generation and analysis.
+          * Example:  `interface intrinsic function void platformInit(uint32 baseAddress) -> void @hardwareDescription("timer.init");`
+      *  **Enable and Disable Attributes:** `@enable(stringLiteral)`, `@disable(stringLiteral)`.
+         * These attributes provide a way to enable or disable specific functionalities of a given CAM or a function, by using a string parameter, that maps to a given boolean configuration variable.
+     * **Algorithmic code generation attribute:** `@algorithm(stringLiteral)`.
+         *  This attribute specifies that a given function or code region should be compiled using a specific algorithmic code generator, instead of relying on traditional code generation techniques.
+     *  **Symbolic Execution:** `symbolic`, and associated intrinsic function calls `symbolicResult(identifier)`, `assert()`, `hasSymbolicRegion()`, `symbolicExpression(identifier)`.
+        *   The `symbolic` keyword is used to create a symbolic block, where the compiler will track the symbolic values of the expressions and variables. The `symbolicResult()` will provide the compiler with the symbolic expression, for further analysis or optimizations. The `assert()` operation will perform a symbolic assertion check, at compile time.
+    *   **Implicit Type Conversions:**
+        *   BML does **not** allow implicit type conversions between different data types, except for integer types of the same signedness. Conversions from smaller to larger integers are implicitly allowed. E.g., `uint8` is implicitly convertible to `uint16`, `uint32`, and `uint64`, but not to `int8`, `int16`, `int32`, `int64` or `float32`, and not to other types such as `char` or `boolean`.
+            *   Implicit type conversion from signed to unsigned integers is not allowed, and requires an explicit cast.
+        *   Implicit conversions are also performed if a function has a formal parameter of the same type or a type compatible for implicit conversion, and when returning from functions, if the return type is compatible for implicit conversion.
+        *   No other implicit type conversions are allowed. Conversions must be explicit, by using the `cast` operator, or by calling conversion functions from the standard library, or provided by the CAMs.
+    *  **Implicit Type Inference:** Type inference is used in the following cases:
+        * When the return type of a function is not explicitly specified, the compiler will infer the return type by analysing the `return` statements, or by using `void` as default if there is no return statement.
+         * When declaring an array literal, the compiler infers the array type from the literal values.
+         * When a variable is assigned an integer literal, and the type can be inferred from the context, if not, an architecture-dependent integer (usually 32 bits) is used by default. When a variable is assigned a float literal, the default type is `float32`.
+         * **When a tuple variable is declared without an explicit type.** The compiler will infer the type from the values in the tuple literal.
+         *  When a local variable is initialized with an expression inside the function scope.
+    *   **Scope:**
+        *   BML uses lexical scoping, defining variable visibility and mutability according to the block it is declared.
+        *   Mutability is block-scoped; Variables are immutable by default in the block where they are declared. Mutable variables must be declared with the `~` mutability modifier.
+
+**3. Modules and CAMs: Structure and Organization**
+
+*   **Modules:** Self-contained code units that encapsulate data and functionality, promoting code reusability and organization.
+    *   `module moduleName { ... }`: Declares a module, creating a namespace.
+        *   `description "String";`: (Optional) Provides a module description that is used for documentation purposes.
+            *Example: `description "A simple example module";`
+        *   `declarations { ... }`: Module-private and exported declarations. Module declarations are private by default, and must be declared with `export` keyword (or listed in the export block), to be accessible outside the module.
+            *   Example: `const export uint32 moduleConstant = 123;`, `uint32 modulePrivateVariable = 456; function export void myModuleFunction() { ... };`
+         *  If a function or a constant is listed in the `export { }` block, it is implicitly considered as exported, removing the `export` keyword from the declaration.
+        *   `statements { ... }`: Module initialization code (optional). This code is executed when the module is first loaded, and before the execution of the entry point. Module initialization code can also include `use module` statements.
+            *   Example: `statements { print("Module initialized"); #use "MyConfigModule"; }`
+        *  `export { ... }`: Defines exported items by declaring them inline (implicitly or explicitly), using the `export` keyword, or by listing them inside the block: `functions`, `types`, `constants`, `conceptualRegisters`. This is used to make specific module components visible outside of the module.
+            *   Example:
+                ```baremetal
+                module MyModule {
+                    export {
+                        functions { myExportedFunction }
+                        types { MyExportedType }
+                        constants { myExportedConstant }
+                    }
+                     const MAX_VALUE = 100; // implicitly exported
+                    function  myExportedFunction() { ... }; //implicitly exported
+                    type export MyExportedType = struct { uint32 a; };
+                    const export uint32 myExportedConstant = 10; //explicitly exported
+                }
+                ```
+
+*   **Module Usage:**
+    *   `#use "moduleName";`: Includes exported items from the module in the current scope, making the exported components of the module visible in the current scope.
+         *  Generic modules: `#use "genericModuleName<Type>" as alias;`
+        *   Example: `#use "GenericVector<uint32>" as intVector;`
+        *   `with config { ... }`: Configures parameters for the module.
+            *   Example: `#use "MyModule" with config { baudRate = 115200; };`
+            *   The `with config` clause is used to customize the CAMs behavior.
+
+*   **Composable Architecture Modules (CAMs):** Compiler extensions that act as "optimization engines," enabling architecture-specific code generation and customization. CAMs are a core feature of BML, and the main mechanism to implement target-specific code and optimizations.
+
+**4. Composable Architecture Modules (CAMs)**
+
+*   CAMs are compiler extensions that act as "optimization engines". They allow for extending the compiler, and generating platform-specific code in a type-safe and modular fashion.
+*   **Structure:**
+    *   `module camName { ... }`: Declares a CAM.
+        *   `description "CAM Description String";`: (Optional) A description of the CAM, which is used by documentation generation tools.
+            *   Example: `description "Provides a UART Driver";`
+        *   `config { ... }`: Configurable parameters used to customize the behavior of the CAM, based on the user's needs. CAMs can now load external data from a file, by specifying the location in the `config` section, and using a parsing function.
+            *   Example: `config { config baudRate: uint32 = 115200;  config hardwareDescription : StringLiteral;}`
+        *   `export { ...  }`: Declares architecture-agnostic interface functions via `interface intrinsic function`, which is the main entry point for CAM-provided operations, making them callable from other BML code. It can also export conceptual registers that are used by the CAM code to generate target-specific instructions, improving the abstraction of the hardware. The `instrDSL` block is used to declare a domain specific language for defining low level symbolic instructions. Symbolic instructions can have generic parameters, which can be used to specify the instruction behavior at compile time. Meta-CAMs are declared by using the `Meta` keyword before the `module` keyword. Meta-CAMs are executed at compile time.
+            *   Example:
+                ```baremetal
+                module UartCam {
+                     config {
+                        config baseAddress: uint32 = 0x0;
+                         config hardwareDescription : StringLiteral;
+                        config enableDma : boolean @enable("dma") = false;
+                   }
+                    export {
+                       interface intrinsic function void platformUartInit(uint32 baudRate) -> void;
+                       interface intrinsic function void platformUartSendByte(uint8 data) -> void;
+                       interface intrinsic function void platformUartSendString(StringLiteral str) -> void;
+                       conceptualRegisters {
+                          %uartBaseAddress,
+                          %baudRateValue,
+                          %byteToSend
+                       }
+                   }
+                   @arc arm {
+                     @instrDSL {
+                         instr void load_reg<uint32 offset>(dataAddress addr, register reg) {
+                           // Symbolic instruction for register load, with a generic parameter.
+                          // if offset is 0, generate a normal load
+                           // if offset is greater than zero, load from an offset
+                            }
+                            instr void store_reg(dataAddress addr, register reg) {
+                             // Symbolic instruction for register store.
+                            }
+                           instr void custom_dma(register dest, register src) {
+                            // Symbolic instruction using DMA
+                           }
+                          instr void add_reg<enum Operation>(register reg1, register reg2) {
+                             // Symbolic instructions using an enum as a type parameter.
+                            }
+                        enum Operation {
+                          ADD,
+                          SUB,
+                          MUL
+                          }
+                          rule add_imm match(add(x, immediate(y)), instruction) -> replace(instruction, add_reg(x,y));
+                        }
+                      function void parseHardwareDescription () {
+                       print(f"Parsing {config.hardwareDescription}");
+                       // load the data using the config.hardwareDescription and generate new interface intrinsic functions
+                      }
+                        function void platformUartInit(uint32 baudRate) {
+                          parseHardwareDescription();
+                          register %uartBaseAddress = config.baseAddress + 0x0; //Example UART base address
+                            register %baudRateValue = baudRate;
+                            memoryStore(dword, %uartBaseAddress + 0x04, %baudRateValue); // Example code to set baud rate
+                            print("ARM: Uart Initialized");
+
+                        }
+                       function void platformUartSendByte(uint8 data) {
+                         register %uartBaseAddress = config.baseAddress + 0x0; //Example UART base address
+                         register %byteToSend = data;
+                         if (@enable("dma")) {
+                          custom_dma(%uartBaseAddress, %byteToSend); //using the custom_dma instruction using dma registers
+                           } else {
+                            memoryStore(byte, %uartBaseAddress, %byteToSend);
+                           }
+                         print("ARM: Sent byte using register");
+                       }
+                      function void platformUartSendString(StringLiteral str) {
+                             for (uint32 i : 0..stringLength(str)) {
+                                platformUartSendByte(str[i]);
+                             }
+                       }
+                    function void my_function(dataAddress address, uint32 value, register myReg) {
+                     load_reg<0>(address, myReg);
+                        store_reg(address, myReg);
+                          add_reg<ADD>(myReg, myReg);
+                        add_reg<SUB>(myReg, myReg);
+                       }
+                     }
+                   @arc riscv {
+                       function void platformUartInit(uint32 baudRate) {
+                        register %uartBaseAddress = config.baseAddress + 0x0; // Example UART base address
+                        register %baudRateValue = baudRate;
+                         memoryStore(dword, %uartBaseAddress + 0x04, %baudRateValue); // Example code to set baud rate
+                           print("RISCV: Uart Initialized");
+                       }
+                      function void platformUartSendByte(uint8 data) {
+                           register %uartBaseAddress = config.baseAddress + 0x0; //Example UART base address
+                           register %byteToSend = data;
+                           memoryStore(byte, %uartBaseAddress, %byteToSend);
+                          print ("RISCV: Sent byte using register");
+                       }
+                       function void platformUartSendString(StringLiteral str) {
+                             for (uint32 i : 0..stringLength(str)) {
+                                platformUartSendByte(str[i]);
+                             }
+                       }
+                   }
+                }
+            Meta module MyMetaCam {
+                config {
+                config hardwareDescription : StringLiteral;
+                    config camName : StringLiteral = "MyGeneratedCam";
+             }
+         @arc any {
+           function void generateCam (CompilerContext context) {
+               //read the config parameters, and generate the new CAM.
                 }
             }
-            ```
+         }
 
-    *   **Refinement Types for Data Validation (Version 1.4 Feature):** BML introduces **refinement types** to embed constraints directly into data types. Refinement types allow developers to specify valid ranges, sizes, or formats for data, enhancing data integrity and enabling compile-time validation. Example declaration: `type ValidSensorReading = uint16 where value in range(0..1000);`.
-
-        **Why Refinement Types Enhance Data Integrity:** Refinement types bring a new level of data validation directly into the type system, improving code robustness and preventing data-related errors at compile time and runtime:
-
-        *   **Data Integrity Guarantees:** Refinement types allow developers to enforce data integrity constraints directly in the type declarations.  By specifying valid ranges, sizes, or formats, refinement types ensure that data conforms to expected properties throughout the program.  This reduces the risk of invalid or out-of-range data causing errors or unexpected behavior.
-        *   **Compile-Time Validation:** Refinement type constraints are primarily checked at compile time. The BML compiler attempts to statically prove that values conform to the specified constraints.  If the compiler can prove validity at compile time, runtime checks can be completely eliminated, resulting in zero runtime overhead for data validation.
-        *   **Runtime Validation (Optional - Debug Builds):** In debug builds, runtime checks can be optionally inserted for refinement type constraints that cannot be statically proven. This provides dynamic data validation during development and testing, helping to catch data-related errors early on.  These runtime checks can be disabled or optimized away in release builds for maximum performance.
-        *   **Reduced Error Handling Boilerplate:** Refinement types can reduce the need for manual data validation code throughout the program.  Instead of writing explicit range checks or format validation logic repeatedly, developers can define refinement types once and rely on the type system to enforce the constraints automatically.  This simplifies code and reduces the risk of forgetting data validation checks in critical code paths.
-        *   **Improved Code Readability and Documentation:** Refinement types make code more self-documenting by explicitly stating the expected properties and constraints of data types directly in the type declarations.  `type ValidSensorReading = uint16 where value in range(0..1000);` clearly communicates that `ValidSensorReading` variables are expected to hold sensor readings within the 0-1000 range.
-        *   **Security Benefits:** Refinement types can enhance system security by preventing data-related vulnerabilities, such as buffer overflows caused by exceeding size constraints, or out-of-range errors that could lead to unexpected behavior or security breaches.
-
-        **Example (Refinement Type Syntax):** `type Identifier = BaseDataType where ConstraintExpression;`
-
-            *   `Identifier`:  Name of the refinement type.
-            *   `BaseDataType`: Underlying base data type (e.g., `uint16`, `char8[^]`).
-            *   `where ConstraintExpression`:  Clause defining the constraint. `ConstraintExpression` can include:
-                *   `value in range(min..max)`:  Specifies a valid inclusive range for numeric types.
-                *   `length < ConstantExpression`: Specifies a maximum length for array or string types.
-                *   Custom constraint functions (future extension).
-
-        **Example (Refinement Type Usage):**
-
-            ```baremetal
-            type ValidSensorReading = uint16 where value in range(0..1000); // Valid range for sensor readings
-            type ShortString = char8[^] where length < 32; // String with maximum length 31
-
-            function void processReading(ValidSensorReading reading) { // Parameter of refinement type
-                // ... process reading - compiler may eliminate runtime validation if compiler proves it
+         module MyOtherCam {
+                #use "UartCam" with config { enableDma = false };
+                #use "UartCam" override function platformUartSendByte with config { enableDma = true };
             }
+              ```
+        *   The `register` directive is used to declare variables (registers) in the scope of the intrinsic function, which can be used inside the function body, to perform low-level hardware operations.
+        *   The `memoryStore`, `memoryLoad` functions are the main interface to low-level memory accesses.
+        *   The `interface intrinsic function` is not callable directly by the user. It is intended to be called by the CAM itself, using the `interface intrinsic function` entry point.
+        *   The architecture name can be one of: `arm`, `riscv`, `x86`, `intel`, or any valid identifier.
+        *  The `instrDSL` block can be used to define a domain specific language that is used to define symbolic instructions, which may have generic parameters, that are evaluated at compile time. The `rule` keyword is used to define a declarative code transformation.
+        *  The `InstructionBuilder` object can be used inside the `instrDSL` block to create symbolic instructions and to access the value of their type parameters.
+    *   `.manifest` files: Contains metadata: `name`, `version` (e.g., `"1.2.3"`), `description`, `license` (e.g., `"MIT"`), `bml_version_compatibility` (e.g., `">=1.5"`), `architectures` (e.g., `"arm, riscv"`), `keywords` (e.g., `"uart, serial"`), `exports_functions` (comma separated), `interface_intrinsic_functions` (comma separated), `source_file` (e.g., `"MyCam.bml"`), `documentation_file` (e.g., `"README.md"`), `changelog_summary` (e.g., `"v1.0: initial release"`). The manifest file is used by the compiler to find the CAMs, to perform version compatibility checks, and to provide documentation for the user.
+        * Example: `name = "UartCam"; version = "1.0.0"; architectures="arm"; exports_functions="init,send"; interface_intrinsic_functions="platformInit,platformSend"; source_file="UartCam.bml";`
+*  **CAM Imports:** CAMs can now import other CAMs, inheriting their functionality and extending or modifying their behaviors.
 
-            function void processString(ShortString str) { // Parameter of refinement type
-                // ... process string - compiler may optimize based on length constraint
-            }
+    *   **Mechanism:**
+        *   Similar to `#use`, a CAM can use `#use "otherCam"` to import another CAM. This makes the imported CAM's interface intrinsic functions available within the importing CAM.
+        *   Imported CAMs can also redefine interface intrinsic functions, allowing for overriding and specialization.
+        *   The import system will resolve conflicts, with the last imported CAM overriding previous definitions. Explicit override mechanisms may be added in the future.
+        *   CAM imports can be generic by using type parameters `#use "GenericCam<uint32>";` This enables code reusability and specialization of generic CAMs.
+    *   **Syntax:** `#use "camName" [genericInstantiation];`
+       *   Example:  `#use "MyBaseUartCam";`, `#use "GenericMathCam<float32>";`
+        *   The `genericInstantiation` is similar to the module instantiation syntax: `<typeList>`.
+        *   **Conflict Resolution:** When CAMs redefine interface intrinsic functions, the last CAM imported that defines that function will override previous definitions. There is no explicit mechanism to select a specific version of the interface intrinsic functions. The order of imports is important to resolve these conflicts.
+        *   **Config Inheritance:** Imported CAMs can access the `config` parameters of the parent CAM. The `config` attributes are merged and if there are conflicts, the parent CAM configuration overrides the imported CAM configurations. The scope of config parameters is the module where the CAM is used. Config variables are resolved at compile-time, using static analysis.
+*   **CAM Composition:**
+    **   **Mechanism:** CAMs can be composed by using the `merge` keyword in the `#use` directive: `#use "MyCam1" merge "MyCam2";`.
+    *   The `merge` keyword will attempt to combine the interface intrinsic functions of two or more CAMs into a single CAM. If there are conflicts, an error will be generated.
+    *   The `config` parameters will be merged, and if there are conflicts, the CAM listed first will have priority.
+    *   If a CAM is imported without the merge keyword, it can still be used, without merging it with the current CAM.
+*   **CAM Customization**
+  * CAMs can be customized by using the `config` section and specific attributes.
+  *  A `CAMOption` type can be created to define custom options: `type CAMOption = struct {boolean enabled; uint32 value;};`. The `CAMOption` type can be used as a field inside the `config` section of a given CAM: `config {  config myOption : CAMOption = {true, 100}; }`.
+   *  The CAM developer can check the value of the specific options in the CAM code and provide customized behavior for a given CAM, based on the configured options, which can be passed to the compiler by using command-line flags.
+   * If the user does not specify a default, it is assumed that the default value will be used, unless another value is specified by the user using command line flags.
+     * CAM options can be enabled or disabled by using the  `@enable("myOption")` or `@disable("myOption")` attributes. Example: `function void myFunc() @enable("myOption") { /*...*/ }`, or by setting a default value on the config section `config { config enableOpt : boolean @enable("myOption") = true; }`
 
-            @arc arm {
-                declarations {
-                    ValidSensorReading sensorValue;
-                    ShortString nameBuffer;
+*  **CAM API: Compiler Interface for CAMs**
+     *   CAMs, as compiler extensions, interact with the BML compiler through a defined API, enabling them to analyze, transform, and generate code. This section outlines the key components of this API:
+
+        *   **`CompilerContext` Object:**
+            *   The central object representing the compilation context, provided to each CAM function.
+            *   Provides access to:
+                *   **`dataflowGraph`:** A representation of the program's dataflow graph, including types, operations, memory access, and data dependencies.
+                    *   Example: `CompilerContext.dataflowGraph.nodes` (returns all nodes in the dataflow graph). CAMs can use the dataflow graph to perform complex optimizations based on data dependencies.
+                      *  The `dataflowGraph` is composed of nodes and edges, representing the data flow through the program. Each node can be accessed by using the `nodes` field of the dataflow graph. Each node has metadata and information about the operations that are performed, including input and output parameters. The `edges` field contains the information about data dependencies. The compiler also provides helper methods to iterate through the nodes and edges, and to perform specific data flow analysis tasks.
+                *   **`moduleDeclarations`:** Information about all modules used in the project.
+                    * Example: `CompilerContext.moduleDeclarations.getModule("MyModule").declarations` to access module declarations.
+                *   **`typeSystem`:** Allows inspection of data types, including attributes.
+                    *   Example: `CompilerContext.typeSystem.getType("uint32").size` (returns the size of `uint32`). Also: `CompilerContext.typeSystem.hasAttribute(DataType, "packed")` checks if a type has the `packed` layout attribute.
+                 *    `isType(DataType, "Integer")` to identify if a specific type is an integer, `isType(DataType, "Float")` to identify float types, `isType(DataType, "Pointer")` to check if the type is a pointer, and so on. See enum `TypeKind` for possible types.
+                *    `sizeof(DataType)`:  Returns the size (in bytes) of the specified type at compile time.
+                *   **`targetArchitecture`**: The target architecture name (`arm`, `riscv`, etc.).
+                    *   Example: `CompilerContext.targetArchitecture`
+                 *  **`config`:** Provides access to the configuration parameters specified in the `#use` directive.
+                     * Example: `CompilerContext.config.baudRate` will return the value associated with the `baudRate` configuration variable.
+                 *  **`hasDataLayoutAttribute(DataType, "packed")`**: Checks if a given data type has a specific layout attribute.
+                 * **`compilerError(StringLiteral message)`:** Generates a custom compiler error message, allowing for more specific error reporting.
+                 *  **`registerInterfaceFunction(StringLiteral name, StringLiteral functionSignature, FunctionPtr implementation)`:** Adds a new interface intrinsic function dynamically.
+                      *   The `functionSignature` is a string that includes the function parameters and return type. Example: `function(uint32, uint32) -> uint32`
+                     * The implementation is a function pointer, that must have the same signature as the `functionSignature` string.
+                 *  **`newCAM(StringLiteral camName, interfaceDefinitions, implementation)`:** Creates a new CAM with the given parameters.
+                     * The interfaceDefinitions will be defined by a set of strings that define the interface intrinsic functions of the CAM.
+                      * The implementation will be a set of function pointers that define the implementations of the interface intrinsic functions.
+                      ```baremetal
+                          @arc any { // the @arc block must be included. The code in this block is executed at compile time.
+                             function void generateCam (CompilerContext context) {
+                                // read the config values
+                                 print("Meta Cam generating: " + context.config.camName);
+                                 //  parse the hardwareDescription file and extract the register information
+                                 // generate a new CAM
+                                 StringLiteral interfaceDefinitions = "interface intrinsic function void platformInit(uint32 baseAddress) -> void;";
+                                StringLiteral implementation = " function void platformInit(uint32 baseAddress) {  register %myReg = baseAddress; } ";
+                                context.newCAM(context.config.camName, interfaceDefinitions, implementation);
+                             }
+                           }
+                      ```
+                *   **`addTransformation(Transformation transformation)`:** Adds a transformation to the code, which is then performed by the compiler during a code generation phase.
+                    * The `Transformation` object contains:
+                 *  **`removeCode`**: The code that should be removed, specified as a string.
+                 * **`insertCode`**: The code that should be inserted instead of the code that is being removed.
+                 * **`transformationType`**: The type of transformation that should be applied. Some possible types include: `instructionReplacement`, `bitfieldOptimization`, `codeReordering`.
+                 *  **`target`**: A data structure with information about the target, including the type of the data being transformed, the memory region, and other metadata about the access, allowing the CAM to be more specific when performing code transformations.
+                * **`hasInstruction(StringLiteral instructionName)`**: Returns `true` if the instruction is present in the current context, otherwise `false`.
+                 * **`getInstructionCode() -> StringLiteral`**: Returns the current instruction as a string, which can be used to remove or modify it.
+                 *  **`instructionTarget() -> TargetData`**: Returns a `TargetData` structure that contains information about the current code target.
+                  * **`symbolicExpression(identifier) -> StringLiteral`**: Returns the symbolic expression of the specified variable or code expression.
+                  * **`hasSymbolicRegion() -> boolean`**: Returns true if there is a symbolic region in the current program context.
+                  *   **`getAttribute(identifier, StringLiteral attributeName) -> StringLiteral`:** Returns the string literal of the attribute applied to a given code expression or data type.
+                  * **`match(StringLiteral pattern, StringLiteral expression) -> boolean`**: checks if a specific code expression matches a specific pattern using a string literal.
+                  * **`capture(StringLiteral pattern, StringLiteral expression, identifier) -> StringLiteral`**: Capture the subexpression inside a given pattern.
+            *   Example:
+                ```baremetal
+                 @arc arm {
+                    function void myCamFunction(CompilerContext context) {
+                        if (context.targetArchitecture == "arm") {
+                            // Target specific code.
+                            // ... use the compiler API
+                             context.compilerError("My custom error message, when the architecture is ARM");
+                        }
+                  }
                 }
-                statements {
-                    sensorValue = readAnalogSensor(); // Potential compile-time validation if readAnalogSensor's range is known
-                    // sensorValue = 1500; // Compile-time error: Value out of range (if statically checked)
-                    nameBuffer = "Valid Name"; // Compile-time check length (if string literal)
-                    // nameBuffer = "This string is too long for ShortString refinement type"; // Compile-time error: String literal too long
-                }
-            }
-        }
-        ```
+                ```
+        * **`InstructionBuilder` Object:**
+            *   Provides an interface for creating symbolic instruction sequences in the `instrDSL`, and provides the following methods:
+            *   Methods include:
+                *   `instructionBuilder.loadRegister(dataAddress address, register reg)`: Creates a `load` instruction for a register.
+                *   `instructionBuilder.storeRegister(dataAddress address, register reg)`: Creates a `store` instruction for a register.
+                *   `instructionBuilder.addImm(register dest, register src, uint32 imm)`: Creates an add instruction with an immediate value.
+                *   `instructionBuilder.customInstruction(StringLiteral instructionName, [register reg1, register reg2])`: Creates a target specific instruction.
+                *    `instructionBuilder.getParameters()`: Returns an associative array to access the parameters. For example, the parameter names can be used as a key to access the compile time value: `uint32 offset = builder.getParameters().offset;`.
+            *   Example of using the `instructionBuilder` in the `instrDSL` block:
+                ```baremetal
+                 @arc arm {
+                      @instrDSL {
+                        instr void myInstruction(dataAddress address, register reg, uint32 imm) {
+                            InstructionBuilder builder = new InstructionBuilder();
+                            builder.loadRegister(address, reg);
+                            builder.addImm(reg, reg, imm);
+                            // generate the instruction sequence using the builder object
+                            // the compiler is responsible for mapping these symbolic instructions to real hardware instructions
+                           }
+                       }
+                    function void my_function(dataAddress address, uint32 value, register myReg) {
+                         myInstruction(address, myReg, 10);
+                   }
+                 }
+                ```
 
-        **Zero-Overhead Benefit:** Refinement type constraints are primarily checked at **compile time**. The BML compiler attempts to statically prove that values conform to the specified constraints. If the compiler can prove validity at compile time, **runtime checks are entirely eliminated**, resulting in zero runtime overhead. In debug builds, runtime checks *may* be optionally inserted for dynamic validation if static proof is not possible, providing a balance of safety and performance.
+*   **CAM Imports:** CAMs can now import other CAMs, inheriting their functionality and extending or modifying their behaviors.
 
-    *   **Capability-Based Regions for Fine-Grained Access Control (Version 1.4 Feature):** BML extends its region-based memory management with **capability-based regions**. Regions can be declared with associated access capabilities, defining the allowed operations within those memory segments. Pointers into capability-based regions inherit or can be further restricted in terms of these capabilities, enforcing fine-grained memory access control. Example region declaration: `dataRegion SecureDataRegion capabilities(read, write) { ... };`.
+    *   **Mechanism:**
+        *   Similar to `#use`, a CAM can use `#use "otherCam"` to import another CAM. This makes the imported CAM's interface intrinsic functions available within the importing CAM.
+        *   Imported CAMs can also redefine interface intrinsic functions, allowing for overriding and specialization.
+        *   The import system will resolve conflicts, with the last imported CAM overriding previous definitions. Explicit override mechanisms may be added in the future.
+        *   CAM imports can be generic by using type parameters `#use "GenericCam<uint32>";` This enables code reusability and specialization of generic CAMs.
+    *   **Syntax:** `#use "camName" [genericInstantiation];`
+       *   Example:  `#use "MyBaseUartCam";`, `#use "GenericMathCam<float32>";`
+        *   The `genericInstantiation` is similar to the module instantiation syntax: `<typeList>`.
+        *   **Conflict Resolution:** When CAMs redefine interface intrinsic functions, the last CAM imported that defines that function will override previous definitions. There is no explicit mechanism to select a specific version of the interface intrinsic functions. The order of imports is important to resolve these conflicts.
+        *   **Config Inheritance:** Imported CAMs can access the `config` parameters of the parent CAM. The `config` attributes are merged and if there are conflicts, the parent CAM configuration overrides the imported CAM configurations. The scope of config parameters is the module where the CAM is used. Config variables are resolved at compile-time, using static analysis.
+*   **CAM Composition:**
+    **   **Mechanism:** CAMs can be composed by using the `merge` keyword in the `#use` directive: `#use "MyCam1" merge "MyCam2";`.
+    *   The `merge` keyword will attempt to combine the interface intrinsic functions of two or more CAMs into a single CAM. If there are conflicts, an error will be generated.
+    *   The `config` parameters will be merged, and if there are conflicts, the CAM listed first will have priority.
+    *   If a CAM is imported without the merge keyword, it can still be used, without merging it with the current CAM.
+*   **CAM Customization**
+  * CAMs can be customized by using the `config` section and specific attributes.
+  *  A `CAMOption` type can be created to define custom options: `type CAMOption = struct {boolean enabled; uint32 value;};`. The `CAMOption` type can be used as a field inside the `config` section of a given CAM: `config {  config myOption : CAMOption = {true, 100}; }`.
+   *  The CAM developer can check the value of the specific options in the CAM code and provide customized behavior for a given CAM, based on the configured options, which can be passed to the compiler by using command-line flags.
+   * If the user does not specify a default, it is assumed that the default value will be used, unless another value is specified by the user using command line flags.
+     * CAM options can be enabled or disabled by using the  `@enable("myOption")` or `@disable("myOption")` attributes. Example: `function void myFunc() @enable("myOption") { /*...*/ }`, or by setting a default value on the config section `config { config enableOpt : boolean @enable("myOption") = true; }`
 
-        **Why Capability-Based Regions Enhance Security:** Capability-based regions provide a powerful memory safety and security mechanism, especially valuable in bare metal and embedded systems where memory protection is often limited:
+*   **Dataflow Analysis and Optimization:** CAMs can analyze data flow and optimize code.
+*   **Type-Specific Optimizations and Specializations:** CAMs can generate code based on specific types.
+*   **Hardware-Specific Functionality via DSLs:** CAMs can use DSLs for hardware interaction.
+*   **Compiler Caching for Incremental Builds:** The compiler uses a cache to speed up compilation.
+*   **CAM-Specific Memory Regions and Attributes:** CAMs can define their own memory regions and attributes.
+*   **Custom Error Messages and Hints:** CAMs provide custom error messages.
+*   **Fine-Grained Hardware Dispatch:** Direct hardware access for accelerators.
+*   **Direct Register Access for AI Ops:** Direct access to AI registers.
 
-        *   **Fine-Grained Access Control:** Capability-based regions allow developers to define very fine-grained access control policies at the memory level. Regions can be declared as read-only, write-only, execute-only (for code), or with combined capabilities. This enables precise control over how different parts of the code can access and manipulate memory, reducing the risk of accidental or malicious memory corruption.
-        *   **Principle of Least Privilege:** Capability-based regions enforce the principle of least privilege. Code is granted only the necessary memory access capabilities it needs to perform its intended function. This limits the potential damage that can be caused by bugs or security vulnerabilities. If a component only needs to read data from a region, it can be granted read-only access, preventing accidental or malicious writes.
-        *   **Memory Segmentation and Isolation:** Capability-based regions enhance memory segmentation and isolation. Different regions can be assigned different access capabilities, creating logical boundaries between memory segments and preventing unauthorized access across these boundaries. This is useful for separating secure code from untrusted code, protecting sensitive data, and implementing security domains within an embedded system.
-        *   **Compile-Time Enforcement:** Capability enforcement is primarily performed at compile time by BML's type system. The compiler verifies that code adheres to the access capabilities defined for regions and pointers. This compile-time enforcement catches access control violations early in the development process, before runtime.
-        *   **Potential Hardware Capability Integration:** For target architectures that support hardware capability architectures (e.g., CHERI), the BML compiler *could* potentially generate code that leverages hardware capabilities for runtime enforcement with minimal overhead. This would provide hardware-level memory protection and further enhance system security.
-        *   **Mitigation of Memory Corruption Vulnerabilities:** Capability-based regions help mitigate memory corruption vulnerabilities, such as buffer overflows or dangling pointer exploits, by limiting the potential impact of such errors. Even if a memory error occurs within a region, the damage is contained within that region and cannot easily propagate to other, more critical memory areas with different capabilities.
+**5. Directives and Pragmas**
 
-        **Example (Capability-Based Region Syntax):** `regionSpecifier RegionName capabilities(CapabilityList) { ... declarations ... }`
-
-            *   `regionSpecifier`:  Region type (`codeRegion`, `dataRegion`, etc.).
-            *   `RegionName`: Name of the region.
-            *   `capabilities(CapabilityList)`: Clause specifying access capabilities for the region. `CapabilityList` is a comma-separated list of capabilities:
-                *   `read`: Read access allowed.
-                *   `write`: Write access allowed.
-                *   `execute`: Code execution allowed (for `codeRegion`).
-                *   `capability_derive`: Deriving new capabilities from pointers within this region is allowed.
-
-        **Example (Capability Inheritance and Restriction):** Pointers declared to point within capability-based regions inherit the region's capabilities. Pointers can be further restricted using capability-based pointer type qualifiers (`DataType ^readonly`, `DataType ^writeonly`, `DataType ^region(RegionName)`, `DataType ^nonnull`) to enforce even finer access control.
-
-        **Example (Capability-Based Region Usage):**
-
+*   **Preprocessor Directives (Start with `#`):**
+    *   `#define identifier value`: Macro definition for compile-time variables that are replaced during the preprocessing phase, which can improve readability and performance.
+        *   Example: `#define MAX_BUFFER_SIZE 1024`
+    *   `#if condition`, `#elif condition`, `#else`, `#endif`: Conditional compilation based on compile-time conditions, allowing different code paths to be compiled for different configurations.
+        *   Condition expressions support macro expansion, boolean logic (`==`, `!=`, `&&`, `||`, `!`) and also integer comparison operators (`>`, `>=`, `<`, `<=`).
+         *   The preprocessor expressions only consider integer, boolean, or literal values. There is no type checking of preprocessor expressions. The preprocessor directives are evaluated before all other parts of the code, and the order in which they are defined in the file is important. The preprocessor works by text substitution of the values defined with `#define`, and by evaluating the `#if`, `#elif` and `#else` blocks.
+        * Example:
             ```baremetal
-            codeRegion SecureCodeRegion capabilities(execute, capability_derive) { // Code region - execute and capability derivation
-                function codeAddress secureFunction() -> codeAddress { /* ... secure code ... */ return 0; }
-            }
-
-            dataRegion ProtectedDataRegion capabilities(read, write) { // Data region - read and write access
-                uint32 sensitiveData;
-            }
-
-            dataRegion ReadOnlyDataRegion capabilities(read) { // Data region - read-only access
-                const uint32 configValue = 12345;
-            }
-
-            function void untrustedCode(uint32^ readonly dataPtr : ProtectedDataRegion) { // Pointer with read-only capability - into ProtectedDataRegion
-                uint32 value = *dataPtr; // Valid - read allowed
-                // *dataPtr = 10; // Compile-time error: write not allowed through ^readonly, even though ProtectedDataRegion allows write
-            }
-
-            function void secureCode() {
-                uint32^ readonly configPtr : ReadOnlyDataRegion = &ReadOnlyDataRegion.configValue; // Read-only pointer to read-only data
-                uint32 config = *configPtr; // Valid - read allowed
-                // *configPtr = 500; // Compile-time error: write not allowed - ReadOnlyDataRegion and ^readonly
-            }
+             #define DEBUG_MODE true
+              #if DEBUG_MODE == true
+                  print("Debug Mode Enabled");
+              #endif
             ```
+    *   `#use "moduleName" [with config { ... }] ;`: Module inclusion, that makes the exported components of the module accessible.
+    *   `#use "camName" [ genericInstantiation ]  [ "merge" , moduleName  { "," , moduleName } ] , [ "override" ,  (  "function" , identifier , "with" , "config" , "{" , { configParameterAssignment } , "}" ) | "function" , identifier ] ,  ";"`: CAM inclusion, that makes the exported interface intrinsic functions of the CAM accessible, with support for `override` and customization.
+        *   Example: `#use "MyUartCam";`, `#use "MyGenericCam<uint32>";` `#use "MyUartCam" with config { baudRate = 115200 };` `#use "UartCam" override function platformUartSendByte with config { enableDma = true };`
+        *   Generic modules: `#use "genericModuleName<Type>" as alias;`
+            *   Example: `#use "GenericVector<uint32>" as intVector;`
+    *   `#cpuTarget cpuName`: Provides CPU optimization hints, allowing the compiler to target specific features and improve the performance of the generated code.
+        * Example:  `#cpuTarget armCortexM4`
+    *   `#raw binaryEncodingList ;`: Embeds raw byte sequences using hex (`0x10`), binary (`0b00010000`), decimal (`16`), or octal literals (`0o20`). This is mostly used to embed boot code or binary firmware into a specific location. String literals can also be used. String literals are encoded using UTF-8.
+        * Example: `#raw 0x10 0b00010000 16 0o20 "abc";`
 
-        **Zero-Overhead Benefit:** Capability-based regions are primarily a **compile-time type system feature**. Capability enforcement is performed during type checking.  For target architectures that support hardware capability architectures (e.g., CHERI), the BML compiler *could* potentially generate code that leverages hardware capabilities for runtime enforcement with minimal overhead.  Even without hardware support, compile-time capability tracking significantly enhances code safety and enables compiler optimizations based on access control guarantees.
-
-    *   **Compile-Time Stack-Only Allocation Enforcement (Version 1.4 Feature):** BML introduces attributes to enforce **compile-time stack-only allocation** for data structures and functions. This feature eliminates heap allocation overhead, makes memory usage more predictable and deterministic, and is especially beneficial for real-time systems and resource-constrained environments. Example declaration: `stackOnly safeArray<uint8, 100> localBuffer;`.
-
-        **Why Stack-Only Allocation is Important in Bare Metal:** Stack-only allocation, enforced at compile time, offers significant advantages for bare metal systems, particularly in terms of performance, predictability, and resource management:
-
-        *   **Zero Runtime Allocation/Deallocation Overhead:** Stack allocation is inherently very fast and efficient because it involves simple stack pointer adjustments. There is no runtime cost for memory allocation or deallocation, unlike heap-based dynamic memory allocation which can be slow and introduce overhead.  Compile-time stack-only enforcement ensures that no heap operations are introduced, maintaining this zero-overhead characteristic.
-        *   **Deterministic Memory Usage:** Stack memory allocation is deterministic and predictable. Memory is allocated and deallocated in a Last-In-First-Out (LIFO) manner, following the function call stack. This makes memory usage patterns easier to analyze and predict, which is crucial for real-time systems where timing predictability is paramount.
-        *   **Reduced Memory Fragmentation:** Stack-only allocation eliminates the risk of heap fragmentation, a common problem with dynamic memory allocation. Heap fragmentation can lead to inefficient memory usage and performance degradation over time, especially in long-running embedded systems.
-        *   **Improved Performance Predictability:**  Stack allocation contributes to improved performance predictability. Stack memory access is typically faster and more consistent than heap memory access, which can be subject to cache misses and memory fragmentation effects.
-        *   **Elimination of Heap-Related Vulnerabilities (Less Relevant in Region-Based BML):** While less relevant in BML's region-based memory model, stack-only allocation can help eliminate certain types of heap-related vulnerabilities (e.g., heap overflows, heap corruption) that can occur in systems that rely heavily on dynamic heap allocation.
-        *   **Suitability for Real-Time and Resource-Constrained Systems:** Stack-only allocation is particularly well-suited for real-time embedded systems and resource-constrained microcontrollers where performance, determinism, and minimal memory footprint are critical design goals.
-
-        **Example (Stack-Only Allocation Syntax):** `stackOnly DataType VariableDeclaration;`  or  `@stackOnly function functionSignature { ... }`
-
-            *   `stackOnly` keyword or `@stackOnly` attribute:  Specifies stack-only allocation enforcement.
-            *   `DataType VariableDeclaration`: Declaration of a variable that must be stack-allocated.
-            *   `@stackOnly function functionSignature { ... }`:  Attribute for a function, enforcing that all local variables and data structures within the function must be stack-allocated.
-
-        **Example (Stack-Only Allocation Usage):**
-
-            ```baremetal
-            stackOnly safeArray<uint8, 100> localBuffer; // Enforce stack allocation for safeArray
-
-            @stackOnly function void processData() { // Enforce stack-only allocation within function
-                safeArray<uint16, 20> tempArray; // Valid - stack allocated
-                stackOnly uint32 counter; // Valid - stack allocated
-                // trackedPtr<uint8> heapPtr = allocateHeapMemory(10); // Compile-time error: Heap allocation not allowed in @stackOnly function
-                // globalDataRegion.globalBuffer = tempArray; // Compile-time error: Assigning stack-only data to non-stack region
-
-                // ... operations using tempArray and localBuffer ...
-            }
-
-            function void mainFunction() {
-                processData();
-                // safeArray<uint32, 500> largeStackArray; // Potential stack overflow risk - Compiler may warn or limit stack allocation size
-            }
+*   **Operation Directives:**
+    *   `print(StringLiteral format, ...);` : This function prints a formatted message. The format string uses standard format specifiers, such as %d, %x, %s, or using string interpolation using `f""`: `print(f"The value is {x}");`. This function is intended to provide basic debug or console output, and its implementation depends on the target platform. Parenthesis can be omitted if only one parameter is passed. Example: `print "Hello world";`.
+    *   `memoryStore(BootDataSize , BootAddress , BootOperand);`: Stores a value into memory, at a given address and data size. This function may or may not perform a memory barrier, depending on the target platform.
+    *   `memoryLoad(BootDataSize , BootAddress , BootOperand);`: Loads a value from memory at a given address and data size.
+    *   `intrinsic operationName [argumentList] ;`: Provides a way to access hardware functionality through specific operations that are provided by CAMs. Parenthesis can be omitted if only one argument is passed.
+    *  **Boot Code Specific:**
+        *   `archCodeBlock [ @boot ] identifier @arc architectureName { ... }`: Architecture-specific raw code block for low-level initialization, bootloaders, and other specialized code. The `@boot` attribute specifies that this is the entry point for the boot code. Allows the developer to write low-level code using `goto`, `memoryStore`, `memoryLoad`, `raw`, `register`,  and memory access, that can be target-specific. The `identifier` is the name of the code block, that can be referenced using `goto` inside the architecture block. The `@arc architectureName` specifies the target architecture.
+             *   Example:
+                ```baremetal
+                    archCodeBlock @boot bootEntry @arc arm {
+                        register %stackPointer = 0x20001000;
+                        goto bootLoaderLabel;
+                        bootLoaderLabel:
+                        // ...
+                    }
+                 ```
+        *   `#interruptVector vectorNumber, functionName ;`: Defines interrupt vector table entries. Defines a mapping between a specific interrupt vector number and a corresponding interrupt service routine (ISR). The vector number is architecture specific. Example: `#interruptVector 0, resetHandler;`
+        *   `#enableInterrupts ;`: Enables global interrupts, allowing the CPU to respond to external events.
+        *   `#disableInterrupts ;`: Disables global interrupts, preventing the CPU from responding to external events.
+        *   `#clearInterruptFlag identifier ;`: Clears an interrupt flag, acknowledging a pending interrupt and allowing the CPU to handle the next interrupt. The interrupt flag identifier is target specific.
+        *    `bootRegion regionName identifier;`: Declares that a boot region should be populated using an identifier defined in the boot code region. If two boot regions are defined for the same address, a compile time error will be generated. Example: `bootRegion bootData myBootData;`
+    *   **Memory Mapped Registers:**
+        *   `struct @mapped`: Defines a memory-mapped structure, where the members are implicitly `volatile` unless marked `nonvolatile`. Allows for direct access to hardware registers. The `@mapped` specifier specifies that the struct is memory mapped. Members are accessed using the `.` operator, and bitfields can be accessed using `=` operator inside a `with` statement. Bitfield members can be accessed with the `=` operator and initialized by using an initializer list, without the `with` statement: `myGpioRegisters.controlRegister = { enableBit = 1, dataBit = someValue };`. Bit Ranges can be accessed with the syntax `myGpioRegisters.controlRegister[0..3] = 0b101;`. Bitfield updates should be performed using a `with` statement, to minimize the overhead of reading and writing to memory mapped registers. The `with` statement groups multiple bitfield updates into a single operation. The compiler analyses the `with` block, to check if a specific write or read operation to a memory mapped register can be avoided. If a register is read and not modified, the write operation can be skipped. This mechanism is automatically performed by the compiler and requires no additional effort from the user, enabling zero-overhead high-performance bitfield access. When the `initializerList` attribute is added to a `struct`, initialization can be done using a list of initializers: `type GpioRegisters = struct @mapped(0x40000000) @initializerList { uint32 dataRegister; uint32 controlRegister; };  GpioRegisters myGpio = { 10, 20 };`.
+             *   Example:
+                ```baremetal
+                type GpioRegisters = struct @mapped { uint32 controlRegister; };
+                GpioRegisters myGpioRegisters = 0x40000000;
+                myGpioRegisters.controlRegister = {
+                    enableBit = 1,
+                    dataBit = someValue
+                };
+                myGpioRegisters.controlRegister[0..3] = 0b101;
+                with (myGpioRegisters) {
+                         enableBit := 1;
+                          dataBit := someValue;
+                     }
             ```
+        *   `.` accesses members. If the member is inside a memory-mapped struct, it will access the memory location directly.
+        *   **`=` sets/reads bitfields inside a memory-mapped struct.**
+       *  Bit Ranges: **`[start..end]` accesses a range of bits in a bitfield inside a memory-mapped struct.**
+        *   Memory Mapped Registers:  Specific registers can be defined using the following syntax:
+         *   `DataType @register("regionName", "stringLiteral")  registerName;` This syntax defines a memory-mapped register located in a specific peripheral region. The `stringLiteral` is CAM specific and is intended to provide additional information to CAM implementations. The type must be a base type, and can not be a struct or a union. This attribute can only be used with `register` declarations. The compiler will perform checks to guarantee that the data type of the declared register matches the register's underlying size. If there is a mismatch, a compile-time error will be generated. The register name can be accessed and modified as if it was a regular variable. The compiler will emit code that directly reads/writes to that memory location. Example: `uint32 @register("MyAiCore", "control_reg") myMatrixAControl;`
+   *   **Symbolic Execution:**
+       *  `symbolic { ... }` block:
+         *   The `symbolic` block allows the developer to define a region of code where the compiler will perform symbolic execution. Inside the symbolic block, the compiler will generate symbolic expressions for the operations and variables, which allows to verify program properties and perform advanced code optimizations by using the `CompilerContext` API.
+            *   `symbolicResult(identifier)`: Returns the symbolic expression of a variable inside a symbolic block.
+            *  `assert(expression)`: Performs a symbolic assertion, generating a compiler error if the assertion is false.
+            * `hasSymbolicRegion():` Returns true if there is a symbolic region in the current program context.
+              * `symbolicExpression(identifier)`: returns the symbolic expression for a given identifier in the program context.
+*    **Algorithmic Code Generation:**
+        * `@algorithm("stringLiteral")`: Attribute that allows a user to select the specific algorithmic code generator that will be used by the compiler for a given code region.
 
-        **Zero-Overhead Benefit:** Stack allocation itself is inherently **zero-overhead** in terms of runtime allocation and deallocation. Compile-time enforcement of stack-only allocation ensures that no heap allocation operations are introduced, maintaining this zero-overhead characteristic. The compiler performs static analysis to verify stack-only allocation constraints.
+**6. Memory Safety in BML**
 
-    *   **Hardware-Assisted Bounds Checking for Near-Zero Overhead Runtime Safety (Version 1.4 Feature):** BML can leverage **hardware-assisted memory tagging and bounds checking** features, if supported by the target architecture (e.g., ARM Memory Tagging Extension - MTE, RISC-V Memory Tagging). This provides a mechanism for near-zero overhead runtime bounds checking, significantly enhancing memory safety with minimal performance penalty. Example compiler flag: `-mte` (for ARM MTE).
-
-        **Why Hardware-Assisted Bounds Checking is a Breakthrough:** Hardware-assisted bounds checking represents a significant advancement in memory safety, especially for performance-sensitive bare metal systems:
-
-        *   **Near-Zero Overhead Runtime Safety:** Hardware-assisted bounds checking operates at the hardware level, utilizing dedicated hardware units (e.g., MMU extensions, memory controllers) to perform bounds checks. This dramatically reduces the runtime overhead compared to software-based bounds checks. The performance impact is often negligible or very minimal, making runtime bounds safety practical even in performance-critical applications.
-        *   **Robust Buffer Overflow Protection:** Hardware bounds checking provides a very robust defense against buffer overflows and out-of-bounds memory access vulnerabilities.  Because bounds checks are performed in hardware, they are extremely difficult to bypass or disable, offering a strong security guarantee.
-        *   **Reduced Software Complexity:** Hardware bounds checking reduces the burden on software developers to implement manual bounds checks or rely solely on compile-time analysis. The hardware automatically enforces bounds safety, simplifying code and reducing the risk of overlooking manual checks.
-        *   **Improved System Security and Reliability:** By making buffer overflows much harder to exploit, hardware-assisted bounds checking significantly enhances system security and reliability. It reduces the attack surface for memory corruption vulnerabilities and makes embedded systems more resilient to memory errors.
-        *   **Compatibility with Existing Code (Potentially):**  Hardware-assisted bounds checking can often be enabled without requiring major code rewrites.  The BML compiler can be configured to automatically generate code that leverages hardware bounds checking for `safeArray` and `trackedPtr` types, providing a "drop-in" safety enhancement for existing BML codebases (with recompilation).
-
-        **Implementation (Conceptual):** When hardware-assisted bounds checking is enabled for a target architecture, the BML compiler can generate code that utilizes specialized hardware instructions (e.g., MTE instructions on ARM) to:
-            *   **Tag Pointers:**  Tag pointers with metadata that includes bounds information (e.g., base address and size of the allocated memory region).
-            *   **Tag Memory Allocations:** Tag memory allocations (e.g., `safeArray` data buffers, region allocations) with corresponding bounds tags.
-            *   **Hardware-Level Bounds Checks:**  The hardware Memory Management Unit (MMU) or memory controller automatically performs bounds checks on every memory access, comparing the pointer's bounds tag with the accessed address. If an out-of-bounds access is detected, the hardware generates a fault or exception.
-
-        **BML Integration:** BML can integrate hardware-assisted bounds checking through:
-            *   **Compiler Option:** A compiler flag (e.g., `-mte` for ARM MTE, `-memory-tagging` for RISC-V) to enable hardware-assisted bounds checking for supported architectures.
-            *   **`#pragma enable_hardware_bounds_checking` Directive:** A pragma to enable hardware bounds checking within specific code sections or modules.
-            *   **`safeArray` and `trackedPtr` Enhancement:**  `safeArray` and `trackedPtr` types can be automatically compiled to leverage hardware bounds checking when enabled, providing near-zero overhead runtime bounds safety for these types.
-
-        **Benefit:** Significantly reduces the runtime overhead of bounds checking compared to purely software-based checks. Hardware-assisted bounds checking operates at the hardware level with minimal performance impact, providing a much stronger runtime defense against buffer overflows and out-of-bounds memory access vulnerabilities than software checks alone.
-
-    *   **Data-Layout Attributes and Control for Cache Optimization (Version 1.4 Feature):** BML provides **data-layout attributes** to give developers fine-grained control over how data structures are laid out in memory. These attributes allow developers to optimize data layout for cache performance, memory access patterns, and hardware-specific requirements, which is crucial for achieving peak performance in embedded systems. Example attribute usage: `@layout(packed)` for structs, `@layout(aligned(4))` for struct members, `@layout(row_major)` for arrays.
-
-        **Why Data Layout Control is Critical for Performance Optimization:** In modern embedded systems, memory access latency and cache performance are often the primary bottlenecks limiting application performance. Data layout attributes provide developers with the tools to optimize memory layout and improve cache utilization, directly impacting performance:
-
-        *   **Cache Locality Optimization:** Data layout attributes allow developers to arrange data in memory to improve cache locality. By placing related data elements close together in memory, developers can increase the likelihood that frequently accessed data will be present in the CPU cache, reducing memory access latency and improving performance.
-        *   **Reduced Cache Misses:**  Optimizing data layout for cache locality reduces cache misses – situations where the CPU needs to fetch data from slower main memory because it is not present in the cache. Reducing cache misses is a key factor in improving memory access efficiency and overall application performance.
-        *   **Improved Memory Bandwidth Utilization:** Data layout attributes can help improve memory bandwidth utilization. By arranging data in memory to align with memory access patterns, developers can ensure that memory accesses are more efficient and make better use of the available memory bandwidth.
-        *   **Hardware-Specific Optimization:** Different processor architectures have different cache architectures and memory access characteristics. Data layout attributes allow developers to tailor data layout to the specific hardware architecture they are targeting, maximizing performance for that particular platform.
-        *   **Structure-of-Arrays (SoA) vs. Array-of-Structures (AoS) Layouts:** Data layout attributes allow developers to choose between Structure-of-Arrays (SoA) and Array-of-Structures (AoS) data layouts for arrays of structs. SoA layout can be more efficient for vectorized operations or when accessing only a subset of struct members, while AoS layout is often more cache-friendly for accessing complete struct instances.
-        *   **Packed Structs for Memory Footprint Reduction:** The `packed` attribute allows developers to pack struct members tightly in memory, minimizing padding bytes. This can reduce the overall memory footprint of data structures, which is crucial in resource-constrained embedded systems.  *However, `packed` structs might sometimes slightly increase access time due to potential alignment issues on some architectures.*
-        *   **Data Alignment Control:** The `aligned(N)` attribute allows developers to specify memory alignment requirements for data structures or individual struct members. Proper data alignment can improve memory access performance, especially for data types that require specific alignment boundaries on certain architectures (e.g., `float64` often benefits from 8-byte alignment).
-
-        **Example (Data-Layout Attribute Syntax):** `@layout(LayoutAttributeList)` before struct/union members or type declarations.
-
-            *   `@layout(LayoutAttributeList)`: Attribute specifying data layout options. `LayoutAttributeList` is a comma-separated list of layout attributes:
-                *   `packed`:  Packs struct members tightly in memory, minimizing padding (potentially at the cost of alignment).
-                *   `aligned(N)`:  Specifies memory alignment of N bytes for a struct member or data type.
-                *   `row_major`:  Specifies row-major layout for multi-dimensional arrays (C-style array layout).
-                *   `column_major`: Specifies column-major layout for multi-dimensional arrays (Fortran-style array layout).
-                *   `structure_of_arrays`: Arranges struct of arrays (SoA) layout, grouping elements of the same field together in memory for arrays of structs.
-                *   `array_of_structures`: Arranges array of structures (AoS) layout, grouping all fields of a struct instance together for arrays of structs (default layout).
-
-        **Example (Data-Layout Attribute Usage):**
-
-            ```baremetal
-            type SensorData struct {
-                uint32 sensorID @layout(packed, aligned(4)); // Packed, 4-byte aligned
-                float32 reading @layout(aligned(8));       // 8-byte aligned for float64 access
-                safeArray<uint16, 10> history @layout(row_major); // Row-major array layout
-            };
-
-            safeArray<SensorData, 100> sensorReadings @layout(structure_of_arrays); // Structure-of-arrays layout for array of structs
-
-            @arc arm {
-                statements {
-                    // Accessing sensorReadings.history[i] may benefit from row-major and structure_of_arrays layout for cache locality
-                }
-            }
-            ```
-
-        **Zero-Overhead Benefit:** Data layout attributes are **compile-time directives**. They do not introduce any runtime overhead. The compiler uses these attributes to control memory layout during data structure allocation and code generation.
-
-    *   **Compile-Time Reflection Capabilities (Version 1.5 Feature):** BML Version 1.5 introduces a limited and controlled form of **compile-time reflection**, enabling CAMs and advanced BML code to inspect type information *during compilation*. This reflection mechanism operates solely at compile time and incurs **zero runtime overhead**. It is designed to empower CAMs to generate highly specialized and optimized code based on type properties. (Detailed explanation of Compile-Time Reflection is provided earlier in this section).  Example intrinsics: `sizeof(DataType)`, `isType(DataType, TypeKind)`.
-
-    *   **Compile-Time Functions (Static Lambdas) for CAMs (Version 1.5 Feature):** BML Version 1.5 introduces **compileTimeFunction** (also referred to as "static lambdas") specifically for use within Composable Architecture Modules (CAMs). Compile-time functions are code snippets that are executed *during the BML compilation process*, as part of a CAM's optimization or code generation logic. They enable CAMs to perform complex computations, generate specialized code sequences, and pre-calculate values *before* runtime, leading to truly zero-overhead domain specialization. (Detailed explanation of Compile-Time Functions is provided earlier in this section). Example declaration: `compileTimeFunction void myCompileTimeFunction() { /* ... compile-time code ... */ }`.
-
-    *   **Enhanced Data-Driven Code Generation with CAMs and Data Layout Attributes (Version 1.5 Feature):** BML Version 1.5 significantly enhances Data Layout Attributes and integrates them deeply with Composable Architecture Modules (CAMs) to enable **data-driven code generation**. This powerful combination allows CAMs to automatically generate and optimize code based on the data layout specified by developers through Data Layout Attributes, leading to automatic performance tuning based on data organization. (Detailed explanation of Data-Driven Code Generation is provided earlier in this section). Example CAM intrinsic: `hasDataLayoutAttribute(DataType, LayoutAttributeKind) -> boolean`.
-
-### 3.1 Scope in BML
-
-Scope in BML defines the region of the program where a declared identifier (variable, function, type, etc.) is valid and accessible. BML primarily employs **lexical scope** (also known as static scope), meaning the scope of an identifier is determined by its location in the source code's structure, particularly within blocks (`{ ... }`).
-
-**Why Scope Management is Crucial in Bare Metal:**  Proper scope management is essential for writing well-structured, maintainable, and safe bare metal code:
-
-*   **Namespace Management and Avoiding Naming Conflicts:** Scope helps organize code into logical units and prevents naming conflicts. By limiting the scope of identifiers (variables, functions, etc.), BML avoids accidental name clashes between different parts of the code or between different modules.
-*   **Modularity and Encapsulation:** Scope is fundamental for modular programming. Modules (CAMs in BML) use scope to encapsulate their internal implementation details, hiding private declarations from external code and exposing only a well-defined interface through exports. This promotes modularity, information hiding, and code reusability.
-*   **Variable Lifetime Management:** Scope implicitly manages the lifetime of variables declared within blocks. Variables declared within a block exist only during the execution of that block. In BML's region-based memory management, the lifetime of variables is further tied to the scope of memory regions. Understanding scope is crucial for managing variable lifetimes and preventing memory-related errors.
-*   **Predictability and Code Maintainability:** Lexical scoping makes code more predictable and easier to understand. The scope of an identifier is determined statically by its position in the source code, rather than dynamically at runtime. This makes it easier to reason about code behavior, debug errors, and maintain large codebases.
-*   **Memory Safety (with `scopedPtr` and Regions):** Scope plays a critical role in BML's memory safety mechanisms. `scopedPtr` leverages lexical scope to enforce pointer lifetimes and prevent dangling pointers. Region-based memory management ties variable lifetimes to region scopes, contributing to overall memory safety and reducing the risk of memory leaks.
-
-*   **Block Scope:** Identifiers declared within a block (`{ ... }`) are local to that block. Their scope extends from the point of declaration to the end of the block.  This includes:
-    *   **Function Blocks:** Variables declared within a function's body are local to that function.
+*   `DataType scoped`: Zero-overhead dangling pointer prevention using lexical scope. Pointers are valid only within their lexical scope, and the compiler ensures that the pointer can not escape the scope. This is implemented mostly at compile time, but depending on compiler flags, run time checks can be added. The `scoped` keyword is optional for local variables, and can be omitted, if the compiler can infer this, using static analysis.
+     *   **Static Analysis Process for Implicit Scope:**
+            *   The compiler performs static analysis to determine if a pointer's lifetime is strictly confined to its lexical scope, specifically its function body or a block inside the function.
+            *   The compiler analyses the code flow to verify if the pointer is never passed as a parameter to a function or stored inside a struct that outlives the scope of the pointer, and if the pointer is never returned to a caller function. If all the conditions are satisfied, the compiler infers that the pointer is scoped and the `scoped` qualifier can be omitted.
+            *   If the compiler detects that the pointer is escaping its lexical scope, a compile time error will be generated.
+        * **Scope Rules:**
+          *  If a `scoped` pointer is stored inside a struct, the struct will inherit the scope of the pointer, and can only be declared in the same scope or a scope that does not outlive the scope of the scoped pointer. If the struct is used outside the scope of the scoped pointer, a compile-time error will be generated. This rule also applies to unions and tuples.
+           *  A `scoped` pointer can not be passed as a parameter to a function or be returned by a function, unless the `scoped` qualifier is also applied to the return value.
+        *   Example:
         ```baremetal
         function void myFunction() {
-            uint32 localCounter = 0; // 'localCounter' is block-scoped to myFunction
-            // ... function code ...
-        }
-        // 'localCounter' is not accessible here - out of scope
+            uint32 localValue = 10;
+            uint32 localPtr = &localValue; // valid pointer, scoped is implicitly inferred.
+            // ...
+        } // localPtr is no longer valid
         ```
-    *   **Statement Blocks:** Variables declared within `if`, `for`, `while`, `switch`, `parallel`, or other compound statement blocks are local to those blocks.
+*   **Capability-Based Pointers:** `DataType +`, `DataType -`, `DataType @regionName`, `DataType !`, `DataType scoped`, `DataType tracked` for compile-time access control and memory management.
+        *   `+` pointers can only be used to read and write from memory, and can not be null.
+        *   `-` pointers can be null, and can be used to read/write from memory.
+        *   `@regionName` pointers are associated with a specific data region, enabling access control and isolation. The compiler will issue an error if the pointer accesses memory outside the specified region.
+        *   `!` pointers can not be null, and can only read from memory. This pointer will prevent writing into a specific memory location, guaranteeing read only access.
+        *  `scoped` pointers are limited to their scope, guaranteeing safety in a more localized and restrictive way.
+        *   `tracked` pointers have runtime checks to ensure the pointer is not dangling. The runtime checks can be implemented using different mechanisms, such as metadata, guard pages, or specific hardware support.
+          * `DataType! ` is a constant read-only pointer. It will never allow writing to the address. The memory that it points to can change if the underlying memory region is mapped to a volatile or external device, for example.
+          * Multiple pointers with different capabilities can point to the same memory location, as long as they have compatible capabilities (e.g. a read-only pointer, and a read-write pointer can point to the same location). If a conflict is detected by the compiler, a compile time error will be issued.
+        *   Example: `uint32! myReadPtr;`, `rawbyte- myWritePtr;`, `uint32@MySecureRegion myRegionPtr;`, `uint32+ myNonNullPtr = &myValue;`, `uint8 localPtr = &myStackValue;` (implicit scope), `uint16 tracked myTrackedPtr = &someValue;`
+*   **Static Typing:** Enforces type rules at compile time, preventing type-related errors, which makes the code safer and easier to reason about. Type checking is performed by the compiler, during the type resolution phase of the compilation process.
+*   `DataType safe [Size]`: Runtime bounds checking to prevent buffer overflows and out-of-bounds accesses, improving the security of the code. Every access to a `safe` array will be checked at run time.
+    *   Example: `uint16 safe[100] sensorValues; sensorValues[10] = 5;`
+    *   `arraySlice<DataType>`: Provides bounds-checked views over a specific section of an existing array, which can be used to improve the safety of memory access. The bounds checking will be performed at runtime, and a runtime exception will be raised if the access is out of bounds of the original array, or the slice.
+        *   Example: `uint32 safe [100] myArray; arraySlice<uint32> mySlice = myArray.slice(0,10);`
+*   `DataType^`: Unchecked pointers (use with caution). The developer must handle all potential safety issues related to raw memory access. It is recommended to use other more secure pointer types whenever possible. If the developer uses a raw pointer, they will have to check for null pointers, and also perform bounds checking manually.
+    *   Example: `uint32^ ptr = &memoryLocation;`
+*   `DataType tracked`: Runtime checks to prevent dangling pointers, which is especially useful when handling complex memory accesses or concurrency. The tracked pointers have a small overhead that is associated to the metadata required to perform the runtime checks. The runtime checks can be implemented using metadata, guard pages, compiler specific techniques, or hardware support if available, which can reduce the overhead.
+    *   Example:  `uint32 tracked myTrackedPtr = &someValue;`
+*   **Region-Based Memory Management:** Implicit lifetime management through scopes and explicit regions, which simplifies memory handling and provides compile-time checks that increases the code safety. Pointers with the `@region` modifier can only access the specified memory region. The compiler may generate a compile-time error if the pointer attempts to access memory outside of the region where it is defined. `dataRegion` declarations do not directly grant access to the data to other memory regions. To transfer data across regions, a CAM will have to explicitly read from one region and write to another region, using memory copy functions, or by transferring using memory mapped peripherals. CAMs can also define their own memory regions using the `CAMDataRegion` specifier. This data region has the same scope as the CAM, and can be used to perform calculations, store intermediate results, or implement other internal logic within a given CAM. CAM data regions can also be used to store CAM configurations, parameters or other persistent state for that CAM.
+*   **Compile-Time Null Dereference Detection:** Static analysis provides warnings for potential null pointer dereferences, avoiding runtime crashes due to null pointers. The compiler will issue a warning if a pointer with a `-` modifier, or a general pointer using `^` is dereferenced without checking if the pointer is null. The compiler will not perform any null check if the `+` or `!` modifier is used, or if the pointer is a `scoped` pointer, as these pointers are guaranteed to not be null.
+    *   Example: If a value is known to be potentially null, the compiler will generate a warning if the developer attempts to dereference it without performing a null check.
+*   **Refinement Types:** Compile-time data constraints that allow to specify valid ranges or values for variables, further improving type safety by making the code more specific. Refinement types are used by the compiler to perform static analysis and can eliminate the need for runtime bounds checks.
+    *   Example: `type validValue = uint16 where value < 100;`
+*    **Capability-Based Regions:** Memory access control, enforced at compile time (mostly) that allows to isolate specific sections of the memory, preventing data corruption by limiting the access capabilities of pointers, providing increased safety and security. Memory regions can be defined using different capabilities, such as `read`, `write`, `execute` and `capability_derive`, which allows the CAM to perform more fine grained memory access controls.
+        *   Example: `dataRegion @read secureRegion { uint32 myData; };`, `dataRegion DeviceData { uint8 safe [100] buffer; };`
+    *   **Stack-Only Allocation:** `@stackOnly` enforces stack allocation, useful for performance and memory predictability, since it avoids the overhead of dynamic memory allocation and provides a predictable memory usage. When this attribute is used, the memory will be allocated in the stack.
+        *   Example: `@stackOnly uint8 myStackVar;`
+    *   **Hardware-Assisted Bounds Checking:** Optional, when hardware is available, and enabled via compiler flag or pragma, leveraging hardware to improve the performance and reduce the overhead of memory access checks. This is only used for safe arrays and tracked pointers, and will generate the appropriate memory access configuration for the target platform.
+        *   Example: `#pragma enable_hardware_bounds_checking; uint32 safe[10] myArray;`
+*   **Runtime Checks Tradeoffs:** While BML aims for minimal overhead, runtime checks are still present for certain features (e.g., `safe` arrays, `tracked` pointers). These checks help prevent memory errors, but they may have a performance impact. These checks can be disabled by using compiler flags or pragmas. Disabling the runtime checks should be done with caution, as it can introduce potential safety issues.
+*   **Runtime Checks are Optional:** The runtime checks are optional, and may be disabled by using compiler flags or pragmas, such as `boundsCheck=off` or specific pragmas such as `#pragma disable_bounds_check;` This gives the user more control by explicitly disabling the runtime checks, but it also means that the user can create an unsafe program that can crash due to buffer overflows or dangling pointer accesses.
+*   **Cutting-Edge Solution (High-Performance Bitfield Access):** To minimize overhead and maximize performance in bitfield manipulation, especially within memory-mapped registers, BML provides a "with" statement which allows for grouping bitfield updates, avoiding multiple read-modify-write operations, when there are multiple bitfield updates for the same register. This is a cutting-edge feature, designed to provide low overhead and high performance. The compiler can optimize the code by using specialized hardware instructions, where available, or by using bitwise operations where specialized instructions are not available.
+     *   **"with" statement optimization:** The compiler analyses the `with` block, to check if a specific write or read operation to a memory mapped register can be avoided. If a register is read and not modified, the write operation can be skipped.
+        *   This mechanism is automatically performed by the compiler and requires no additional effort from the user, enabling zero-overhead high-performance bitfield access.
+    *   **Example:**
         ```baremetal
-        if (condition) {
-            uint8 blockLocalVar = 10; // 'blockLocalVar' is block-scoped to the 'if' block
-            // ... code within if block ...
-        }
-        // 'blockLocalVar' is not accessible here - out of scope
-        ```
-    *   **Region Blocks:** Variables declared within `dataRegion`, `bssRegion`, `rodataRegion`, `stackRegion`, `peripheralRegion`, `moduleDataRegion`, `bootCodeRegion`, `bootDataRegion`, and `interruptVectorRegion` blocks are scoped to these regions. The lifetime of variables within these regions is tied to the region's scope.  **Enhanced in Version 1.3 with compile-time region lifetime tracking, the compiler analyzes the *runtime* lifetime of objects within regions, going beyond simple lexical scoping to enable more aggressive optimizations.**
+          type UartControlRegister = struct @mapped {
+               uint32 baud : 16;
+               uint32 parity: 2;
+                uint32 readout: 1;
+               uint32 enable : 1;
+          };
+          function void initUart(dataAddress base) {
+                UartControlRegister myUartRegisters = base;
+                 with (myUartRegisters) {
+                      baud := 115200;
+                      parity := 2;
+                     enable := 1;
+                     uint32 myStatus = readout;
+                   }
+                  myUartRegisters.enable = 0; //single bitfield modification using read-modify-write.
+           }
+         ```
+            *  **Optimizations:** The compiler will:
+                 *  Read the register `myUartRegisters` only once, at the beginning of the `with` block.
+                 *  Modify the bitfields in a local copy of the register.
+                  * Perform a single memory write at the end of the `with` block, if any of the bitfields was modified.
+                   * If the compiler can detect that the values assigned to a bitfield do not change, the write operation can be optimized away.
+                   *  The compiler can use specific insert/extract instructions, when available, or generate bitwise operations with no runtime overhead.
+*   **Implicit Read optimization:** When a bitfield is read inside the `with` block, but no bitfield is modified, the compiler may skip reading the register. For example:
+    ```baremetal
+        with (UART2.ccr) {
+           uint32 myStatus = readout; //only read, not modified. The read operation may be optimized away if no bitfields are modified
+         }
+    ```
+
+**7. Multi-Target Architecture Versatility**
+
+*   `@arc architectureName { ... }`: Provides architecture-specific code implementations inside CAMs. This is the main method to provide different implementations of the same API, depending on the target architecture. The compiler will choose the appropriate code block, based on the target architecture specified by the user, by using the `-target` flag in the command line interface.
+    *   Example: `@arc arm { /* ... */ }`, `@arc riscv { /* ... */ }`, `@arc x86 { /* ... */ }`
+*   CAMs: Implement hardware abstractions with platform optimizations, allowing developers to write code once and reuse it in different platforms, without sacrificing performance. The abstraction mechanism allows developers to create reusable code that is portable across different architectures, but also perform architecture specific optimizations, using the features of a specific target platform.
+*   `#cpuTarget cpuName`: Provides CPU optimization hints, allowing the compiler to target specific features and improve the performance of the generated code. The compiler will use the information of the target CPU to generate specialized code.
+    *   The compiler selects CAMs and generates code based on the `-target` flag, which can be used to specify the target architecture and CPU.
+       *  Example:  `#cpuTarget armCortexM4`
+
+**8. Concurrency and Parallelism**
+
+*   `threadHandle identifier = startThread(functionName);`: Creates concurrent tasks, allowing the developer to implement multi-threaded applications. The `startThread()` function creates a new thread. The way that the stack is handled depends on the target architecture and the compiler flags, and is implementation-defined. There is no mechanism to kill a thread or to join a thread directly. If required, you can use CAMs to implement such functionality.
+     *   Example: `threadHandle myThread = startThread(myThreadFunction);`
+*   `parallel { ... }`: Structured concurrency, allowing the developer to create parallel tasks that execute concurrently. The compiler may map these tasks to different threads depending on the underlying platform and target architecture, but the developer has no control over how the tasks are scheduled.
+    *   Example:
         ```baremetal
-        dataRegion MyDataRegion {
-            uint16 regionVar; // 'regionVar' is scoped to MyDataRegion
-            // ... more declarations within MyDataRegion ...
+        parallel {
+            task1();
+            task2();
         }
-        // 'regionVar' can be accessed using MyDataRegion.regionVar within the scope where MyDataRegion is visible
         ```
-
-    **Crucially, scope in BML not only defines the visibility of an identifier but also the *region of mutability*.  Mutability, indicated by the `~` modifier, is also lexically scoped. A variable declared as mutable within a block is only mutable within that block's scope.  Once the scope is exited, the ability to mutate that specific instance of the variable is also limited by its scope, even if a variable with the same name exists in an outer scope.**
-
-*   **Function Scope:** Function parameters are scoped to the function body. They are accessible throughout the function's code.  **Mutability of function parameters, if declared with the `~` modifier, is also confined to the function's scope.**
-    ```baremetal
-    function void processValue(uint32 value, ~uint32 mutableValue) { // 'value' and 'mutableValue' are function-scoped
-        // 'value' and 'mutableValue' are accessible here
-        mutableValue = value * 2; // 'mutableValue' can be modified within the function
-    }
-    // 'value' and 'mutableValue' are not accessible here - out of scope
-    ```
-
-*   **Module Scope:** Declarations within a `module { declarations { ... } }` block have module scope. They are accessible within the module itself. Exported declarations are also accessible from outside the module when the module is used via `#use module`. **Mutability of module-level variables is scoped to the module. Module-private mutable variables are mutable only within the defining module.**
-    ```baremetal
-    module MyModule {
-        declarations {
-            uint32 modulePrivateVar; // Module-private variable
-            export functions { exportedFunction; };
-        }
-        function void exportedFunction() {
-            modulePrivateVar = 10; // Accessing module-private variable within module scope
-        }
-    }
-
-    #use module "MyModule";
-    @arc arm {
-        statements {
-            MyModule.exportedFunction(); // Calling exported function
-            // MyModule.modulePrivateVar = 20; // Compile-time error: 'modulePrivateVar' is not exported and not accessible here
-        }
-    }
-    ```
-
-*   **Global Scope (Limited):**  BML, being a bare metal language, intentionally minimizes global scope in the traditional sense. While module-level exports can be considered a form of controlled global access, true global variables (outside of any region or module declaration) are **not permitted**. All variables must be declared within a region or module declaration block to enforce memory management and scope control. This design choice promotes structured memory management and prevents accidental global namespace pollution, common in C-style bare metal programming.
-
-*   **Scope and `DataType ^scoped`:** The `DataType ^scoped` type is explicitly designed to leverage lexical scope for memory safety.  `DataType ^scoped` instances are valid only within the block in which they are declared. The compiler enforces this lexical lifetime, ensuring that `DataType ^scoped`s cannot become dangling pointers within their defined scope. **The scope of a `DataType ^scoped` governs its validity and lifetime, and by extension, the region in which you can safely access the memory it points to.  Mutability of the *data pointed to* is a separate attribute, but the *ability to safely dereference the `DataType ^scoped`* is strictly scope-bound.**
-    ```baremetal
-    function void exampleFunction() {
-        dataRegion { uint32 myData; }
-        statements {
-            uint32^ scoped scopedPtr = &myData; // 'scopedPtr' is scoped to this 'statements' block
-            *scopedPtr = 100; // Valid access within scope
-        } // End of 'statements' block - scope of 'scopedPtr' ends here
-        // *scopedPtr = 200; // Compile-time error: 'scopedPtr' is out of scope and invalid here
-    }
-    ```
-
-*   **Scope and Capability-Based Pointers (`DataType ^readonly`, `DataType ^writeonly`, `DataType ^region(RegionName)`, `DataType ^nonnull`):** Capability-based pointer types (`DataType ^readonly`, `DataType ^writeonly`, `DataType ^region(RegionName)`, `DataType ^nonnull`) are also governed by lexical scoping rules.  The capabilities (read-only, write-only, region-bound, non-null) are enforced within the scope where these pointer types are declared and used. **The scope of a capability-based pointer defines the region where the compile-time access control guarantees are active.**
-    ```baremetal
-    dataRegion MyRegion { uint32 regionData; }
-    function void exampleFunction() {
-        uint32^ region(MyRegion) regionPtr = &MyRegion.regionData; // 'regionPtr' is scoped to this function
-        // Accesses through 'regionPtr' are enforced to be within MyRegion within this function's scope
-    } // Scope of 'regionPtr' ends here - region capability enforcement is no longer active
-    ```
-
-*   **Scope and `return` Statements:**  `return` statements are valid within function blocks (`function { ... }` and `@boot function { ... }`).  The scope of a `return` statement is the function block in which it is enclosed.  `return` statements are used to exit a function and optionally return a value. **In BML Version 1.5, `return` statements remain restricted to function blocks.  `return` is not allowed in `statement` blocks directly within `@arc` blocks or module `statement` blocks.** Control flow within these blocks should be managed using structured control flow statements (if, for, while, switch) or `goto` (sparingly).
-
-*   **`where` Clauses (Refinement Types):** The `where` clause in refinement type definitions is lexically scoped to the type definition itself. The `ConstraintExpression` within the `where` clause is evaluated within the scope of the type being defined.
-
-*   **Scope and `DataType ^tracked`:** While `DataType ^tracked` provides runtime safety checks, its scope behavior is still governed by lexical scoping rules.  The runtime tracking and safety checks operate within the defined scope of the `DataType ^tracked` variable.  **Similar to `DataType ^scoped`, the scope of a `DataType ^tracked` defines its lifetime and the region where runtime safety checks are active.**
-
-**Understanding scope, including its interaction with mutability and capability-based pointers, is crucial in BML for managing variable lifetimes, controlling data modification regions, enforcing access control guarantees, preventing naming conflicts, and writing modular and maintainable code. Lexical scoping, combined with region-based memory management, capability-based pointers, and safety-focused pointer types like `DataType ^scoped` and `DataType ^tracked`, contributes to BML's goal of providing a safe, performant, and predictable programming environment for bare metal systems.  The lexical scoping of mutability and capability-based access, in particular, enhances code predictability, reduces unintended side effects, and enforces compile-time safety by clearly delineating the regions where variables can be modified and accessed based on their intended capabilities.**
-
-### 4. Modules and CAMs: Structure and Organization
-
-#### 4.1 Module Structure
-
-A BML module is a self-contained unit of code that encapsulates declarations, statements, and exports. Modules provide namespaces, prevent naming conflicts, and promote modular design. A module definition is contained within a `module { ... }` block in a `.bml` source file (Module Definition File).
-
-**(Example Module Definition):**
-
-```baremetal
-module MyModule { // Module declaration - defines a module named "MyModule"
-    description "A simple example module demonstrating module structure."; // CAM Description - Provides documentation for the module
-
-    declarations { // Declarations block - contains module-private and exported declarations
-        const uint32 moduleConstant = 123; // Module constant - private to the module
-        function void internalFunction() { /* ... module-private function implementation ... */ } // Module-private function - not exported
-        export types { MyDataType; }; // Export type 'MyDataType' - makes it visible outside the module
-        type MyDataType = struct { uint32 value; }; // Exported type definition - struct definition visible outside
-    }
-
-    statements { // Statements block - Module initialization code (optional)
-        // ... module initialization logic - executed once when module is loaded ...
-        uartSendString("MyModule Initialized.\n"); // Example module initialization statement
-    }
-
-    export { // Export block - Defines what is exported from the module
-        constants { moduleConstant; }; // Export constant 'moduleConstant' - makes it visible and accessible outside
-        functions { exportedFunction; }; // Export function 'exportedFunction' - makes it callable from outside
-        types { MyDataType; }; // Re-export type 'MyDataType' (already exported in declarations, but can be re-exported here for clarity)
-        conceptualRegisters { MyConceptualRegister; } // Export conceptual register - for hardware abstraction
-        mmrBlocks { MyMMRBlock; } // Export MMR Block - for hardware register access
-    }
-
-    declarations { // Additional declarations block (order doesn't strictly matter, but convention is declarations, statements, export)
-        conceptualRegisters { // Conceptual registers block - defines abstract hardware registers
-            register MyConceptualRegister : uint32; // Exported conceptual register - abstract register representation
-        }
-        mmrBlock MyMMRBlock { // MMR Block definition - defines a memory-mapped register block
-            volatile register uint32 ControlRegister : offset(0x00); // Exported MMR Block - type-safe register access
-        }
-
-        function void exportedFunction() { // Exported function definition - visible and callable from outside
-            internalFunction(); // Calling module-private function - internal call within module
-            uartSendString("Exported Function in MyModule called.\n"); // Example function statement
-        }
-    }
-}
-```
-
-**Key Components of a Module:**
-
-*   **`module ModuleName { ... }`:**  The module declaration block, starting with the `module` keyword and a unique module name (`ModuleName`).  The `ModuleName` (e.g., `MyModule` in the example) defines the namespace for the module. For generic modules, see Section 3. Core Language Features -> Generic Modules and Functions.
-*   **`description "Module Description String";` (Optional but Recommended):** Provides a human-readable description of the module's purpose and functionality. This description is useful for documentation and for CAMs, it is used in CAM catalogs or IDE tools to provide information about the CAM.
-*   **`declarations { ... }`:** The declarations block encapsulates declarations that are private to the module or intended for export.  This can include constants, functions, types, structs, unions, enums, conceptual registers, and MMR Blocks. Declarations within this block are within the module's namespace (`ModuleName`). Declarations within this block are *not* automatically visible outside the module; they must be explicitly exported using the `export { ... }` block. Modules can have multiple `declarations` blocks, but conventionally, declarations are grouped together at the beginning of the module definition for better organization.
-*   **`statements { ... }`:** The statements block (optional) contains code that is executed when the module is loaded or initialized (module initialization code). This code runs *once* when the module is first used in a BML project. This is typically used for setting up module-level state, initializing global data structures within the module, or performing one-time setup tasks that the module needs before it can be used. Module initialization code runs *before* the main application code starts executing. Modules can have multiple `statements` blocks, and they are executed in the order they appear in the module definition.
-*   **`export { ... }`:** The export block explicitly defines which declarations from the `declarations` block are made visible and accessible to code that `#use`s the module.  Exports are categorized into:
-    *   `functions { ... }`: Lists functions to be exported.  Only functions listed here can be called from outside the module (using the module namespace).  Example: `functions { exportedFunction; };`
-    *   `types { ... }`: Lists type definitions (structs, unions, enums, type aliases) to be exported. Only types listed here can be used in declarations outside the module (using the module namespace). Example: `types { MyDataType; };`
-    *   `constants { ... }`: Lists constants to be exported. Only constants listed here can be accessed from outside the module (using the module namespace). Example: `constants { moduleConstant; };`
-    *   `conceptualRegisters { ... }`: Lists conceptual registers to be exported.  Exporting conceptual registers allows users of the module to use these abstract register representations in `#operation register` directives for hardware interaction (through the module's abstraction). Example: `conceptualRegisters { MyConceptualRegister; };`
-    *   `mmrBlocks { ... }`: Lists Memory-Mapped Register Blocks (MMR Blocks) to be exported. Exporting MMR Blocks allows users of the module to directly access and manipulate the hardware registers defined within these MMR Blocks using a type-safe and structured approach. Example: `mmrBlocks { MyMMRBlock; };`
-    *   `interface intrinsic functions { ... }`: Lists interface intrinsic functions to be exported (specifically for CAMs).  This is used in Composable Architecture Modules (CAMs) to define the architecture-agnostic interface for hardware-specific intrinsic functions.  Example: `interface intrinsic functions { uartPlatformInit(UartConfigType config) -> void; };`
-
-#### 4.2 Module Usage (`#use module`)
-
-To utilize a BML module in another BML source file (Multi-Target Source File or another Module Definition File), the `#use module` directive is used. This directive imports the exported declarations from the specified module into the current scope, making them accessible for use.  For generic modules, instantiation is performed using the `#use module` directive.
-
-**Example (Module Usage):**
-
-```baremetal
-#use module "MyModule"; // Use module - Imports exported declarations from "MyModule"
-
-@arc arm {
-    declarations {
-        MyModule.MyDataType myVariable; // Use exported type 'MyDataType' from 'MyModule' - accessed via module namespace
-        uint32 myConstant = MyModule.moduleConstant; // Access exported constant 'moduleConstant' from 'MyModule' - using module namespace
-    }
-    statements {
-        MyModule.exportedFunction(); // Call exported function 'exportedFunction' from 'MyModule' - using module namespace
-        exportedFunction(); // Alternatively, call exported function - assuming no naming conflicts in current scope.
-    }
-}
-```
-
-**Example (Generic Module Instantiation and Usage):**
-
-```baremetal
-#use module "GenericVector<uint32>" as Uint32Vector; // Instantiate GenericVector CAM for uint32, alias as Uint32Vector
-#use module "GenericVector<float32>" as Float32Vector; // Instantiate GenericVector CAM for float32, alias as Float32Vector
-
-@arc arm {
-    declarations {
-        Uint32Vector.Vector uint32Vec; // Use instantiated Uint32Vector module - accessing Vector type
-        Float32Vector.Vector float32Vec; // Use instantiated Float32Vector module - accessing Vector type
-    }
-    statements {
-        uint32Vec = Uint32Vector.vectorCreate(); // Call function from Uint32Vector - vectorCreate for uint32
-        Float32Vector.vectorPush(~float32Vec, 3.14f); // Call function from Float32Vector - vectorPush for float32
-    }
-}
-```
-
-**Key Aspects of Module Usage:**
-
-*   **`#use module "ModuleName";`:**  The `#use module` directive, placed at the top level of a BML source file (outside of any `arc` blocks), imports the exported declarations from the module named `"ModuleName"`. The module name must match the name declared in the `module { ... }` definition.  The compiler searches for a module definition file named `ModuleName.bml` in the project's module paths (configured in the compiler or project settings). For generic modules, use `#use module "GenericModuleName<ConcreteType1, ConcreteType2, ...>" as AliasName;` to instantiate and import the module (see example above). The `as AliasName` part is optional; if omitted, the module is imported using its original `ModuleName` as the namespace.
-*   **Namespace Access:**  Exported declarations are accessed using the module name (or alias, if used) as a namespace prefix (e.g., `ModuleName.exportedFunction()`, `ModuleName.moduleConstant`, `ModuleName.MyDataType`, `AliasName.vectorCreate()`). This namespace prefix prevents naming conflicts if different modules export declarations with the same name. If you `#use module "MyModule"` and `#use module "AnotherModule"` and both modules export a function named `init()`, you can call them unambiguously as `MyModule.init()` and `AnotherModule.init()`.
-*   **Selective Import (Export Block Control):** The `export { ... }` block in the module definition controls exactly what is made visible when a module is used.  Only declarations explicitly listed in the `export` block are imported by `#use module`. This promotes encapsulation and prevents accidental exposure of module-private details. If a module declares internal helper functions or data structures that are not intended for external use, these are simply *not* included in the `export` block, and they remain private to the module.
-*   **Configuration (`with config { ... }`):**  The `#use module` directive can optionally include a `with config { ... }` clause to configure module parameters. This powerful feature allows users to customize module behavior at the point of usage by providing values for module configuration constants defined in the module's `config { ... }` block. This enables flexible adaptation of module functionality without modifying the module's source code itself. See the example below for details on module configuration.
-*   **Module Dependencies:** Modules can `#use` other modules, creating modular dependencies and allowing for building complex systems from interconnected modules. Dependency resolution is handled by the BML compiler, ensuring that modules are compiled in the correct order and that dependencies are satisfied. If Module A `#use`s Module B, the BML compiler will ensure that Module B is compiled before Module A.  Circular dependencies (e.g., Module A `#use`s Module B and Module B `#use`s Module A) are detected by the compiler and result in a compile-time error.
-
-**Example (Module Configuration):**
-
-```baremetal
-module ConfigurableModule {
-    config {
-        config bufferSize : uint32 = 1024; // Configurable buffer size with a default value of 1024
-        config debugMode : boolean = false; // Configurable debug mode (boolean) with a default value of false
-    }
-    declarations {
-        safeArray<uint8, config.bufferSize> dataBuffer; // Safe array using configurable buffer size - size determined by 'config.bufferSize'
-    }
-    export { /* ... */ functions { processData; } /* ... */ }
-    statements { /* ... module initialization statements ... */ }
-
-    function void processData() { // Exported function that uses configurable parameters
-        if (config.debugMode) { // Accessing configurable parameter 'debugMode'
-            uartSendString("Debug mode enabled, buffer size: "); uartSendInteger(config.bufferSize); uartSendString("\n"); // Accessing configurable parameter 'bufferSize'
-        }
-        // ... data processing logic using dataBuffer ...
-        // ... buffer size is dynamically determined by the configured 'bufferSize' parameter
-    }
-}
-
-#use module "ConfigurableModule" with config { bufferSize = 2048; debugMode = true; }; // Use ConfigurableModule and override config parameters - bufferSize and debugMode are customized here
-
-@arc arm { // ARM architecture block
-    statements {
-        processData(); // Call function from ConfigurableModule - Using *configured* parameters (bufferSize = 2048, debugMode = true)
-    }
-}
-
-#use module "ConfigurableModule"; // Use ConfigurableModule again - this time using *default* configuration
-
-@arc riscv { // RISC-V architecture block
-    statements {
-        processData(); // Call function from ConfigurableModule - Using *default* configuration parameters (bufferSize = 1024, debugMode = false)
-    }
-}
-```
-
-In this example, `ConfigurableModule` defines configurable parameters `bufferSize` and `debugMode` within its `config { ... }` block.  The first `#use module` directive in the example *overrides* these configuration parameters, setting `bufferSize` to 2048 and `debugMode` to `true` *specifically for this usage* of the module. The code within the `@arc arm` block will use this *customized configuration*. The second `#use module` directive uses the default configuration parameters defined in `ConfigurableModule`. The code within the `@arc riscv` block will use the *default configuration*. This mechanism allows for flexible customization of module behavior without modifying the module's source code, enhancing reusability and adaptability.  Configuration parameters are compile-time constants within the module's scope, allowing the compiler to perform optimizations based on these known values.
-
-#### 4.3 Composable Architecture Modules (CAMs) - Advanced Modularity and Optimization
-
-Composable Architecture Modules (CAMs) are a specialized type of BML module that extends the modularity concept with architecture-centricity, feature-orientation, and compiler extensibility. CAMs are designed to be "optimization engines" that guide the BML compiler to generate highly optimized code for specific hardware architectures and application domains. CAMs are central to BML's ability to achieve both high-level programmability and near-assembly level performance in bare metal systems. CAMs can also be declared as generic modules, enabling the creation of type-agnostic, reusable components. CAMs are detailed comprehensively in Section 5.
-
-### 5. Composable Architecture Modules (CAMs) - Deep Dive
-
-Composable Architecture Modules (CAMs) represent a significant advancement in modular programming for bare metal systems. They are not merely libraries or code modules in the traditional sense; CAMs are deeply integrated with the BML compiler, acting as *compiler extensions* and *optimization engines*.  CAMs embody the core principles of BML: Performance Primacy, Low-Level Control, Memory Safety Mitigation, Multi-Target Architecture Versatility, and Modularity. CAMs can now be generic, enhancing their reusability and abstraction capabilities.
-
-**Why CAMs are Crucial and Different from Traditional Libraries:**
-
-CAMs are not just libraries in the traditional sense (like C libraries or header files). They are a fundamentally different concept, designed to be *compiler extensions* and *optimization engines*. This distinction is crucial to understanding the power and role of CAMs in BML:
-
-*   **Compiler Extension Mechanism:** CAMs are designed to *extend the BML compiler itself*. They are not just collections of pre-written code that the compiler links in. CAMs provide a structured way to inject new functionalities, optimizations, and hardware-specific knowledge directly into the compiler pipeline. This is a key difference from traditional libraries, which are typically linked *after* the main compilation process. When you `#use module "MyCam"`, you are not just including code; you are engaging a compiler extension that will influence how your BML code is compiled and optimized.
-*   **Optimization Engines:** CAMs act as "optimization engines." They can inject domain-specific and hardware-aware optimization passes into the BML compiler. These optimization passes are executed during the compilation process, allowing CAMs to guide the compiler in generating code that is hyper-optimized for specific application domains, hardware characteristics, and even specific algorithms. Traditional libraries cannot directly influence the compiler's optimization process in this way. For example, a DSP CAM might include optimization passes that automatically vectorize DSP algorithms or utilize specialized DSP hardware instructions available on the target processor.
-*   **Architecture Awareness and Specialization:** CAMs are inherently architecture-aware. They use `@arc` blocks to provide architecture-specific implementations of functionalities and optimizations. When the BML compiler targets a specific architecture, it automatically selects and utilizes the relevant architecture-specific code and optimizations from CAMs. Traditional libraries are often either architecture-agnostic (and potentially less optimized for specific platforms) or require manual architecture-specific builds and selections. A UART driver CAM, for instance, will contain `@arc arm`, `@arc riscv`, and `@arc x86` blocks, each providing the optimal UART driver implementation for that specific architecture, leveraging architecture-specific peripheral registers and instructions.
-*   **Interface Intrinsic Functions and Hardware Abstraction:** CAMs export "interface intrinsic functions" that define abstract interfaces for hardware operations or domain-specific functionalities. The actual implementations of these intrinsic functions are provided within CAMs' `@arc` blocks, tailored to each target architecture. This provides a powerful hardware abstraction mechanism. Traditional libraries may provide hardware abstractions, but CAMs offer a deeper integration with the compiler and the language itself, allowing for more seamless and efficient hardware interaction. When you call `uartSendByte()` from a UART driver CAM, you are calling an architecture-agnostic *interface function*. The CAM ensures that the *actual* code executed is the highly optimized, architecture-specific `uartPlatformSendByte()` intrinsic function implemented within the appropriate `@arc` block for your target architecture.
-*   **Composable and Configurable Units:** CAMs are designed to be composable and configurable. Multiple CAMs can be used together in a BML project, and CAMs can be configured using the `config { ... }` block to customize their behavior for specific application needs.  This composability and configurability enhance code reusability and adaptability. Traditional libraries are often less modular and configurable in comparison. You can combine a UART driver CAM, a sensor driver CAM, and a communication protocol CAM in a BML project, composing a complex embedded system from these reusable and configurable components.
-*   **Type Safety and BML Integration:** CAMs are written in BML itself and benefit from BML's strong static typing system and memory safety features. This ensures type safety within CAMs and when using CAMs in BML applications. CAMs are tightly integrated with the BML language, providing a seamless and consistent development experience. Traditional libraries written in C or assembly may not always offer the same level of type safety and language integration as BML CAMs. CAM interfaces are type-checked by the BML compiler, ensuring that you are using CAM functionalities correctly and safely within your BML code.
-*   **Beyond Code Libraries - Compiler-Integrated Functionality:**  It's crucial to understand that CAMs are *more than just code libraries*. They are compiler extensions and optimization engines.  While they provide reusable code and functionalities like traditional libraries, their core strength lies in their ability to *extend and customize the BML compiler itself*. This compiler integration is what makes CAMs uniquely powerful and allows BML to achieve its goals of high-level programmability and near-assembly level performance in bare metal systems. CAMs are the mechanism that allows BML to be both a high-level language and a language capable of generating code that rivals hand-tuned assembly.
-
-In essence, CAMs are a fundamental part of the BML language design, not just an add-on. They are the mechanism through which BML achieves its core principles of performance, low-level control, multi-targeting, and modularity. They are the key to unlocking the full potential of BML for bare metal embedded systems development.
-
-#### 5.1 CAM Definition and Structure
-
-A CAM is defined as a BML module with specific structural conventions and export mechanisms that enable its compiler extension capabilities.  A CAM definition resides in a `.bml` file (Module Definition File) and adheres to the standard `module { ... }` syntax, or the `generic module { ... }` syntax for generic CAMs, but with additional CAM-specific elements.
-
-**(Example CAM Structure):**
-
-```baremetal
-module UartDriverCam { // CAM module declaration - Identifies this module as a CAM
-    description "Provides a UART driver CAM for various architectures. Supports common UART functionalities such as initialization, byte send/receive, and string transmission. Optimized for performance and minimal overhead in bare metal environments."; // CAM Description - Provides documentation for the CAM
-
-    config { // Configuration block - Defines configurable parameters for the UART driver CAM
-        config uartInstance : string = "UART0"; // Configurable UART instance name (default: "UART0") - allows users to select UART peripheral instance
-        config baudRate : uint32 = 115200; // Configurable baud rate (default: 115200 bps) - sets the communication speed
-        config clockFrequencyMHz : uint32 = 48; // Configurable clock frequency (default: 48 MHz) - used for baud rate calculation and timing
-    }
-
-    export { // Export block - Defines what the CAM exports - the public interface of the UART driver
-        functions { uartInit, uartSendByte, uartReceiveByte, uartSendString }; // Exported UART driver functions - architecture-agnostic API
-        types { UartConfigType; }; // Exported UART configuration type - struct defining UART configuration parameters
-        constants { UART_DRIVER_VERSION; }; // Exported UART driver version constant - provides version information
-        interface intrinsic functions { // Interface intrinsic functions - Architecture-specific optimized functions - internal implementation details, abstracted by interface
-            uartPlatformInit(UartConfigType config) -> void; // Interface function for platform-specific UART initialization - architecture-dependent implementation
-            uartPlatformSendByte(uint8 byteData) -> void; // Interface function for platform-specific byte sending - architecture-dependent implementation
-            uartPlatformReceiveByte() -> uint8; // Interface function for platform-specific byte receiving - architecture-dependent implementation
-        }
-    }
-
-    declarations { // Declarations block - Module-private and exported declarations - internal state and data structures
-        const StringLiteral UART_DRIVER_VERSION = "1.0.0"; // Module constant - UART driver version string - private constant
-        type UartConfigType = struct { // Exported type - UART configuration struct - defines the structure for UART config parameters
-            string instanceName; // UART instance name (e.g., "UART0", "UART1")
-            uint32 baudRate;     // Baud rate in bits per second
-            uint32 clockFreqMHz; // Clock frequency of the UART peripheral in MHz
-        };
-
-        ~boolean uartInitialized = false; // Module-private mutable state - UART initialization status - internal state tracking
-    }
-
-    statements { // Statements block - CAM initialization code (optional) - executed once when CAM is used
-        // ... CAM initialization logic if needed - can be used for CAM-wide setup ...
-        uartSendString("UartDriverCam Module Initialized.\n"); // Example CAM initialization message
-    }
-
-
-    @arc arm { // Architecture Block - ARM-specific implementation - provides ARM-optimized UART driver implementation
-        declarations { // ARM-specific declarations if needed - ARM-specific data or constants
-            // Example: ARM-specific register definitions or helper functions
-        }
-        statements { // Statements block - ARM-specific implementations - implementation of interface intrinsic functions for ARM architecture
-            intrinsic function void uartPlatformInit(UartConfigType config) -> void { // ARM-specific intrinsic implementation - ARM-specific UART peripheral initialization
-                // ... ARM-specific UART peripheral initialization code using MMR Blocks and #operation ...
-                // Access ARM-specific UART peripheral registers using MMR Blocks (example below)
-                // Configure UART clock, baud rate, data format, etc. based on 'config' parameters
-                // Example MMR Block access (placeholder - replace with actual ARM UART MMR Block):
-                // Uart0.ControlRegister = /* ... ARM-specific register configuration ... */;
-                uartInitialized = true; // Update module-private state - set initialization flag
-            }
-            intrinsic function void uartPlatformSendByte(uint8 byteData) -> void { // ARM-specific intrinsic implementation - ARM-specific byte sending
-                // ... ARM-specific UART byte sending code using MMR Blocks and #operation ...
-                // Write 'byteData' to the ARM-specific UART transmit data register
-                // Example MMR Block access (placeholder - replace with actual ARM UART MMR Block):
-                // Uart0.DataRegister = byteData;
-            }
-            intrinsic function uint8 uartPlatformReceiveByte() -> uint8 { // ARM-specific intrinsic implementation - ARM-specific byte receiving
-                // ... ARM-specific UART byte receiving code using MMR Blocks and #operation ...
-                // Read a byte from the ARM-specific UART receive data register
-                // Example MMR Block access (placeholder - replace with actual ARM UART MMR Block):
-                // return Uart0.DataRegister; // Placeholder return value - replace with actual register read
-                return 0; // Placeholder return value - replace with actual register read
-            }
-        }
-    }
-
-    @arc riscv { // RISC-V specific implementation - provides RISC-V optimized UART driver implementation
-        declarations { /* RISC-V specific declarations if needed - RISC-V specific data or constants */ }
-        statements { // Statements block - RISC-V specific implementations - implementation of interface intrinsic functions for RISC-V architecture
-            intrinsic function void uartPlatformInit(UartConfigType config) -> void { // RISC-V specific intrinsic implementation - RISC-V specific UART peripheral initialization
-                // ... RISC-V specific UART peripheral initialization code using MMR Blocks and #operation ...
-                // Access RISC-V specific UART peripheral registers using MMR Blocks (example below)
-                // Configure UART clock, baud rate, data format, etc. based on 'config' parameters
-                // Example MMR Block access (placeholder - replace with actual RISC-V UART MMR Block):
-                // Uart0.ControlRegister = /* ... RISC-V specific register configuration ... */;
-                uartInitialized = true; // Update module-private state - set initialization flag
-            }
-            intrinsic function void uartPlatformSendByte(uint8 byteData) -> void { // RISC-V specific intrinsic implementation - RISC-V specific byte sending
-                // ... RISC-V specific byte sending code using MMR Blocks and #operation ...
-                // Write 'byteData' to the RISC-V specific UART transmit data register
-                // Example MMR Block access (placeholder - replace with actual RISC-V UART MMR Block):
-                // Uart0.DataRegister = byteData;
-            }
-            intrinsic function uint8 uartPlatformReceiveByte() -> uint8 { // RISC-V specific intrinsic implementation - RISC-V specific byte receiving
-                // ... RISC-V specific UART byte receiving code using MMR Blocks and #operation ...
-                // Read a byte from the RISC-V specific UART receive data register
-                // Example MMR Block access (placeholder - replace with actual RISC-V UART MMR Block):
-                // return Uart0.DataRegister; // Placeholder return value - replace with actual register read
-                return 0; // Placeholder return value - replace with actual register read
-            }
-        }
-    }
-
-    function void uartInit(UartConfigType config) -> void { // Exported function - Architecture-agnostic UART initialization wrapper - high-level API function
-        uartPlatformInit(config); // Call platform-specific initialization intrinsic - delegates to architecture-specific implementation
-        uartSendString("UART Initialized.\n"); // Example post-initialization message - common to all architectures
-    }
-
-    function void uartSendByte(uint8 byteData) -> void { // Exported function - Architecture-agnostic byte sending wrapper - high-level API function
-        uartPlatformSendByte(byteData); // Call platform-specific byte sending intrinsic - delegates to architecture-specific implementation
-    }
-
-    function uint8 uartReceiveByte() -> uint8 { // Exported function - Architecture-agnostic byte receiving wrapper - high-level API function
-        return uartPlatformReceiveByte(); // Call platform-specific byte receiving intrinsic - delegates to architecture-specific implementation
-    }
-
-    function void uartSendString(StringLiteral str) -> void { // Example utility function using exported functions - high-level utility function
-        for (uint32 i = 0; i < stringLength(str); i++) {
-            uartSendByte(str[i]); // Call exported uartSendByte function - uses the exported API
-        }
-    }
-} // End module UartDriverCam
-```
-
-**(Key Elements of CAMs):**
-
-*   **`description "CAM Description String";`:**  Provides a human-readable description of the CAM's purpose and functionality. This description is used for documentation and in CAM catalogs or IDE tools to provide information about the CAM.  It should be a concise and informative summary of what the CAM does and what it is intended for.
-*   **`config { ... }`:**  Defines configurable parameters for the CAM. These parameters allow users of the CAM to customize its behavior at the point of usage using the `with config { ... }` clause in `#use module` directives. Configuration parameters are defined with a name, data type, and default value.  The `config` block allows CAM authors to expose customizable aspects of the CAM's functionality to users, without requiring users to modify the CAM's internal code.
-*   **`export { interface intrinsic functions { ... } }`:**  This is a key element that distinguishes CAMs from regular modules. The `interface intrinsic functions { ... }` block declares the *interface* of architecture-specific intrinsic functions that the CAM provides. These interface functions are architecture-agnostic in their signature (parameter types and return type) but are implemented differently for each target architecture within `@arc` blocks.  These interface functions form the *contract* between the CAM and the BML code that uses it.  They define the abstract operations that the CAM provides, regardless of the underlying hardware architecture.
-*   **`intrinsic function ... { ... }`:**  Intrinsic functions are the architecture-specific implementations of the interface intrinsic functions declared in the `export` block. Intrinsic functions are defined within `@arc` blocks and are implemented using low-level BML constructs, `#operation` directives, and potentially `archCodeBlock` for highly specialized code sequences.  The BML compiler directly generates efficient machine code for intrinsic functions, often rivaling hand-written assembly.  These functions are the *hardware-specific engines* of the CAM, providing the optimized, low-level code for each supported architecture. The implementations typically involve direct register manipulation using MMR Blocks and `#operation` directives to interact with hardware peripherals.
-*   **Architecture Blocks (`@arc`)**: Architecture blocks (`@arc architectureName { ... }`) are used to provide architecture-specific code and implementations within a CAM.  A CAM typically contains multiple `@arc` blocks, each targeting a different architecture (e.g., `@arc arm`, `@arc riscv`, `@arc x86`). Within each `@arc` block, developers provide architecture-specific implementations for interface intrinsic functions, as well as any architecture-specific declarations or statements needed for that platform.  The BML compiler automatically selects and compiles the code within the `@arc` block that matches the currently targeted architecture during compilation. `@arc` blocks are the mechanism for achieving multi-targeting within CAMs, allowing a single CAM to support multiple hardware platforms with optimized code for each.
-
-##### 5.1.1 CAM Manifest Files (`.manifest`)
-
-Each Composable Architecture Module (CAM) **must** include a manifest file named with the **`.manifest` extension**. This manifest file provides essential metadata about the CAM, enabling BML tooling (compiler, IDEs, CAM managers) to understand, validate, and manage CAMs effectively. The manifest file **must** be placed in the same directory as the CAM's main BML source file (`CamModuleName.bml`) and follow a specific naming convention: `CamModuleName.manifest`, where `CamModuleName` exactly matches the name declared in the `module CamModuleName { ... }` declaration in the BML source file.  This applies to both regular CAMs and generic CAMs.
-
-The CAM manifest file **must** adhere to a **simple, custom plain text format**.  **YAML or other external data serialization formats are not supported** to maintain BML's zero-dependency and bare metal philosophy. The plain text format uses a line-based, key-value pair structure. Each line in the manifest file represents a metadata field, defined as:
-
-`key = value`
-
-Where:
-
-*   `key` is the metadata field name (e.g., `name`, `version`, `description`).
-*   `=` is the separator between the key and the value.
-*   `value` is the value associated with the key. Values can be string literals (enclosed in double quotes `"`) or simple scalar values (integers, booleans, etc., without quotes).
-
-Blank lines and lines starting with `//` are treated as comments and are ignored by BML tooling.
-
-**(Example `.manifest` File):**
-
-```plain text
-name = "UartDriverCam"
-version = "1.0.0"
-description = "Provides a UART driver CAM for various architectures, supporting common UART functionalities and configurations."
-license = "MIT"
-bml_version_compatibility = ">=1.5"
-architectures = "arm, riscv, x86"
-keywords = "uart, serial, communication, driver, peripheral, i2c, spi, sensor, embedded, baremetal"
-exports_functions = "uartInit, uartSendByte, uartReceiveByte, uartSendString"
-interface_intrinsic_functions = "uartPlatformInit, uartPlatformSendByte, uartPlatformReceiveByte"
-source_file = "UartDriverCam.bml"
-documentation_file = "UartDriverCam_documentation.md"
-changelog_summary = "v1.0.0: Initial release with basic UART driver functionality for ARM and RISC-V."
-```
-
-**(Required and Recommended Metadata Fields in `.manifest` Files):**
-
-*   **`name` (Required):** The name of the CAM module (must match the `module ModuleName` declaration in the `.bml` file). Example: `name = "UartDriverCam"`
-*   **`version` (Required):** The version of the CAM module, following semantic versioning conventions (e.g., "1.0.0", "1.2.3-beta"). Example: `version = "1.0.0"`
-*   **`description` (Recommended):** A concise description of the CAM's purpose, functionalities, and target use cases. Example: `description = "Provides a UART driver CAM for various architectures..."` -  This description is displayed in CAM catalogs and IDEs.
-*   **`license` (Recommended):** The license under which the CAM is distributed (e.g., "MIT", "GPL-3.0", "Apache-2.0"). Example: `license = "MIT"` -  Specifies the terms of use and distribution for the CAM.
-*   **`bml_version_compatibility` (Recommended):** Specifies the minimum BML compiler version that is compatible with the CAM.  Use version ranges (e.g., ">=1.5", ">=1.3, <2.0"). Example: `bml_version_compatibility = ">=1.5"` - Ensures that users use a compatible compiler version to avoid unexpected issues.
-*   **`architectures` (Recommended):** A comma-separated list of target architectures supported by the CAM (using architecture names like "arm", "riscv", "x86"). Example: `architectures = "arm, riscv, x86"` -  Indicates which platforms the CAM is designed to work with.
-*   **`keywords` (Optional, but highly recommended for CAM catalogs):** A comma-separated list of keywords that describe the CAM's functionality. These keywords are used for searching and categorizing CAMs in CAM catalogs or repositories. Example: `keywords = "uart, serial, communication, driver, peripheral"` - Improves discoverability of the CAM in CAM repositories.
-*   **`exports_functions` (Optional, but recommended):** A comma-separated list of the names of functions exported by the CAM (as listed in the `export { functions { ... } }` block in the `.bml` file). Example: `exports_functions = "uartInit, uartSendByte, uartReceiveByte, uartSendString"` - Documents the public API functions provided by the CAM.
-*   **`interface_intrinsic_functions` (Optional, but recommended for CAMs with intrinsic functions):** A comma-separated list of the names of interface intrinsic functions exported by the CAM (as listed in the `export { interface intrinsic functions { ... } }` block in the `.bml` file). Example: `interface_intrinsic_functions = "uartPlatformInit, uartPlatformSendByte, uartPlatformReceiveByte"` -  Documents the low-level interface functions that CAM users typically don't directly interact with.
-*   **`source_file` (Recommended):** The name of the main BML source file for the CAM (typically `CamModuleName.bml`). Example: `source_file = "UartDriverCam.bml"` -  Points to the main source code file of the CAM.
-*   **`documentation_file` (Optional):** The name of a separate documentation file (e.g., Markdown file) providing detailed documentation for the CAM. Example: `documentation_file = "UartDriverCam_documentation.md"` -  Provides a link to more detailed documentation beyond the `.manifest` and in-code comments.
-*   **`changelog_summary` (Optional, but recommended for versioned CAMs):** A brief summary of changes in the current version of the CAM. Example: `changelog_summary = "v1.0.0: Initial release with basic UART driver functionality for ARM and RISC-V."` -  Provides a quick overview of changes in each version, useful for CAM updates and version tracking.
-
-**(Tooling Integration and Manifest Parsing):**
-
-BML tooling, including the `bmlc` compiler and IDE plugins, will parse these **plain text** `.manifest` files to:
-
-*   **Validate CAM Modules:** Ensure that CAMs adhere to the expected structure and metadata requirements. The compiler will check for required fields (like `name` and `version`), validate the file structure, and potentially perform other CAM-specific validations based on manifest data.
-*   **Display CAM Information:** Provide information about CAMs to users, such as name, version, description, license, and supported architectures, in CAM catalogs, IDEs, or command-line tools.  This allows users to easily browse and understand the functionalities and properties of available CAMs.
-*   **Manage CAM Dependencies:**  Potentially in future versions, use manifest data to manage CAM dependencies and ensure that required CAMs are available when building BML projects. The `bmlc` compiler could use dependency information in `.manifest` files to automatically resolve and include dependent CAMs.
-*   **Integrate CAM Optimizations:** Use manifest data to guide compiler optimization decisions, especially for CAM-provided optimization passes.  Manifest data can be used to activate or configure specific optimization passes based on the CAM being used.
-*   **Handle Generic CAM Instantiation:** (Tooling will also use manifest data to properly handle and validate generic CAM instantiations).  Ensure that generic CAM instantiations are compatible with the CAM's metadata and version compatibility information. The compiler can use manifest data to verify that a generic CAM is being instantiated with valid and supported types.
-
-BML tooling will implement built-in, simple parsing logic for this plain text format and will **not rely on external YAML or other complex parsing libraries**, adhering to BML's principles of minimal dependencies and suitability for bare metal environments.  The focus is on efficient and reliable parsing of the essential metadata provided in these `.manifest` files.
-
-#### 5.2 Benefits of Composable Architecture Modules (CAMs)
-
-CAMs offer numerous advantages for bare metal BML development, making them a powerful and integral part of the BML ecosystem:
-
-*   **Architecture-Specific Optimization and Peak Performance:** CAMs enable the BML compiler to generate highly optimized code tailored to specific target architectures. Within a CAM, architecture blocks (`@arc`) provide platform-specific implementations of intrinsic functions. When the BML compiler targets a particular architecture, it selects the corresponding `@arc` block within the CAM and utilizes the architecture-specific intrinsic function implementations and optimization passes provided by the CAM. This ensures that BML code achieves peak performance on each target architecture, rivaling hand-optimized assembly code.  CAMs can encapsulate architecture-specific optimizations, instruction scheduling hints, and hardware-specific code generation templates, allowing developers to leverage the full potential of the underlying hardware without sacrificing high-level programmability. **Example:** A math CAM for vector operations could utilize ARM NEON intrinsics within its `@arc arm` block to generate vectorized code for ARM processors, while using SSE intrinsics within its `@arc x86` block for x86 processors, achieving optimal performance on both platforms without requiring manual architecture-specific code in the user application.
-
-*   **Hardware Abstraction and Portability:** CAMs provide a crucial layer of hardware abstraction in BML. By using CAMs, developers can write BML code that interacts with hardware peripherals and system components through abstract interfaces, without needing to be concerned with the low-level hardware details or architecture-specific register manipulation. CAMs encapsulate the hardware-specific implementations within their `@arc` blocks, exporting architecture-agnostic functions and types. This abstraction significantly enhances code portability, as BML applications can be easily ported to different hardware platforms simply by using appropriate CAMs for the target architecture, without requiring extensive code modifications. **Example:**  A sensor driver CAM for a generic I2C sensor can provide `sensorInit()`, `readSensorData()`, and `writeSensorConfig()` functions as its abstract interface. The user application code can call these functions without knowing the specifics of the I2C peripheral or the microcontroller architecture. The CAM handles the architecture-specific I2C communication within its `@arc` blocks, ensuring portability of the application code across different microcontroller platforms supported by the CAM.
-
-*   **Code Reusability and Modularity:** CAMs promote code reusability and modularity by encapsulating well-defined units of functionality. CAMs can be reused across multiple BML projects and applications, reducing code duplication and development effort. The modular nature of CAMs makes it easier to build complex systems from smaller, manageable components. CAMs can be designed to be composable, allowing developers to combine multiple CAMs to create more sophisticated functionalities. The `export` block in CAMs ensures a well-defined interface, promoting modular design and preventing accidental dependencies on internal CAM implementation details. **Example:** A UART driver CAM, once developed and tested, can be reused in multiple embedded projects that require UART communication, regardless of the target microcontroller architecture (if the CAM supports it).  Similarly, a networking stack CAM can be reused across different applications that require network connectivity, promoting code reuse and reducing development time for each project.
-
-*   **Compiler Extensibility and Customization - Optimization Injection:** CAMs extend the capabilities of the BML compiler itself. CAMs are not just libraries; they are compiler extensions. CAMs can inject domain-specific optimization passes directly into the compiler pipeline. These optimization passes are executed during the compilation process, allowing CAMs to guide the compiler in generating code that is hyper-optimized for specific application domains and hardware characteristics. This compiler extensibility is a unique feature of BML CAMs and is crucial for achieving peak performance and domain specialization. CAMs can also provide custom intrinsic functions that map directly to specialized hardware instructions or custom code sequences, further enhancing compiler customization. **Example:** A DSP CAM might inject a custom optimization pass that recognizes common DSP algorithm patterns (e.g., FIR filters, FFT) in BML code and replaces them with highly optimized, architecture-specific machine code sequences or calls to specialized DSP hardware units (if available on the target processor). This allows for automatic performance optimization of DSP applications written in BML without requiring manual low-level coding.
-
-*   **Type Safety and Abstraction:** CAMs are defined using the BML language itself, benefiting from BML's strong static typing system. This ensures type safety within CAMs and when using CAMs in BML applications. CAMs can export type-safe interfaces, preventing common type-related errors and improving code robustness. The abstraction provided by CAMs allows developers to work with hardware and domain-specific functionalities at a higher level of abstraction, reducing the risk of low-level programming errors and enhancing code maintainability. **Example:** A sensor driver CAM for a temperature sensor can define a `readTemperature()` function that returns a `float32` value representing the temperature reading. The BML compiler enforces that user code calling `readTemperature()` receives a `float32` value, preventing type mismatches and ensuring type-safe interaction with the sensor driver.
-
-*   **Enhanced Reusability with Generics (Version 1.4):** With Version 1.4, CAMs can now be declared as generic modules. Generic CAMs significantly enhance reusability by allowing CAM authors to create type-agnostic modules that can be instantiated with different BML data types. This enables the creation of highly flexible and adaptable CAM components, such as generic data structures, algorithms, and utility modules, and that can be reused across a wider range of applications and data types without code duplication. Compile-time generics in CAMs ensure that this reusability comes without any runtime performance overhead, as the compiler generates specialized and optimized code for each concrete type instantiation. **Example:** A generic vector CAM (like `GenericVectorCam` example) can be instantiated to create vectors of `uint32`, `float32`, or any other BML data type. The CAM provides the same vector functionalities (create, push, get, etc.) regardless of the underlying data type, and the compiler generates specialized and optimized code for each instantiation (e.g., `GenericVector<uint32>` and `GenericVector<float32>`), ensuring no runtime overhead for type abstraction.
-
-#### 5.3 CAM Configuration and Customization
-
-CAMs are designed to be highly configurable and customizable, allowing users to tailor CAM behavior to specific application requirements and hardware configurations. BML provides mechanisms for defining CAM configuration parameters within the CAM itself and for customizing these parameters when using a CAM in a BML project.
-
-*   **`config { ... }` Block (CAM Definition):** CAMs can define configurable parameters within a `config { ... }` block in their module definition. The `config { ... }` block contains `config` declarations, each defining a configuration parameter with a name, data type, and default value. These configuration parameters act as customizable settings for the CAM. Configuration parameters are declared using the `config` keyword followed by a data type, a parameter name, and an initial value assignment (e.g., `config baudRate : uint32 = 115200;`). The data type of configuration parameters must be a constant-expressible type (e.g., integer, boolean, string literal).  **Example:**
-
-    ```baremetal
-    module MyConfigurableCam {
-        config {
-            config bufferSize : uint32 = 256; // Configurable buffer size - default 256
-            config enableLogging : boolean = false; // Configurable logging - default disabled
-        }
-        // ... rest of CAM definition ...
-    }
-    ```
-
-*   **`#use module ... with config { ... }` Directive (CAM Usage):** When using a CAM in a BML source file with the `#use module` directive, developers can provide a `with config { ... }` clause to override the default values of the CAM's configuration parameters. Within the `with config { ... }` block, developers specify configuration parameter assignments, providing new values for the parameters they wish to customize (e.g., `#use module "UartDriverCam" with config { baudRate = 9600; };`). Only the configuration parameters explicitly listed in the `with config { ... }` block are overridden; parameters not specified retain their default values from the CAM's `config { ... }` block. **Example:**
-
-    ```baremetal
-    #use module "MyConfigurableCam" with config { bufferSize = 512; }; // Override 'bufferSize' to 512, 'enableLogging' remains default (false)
-    #use module "MyConfigurableCam" with config { enableLogging = true; }; // Override 'enableLogging' to true, 'bufferSize' remains default (256)
-    #use module "MyConfigurableCam" with config { bufferSize = 1024; enableLogging = true; }; // Override both 'bufferSize' and 'enableLogging'
-    #use module "MyConfigurableCam"; // Use default configuration (bufferSize = 256, enableLogging = false)
-    ```
-
-*   **Compile-Time Configuration Resolution:** CAM configuration parameters are resolved at compile time. When the BML compiler processes a `#use module ... with config { ... }` directive, it evaluates the configuration parameter assignments and substitutes the configured values into the CAM's code. This compile-time configuration resolution ensures that CAM configuration introduces zero runtime overhead. The configured values become compile-time constants within the CAM's scope, enabling further compiler optimizations based on these known constant values. **Example:** If `config bufferSize : uint32 = 1024;` is defined in a CAM and used as `safeArray<uint8, config.bufferSize> dataBuffer;`, and a user `#use`s the CAM with `config { bufferSize = 2048; }`, the compiler will effectively treat `dataBuffer` as `safeArray<uint8, 2048>`, and the buffer size will be fixed at 2048 at compile time, enabling compile-time bounds checking and size-based optimizations.
-
-*   **Type-Safe Configuration:** CAM configuration is type-safe. The BML compiler enforces type checking for configuration parameter assignments, ensuring that the values provided in the `with config { ... }` block are compatible with the declared data types of the corresponding configuration parameters in the CAM's `config { ... }` block. Type mismatches in configuration assignments result in compile-time errors, preventing configuration errors from manifesting at runtime. **Example:** If `config baudRate : uint32 = 115200;` is defined as a `uint32` and a user attempts to configure it with a string value like `#use module "UartDriverCam" with config { baudRate = "9600"; };`, the BML compiler will issue a compile-time type error because a string literal is not compatible with the `uint32` data type of the `baudRate` configuration parameter.
-
-*   **Configuration Inheritance and Extension (`extends`):** CAM configurations can support inheritance and extension. A CAM's `config { ... }` block can optionally include an `extends` clause (e.g., `config MyConfig extends BaseConfig { ... }`) to inherit configuration parameters from another configuration (base configuration). The extending configuration can then override or add new configuration parameters. This configuration inheritance mechanism promotes code reuse and modularity in CAM configurations, allowing for building upon existing configurations and creating specialized configurations by extending base configurations. **Example:**
-
-    ```baremetal
-    module BaseConfigModule { // Base configuration module
-        config BaseConfig {
-            config bufferSize : uint32 = 1024;
-            config enableChecksum : boolean = true;
-        }
-    }
-
-    module ExtendedConfigModule { // Module extending BaseConfig
-        #use module "BaseConfigModule";
-        config MyExtendedConfig extends BaseConfigModule.BaseConfig { // Extends BaseConfig
-            config numRetries : uint8 = 3; // Adds a new configuration parameter
-            override config enableChecksum : boolean = false; // Overrides 'enableChecksum' from BaseConfig
-        }
-
-        config { // Uses the extended configuration 'MyExtendedConfig'
-            config MyExtendedConfig myConfig; // Configuration of type 'MyExtendedConfig'
-        }
-        // ... rest of module using myConfig.bufferSize, myConfig.numRetries, myConfig.enableChecksum ...
-    }
-    ```
-
-*   **Generic CAM Instantiation (`#use module "GenericCam<ConcreteType>"` - Version 1.4):** For generic CAMs (introduced in Version 1.4), configuration can be combined with generic instantiation. When instantiating a generic CAM using `#use module "GenericCam<ConcreteType>"`, developers can also provide a `with config { ... }` clause to configure the instantiated CAM instance. The configuration parameters can be used within the generic CAM's implementation, even to parameterize aspects related to the concrete type parameter. This allows for highly flexible and customizable generic CAM components. **Example:**
-
-    ```baremetal
-    generic <DataType> module GenericBufferCam { // Generic Buffer CAM
-        config {
-            config bufferSize : uint32 = 128; // Generic buffer size configuration
-        }
-        declarations {
-            safeArray<DataType, config.bufferSize> buffer; // Safe array buffer using configurable size
-        }
-        export { /* ... */ }
-        // ... CAM implementation using generic buffer ...
-    }
-
-    #use module "GenericBufferCam<uint32>" as Uint32BufferCam with config { bufferSize = 256; }; // Instantiate for uint32 with custom buffer size
-    #use module "GenericBufferCam<float32>" as Float32BufferCam; // Instantiate for float32 with default buffer size
-
-    @arc arm {
-        declarations {
-            Uint32BufferCam.buffer uint32Buffer; // Uint32 buffer with size 256
-            Float32BufferCam.buffer float32Buffer; // Float32 buffer with size 128 (default)
-        }
-        statements {
-            // ... use uint32Buffer (size 256) and float32Buffer (size 128) ...
-        }
-    }
-    ```
-
-#### 5.4 CAM Export Block - Defining the Module Interface
-
-The `export { ... }` block in a CAM definition is crucial for defining the module's interface and controlling what is made visible and accessible to code that uses the CAM. The `export` block explicitly lists the functions, types, constants, conceptual registers, MMR Blocks, and interface intrinsic functions that the CAM exports.  **The `export` block is the key to encapsulation and modularity in CAM design. By carefully controlling what is exported, CAM authors can create well-defined, stable, and maintainable interfaces for their modules, hiding internal implementation details and preventing unintended dependencies.**
-
-**Categories of Exports in CAMs:**
-
-*   **`functions { ... }`:** The `functions { ... }` section within the `export` block lists the names of functions that the CAM exports. These are typically architecture-agnostic wrapper functions that provide a high-level interface to the CAM's functionalities. The implementations of these exported functions usually call architecture-specific interface intrinsic functions to perform the actual hardware operations. **Example:** `functions { uartInit, uartSendByte, uartReceiveByte, uartSendString };` - exports UART driver functions that provide a platform-independent API for UART communication.  User code calls these exported functions, and the CAM internally routes these calls to the appropriate architecture-specific intrinsic implementations.
-
-*   **`types { ... }`:** The `types { ... }` section lists the names of type definitions (structs, unions, enums, type aliases) that the CAM exports. Exporting types allows users of the CAM to utilize the CAM-defined data structures in their BML code, ensuring type compatibility and promoting data abstraction. Exported types often represent data structures used in the CAM's interface functions or for configuration purposes. **Example:** `types { UartConfigType; };` - exports the `UartConfigType` struct, allowing user code to create variables of this type and pass them to the `uartInit()` function to configure the UART peripheral. Exporting types allows for type-safe data exchange between the CAM and user code.
-
-*   **`constants { ... }`:** The `constants { ... }` section lists the names of constants that the CAM exports. Exported constants can represent version numbers, configuration defaults, or other constant values that are relevant to the CAM's functionality and may be useful to users of the CAM. **Example:** `constants { UART_DRIVER_VERSION; };` - exports the `UART_DRIVER_VERSION` constant, allowing user code to access the version string of the UART driver CAM. Exported constants provide a way to expose useful metadata or configuration parameters of the CAM to user code as compile-time constants.
-
-*   **`conceptualRegisters { ... }`:** The `conceptualRegisters { ... }` section lists the names of conceptual registers that the CAM exports. Exporting conceptual registers allows users to access and manipulate hardware registers through the CAM's abstraction layer. Users can use the exported conceptual registers in `#operation register` directives to interact with hardware registers in a type-safe and architecture-abstracted manner. **Example:** `conceptualRegisters { UartDataRegister, UartControlRegister; };` - exports conceptual registers `UartDataRegister` and `UartControlRegister`. User code can then use `#operation register %UartDataRegister = byteValue;` to write to the UART data register, without needing to know the physical memory address or register name for the specific target architecture. The CAM handles the architecture-specific mapping of conceptual registers to physical registers within its `@arc` blocks.
-
-*   **`mmrBlocks { ... }`:** The `mmrBlocks { ... }` section lists the names of Memory-Mapped Register Blocks (MMR Blocks) that the CAM exports. Exporting MMR Blocks provides a structured and type-safe way for users to directly access and manipulate hardware registers defined within the MMR Block structure. Users can access exported MMR Block members using the dot notation (e.g., `CamModuleName.MMRBlockName.RegisterName`). **Example:** `mmrBlocks { Uart0Registers; };` - exports the MMR Block `Uart0Registers`. User code can then access registers within this block using `UartDriverCam.Uart0Registers.DataRegister = byteValue;`, providing type-safe and structured access to hardware registers through the CAM's MMR Block abstraction. Exporting MMR Blocks is a powerful way to expose hardware register access in a controlled and type-safe manner through CAMs.
-
-*   **`interface intrinsic functions { ... }`:** The `interface intrinsic functions { ... }` section is specific to CAMs and lists the signatures of interface intrinsic functions that the CAM exports. Interface intrinsic functions are architecture-specific functions that provide the low-level implementations of the CAM's functionalities for different target architectures. The signatures listed in this section define the architecture-agnostic interface for these intrinsic functions, which are then implemented within `@arc` blocks in the CAM. Users of the CAM do not directly call interface intrinsic functions; instead, they call the exported wrapper functions (listed in the `functions { ... }` section), which in turn call the appropriate architecture-specific interface intrinsic function based on the target architecture. **Example:** `interface intrinsic functions { uartPlatformInit(UartConfigType config) -> void; uartPlatformSendByte(uint8 byteData) -> void; uartPlatformReceiveByte() -> uint8; };` - defines the interface for the platform-specific UART operations. These interface functions are implemented differently for each supported architecture within the `@arc` blocks of the UART driver CAM, while the user-facing API (`uartInit()`, `uartSendByte()`, `uartReceiveByte()`) remains architecture-agnostic, providing portability and hardware abstraction.
-
-#### 5.5 Benefits of CAMs in OS Development and Concurrency
-
-Composable Architecture Modules (CAMs) are particularly beneficial in the context of bare metal operating system development and concurrent programming in BML. CAMs provide essential abstractions, optimizations, and modularity that are crucial for building robust, performant, and maintainable OS kernels and concurrent applications for bare metal systems.
-
-*   **OS Component Modularity and Reusability:** CAMs promote modularity and reusability in OS development. OS components, such as device drivers, memory managers, schedulers, file systems, and networking stacks, can be implemented as CAMs. This modular approach allows for building OS kernels from reusable and well-defined components, simplifying OS development and maintenance. Different OS configurations or feature sets can be created by selectively including or excluding specific CAMs.  CAMs enable a component-based OS architecture, where OS functionalities are provided by a collection of composable and interchangeable modules. **Example:**  A bare metal OS kernel built with BML might include separate CAMs for: `MemoryManagerCam` (for memory allocation and management), `SchedulerCam` (for thread scheduling), `FileSystemCam` (for file system operations), `NetworkStackCam` (for TCP/IP networking), and `DeviceDriverCam` (containing various device drivers). These CAMs can be developed, tested, and maintained independently and then composed together to build a functional OS kernel.  Different OS configurations can be achieved by swapping out or adding different CAM implementations (e.g., using a different scheduler CAM for real-time vs. general-purpose OS).
-
-*   **Architecture-Specific OS Optimizations:** CAMs enable architecture-specific optimizations within OS kernels. OS CAMs can utilize `@arc` blocks and intrinsic functions to provide highly optimized implementations of OS functionalities for different target architectures. For example, a memory management CAM can have ARM-specific and RISC-V specific implementations that leverage unique features of each architecture's MMU (Memory Management Unit) and cache architecture. Device driver CAMs can provide architecture-specific code for interacting with hardware peripherals, ensuring optimal performance and hardware utilization on each platform. **Example:** A memory management CAM could have an `@arc arm` block that utilizes ARM's MMU features for page table management and virtual memory operations, and an `@arc riscv` block that uses RISC-V's MMU mechanisms for the same functionalities.  This allows the OS kernel to be portable at the high level (using the CAM interface) while still leveraging architecture-specific hardware features for optimal memory management performance on each platform.
-
-*   **Customizable Concurrency Models:** CAMs can be used to customize and extend BML's concurrency model for OS development. Concurrency CAMs can provide specialized concurrency abstractions, synchronization primitives, and scheduling algorithms that are tailored to specific OS requirements or target hardware architectures. For example, a Real-Time OS CAM could provide priority-based scheduling, deterministic mutexes and semaphores, and mechanisms for analyzing and bounding worst-case execution times, enabling the development of real-time embedded systems with BML.  CAMs can abstract away the low-level details of thread management and synchronization, providing higher-level concurrency primitives that are easier to use and reason about in OS code. **Example:** A Real-Time OS CAM (`RTOSCam`) could provide priority-based threads, preemptive scheduling, and real-time synchronization primitives like priority-inheritance mutexes and rate-monotonic scheduling policies.  An application using `RTOSCam` can then create real-time tasks using `RTOSCam.thread` instead of the base BML `thread`, inheriting the real-time scheduling behavior provided by the CAM. This allows BML to support different concurrency models through CAMs, adapting to the needs of various embedded applications and OS designs.
-
-*   **Hardware Abstraction for OS Kernels:** CAMs provide hardware abstraction for OS kernels, enhancing the portability and maintainability of OS code. OS CAMs can abstract away the hardware-specific details of memory management, interrupt handling, device access, and other hardware-dependent OS functionalities. This allows OS kernel developers to write the core OS logic in a more architecture-independent manner, focusing on the high-level OS abstractions and algorithms, while CAMs handle the low-level hardware interactions.  Hardware abstraction through CAMs simplifies porting OS kernels to new architectures and reduces the effort required to maintain OS codebases across different platforms. **Example:** A device driver framework CAM (`DeviceDriverFrameworkCam`) could provide a generic API for device drivers, such as `registerDriver()`, `openDevice()`, `readDevice()`, `writeDevice()`.  Specific device driver CAMs (e.g., `UartDriverCam`, `SPIDriverCam`) can then be built *on top* of this framework, implementing the driver logic and hardware interaction details within their `@arc` blocks, while the core OS kernel interacts with devices through the abstract device driver framework API, remaining largely independent of the specific hardware details of each device driver.
-
-*   **Safe and Robust OS Development:** BML's memory safety features, combined with the modularity and type safety of CAMs, contribute to safer and more robust OS development. CAMs can encapsulate critical OS functionalities in well-defined and type-safe modules, reducing the risk of memory errors and other low-level bugs that are common in bare metal OS development. The use of `scopedPtr`, `trackedPtr`, and capability-based pointers within OS CAMs can further enhance memory safety and prevent common pointer-related errors in OS code. Static analysis and abstract interpretation capabilities in BML can be leveraged to verify memory safety properties of OS CAMs at compile time, increasing the reliability and trustworthiness of bare metal operating systems built with BML. **Example:** A memory management CAM using region-based allocation and `scopedPtr` for internal pointer management can significantly reduce the risk of memory leaks and dangling pointers within the OS kernel's memory management subsystem.  Refinement types can be used to enforce data invariants within OS data structures, further enhancing data integrity and preventing data corruption errors.
-
-*   **Performance-Oriented OS Design:** CAMs enable a performance-oriented approach to OS design. By using CAMs, OS developers can build OS kernels from highly optimized components, ensuring that the OS itself introduces minimal overhead and maximizes system performance. The ability to inject optimization passes into the compiler through CAMs allows for fine-tuning OS code for specific performance requirements and hardware characteristics. BML's zero-overhead principles and CAM-driven optimization capabilities make it an ideal language for building high-performance bare metal operating systems that rival hand-optimized assembly-level OS implementations. **Example:** A scheduler CAM (`SchedulerCam`) can provide different scheduling algorithms (e.g., round-robin, priority-based, rate-monotonic) implemented with highly optimized BML code and potentially with architecture-specific optimizations within `@arc` blocks. By choosing the appropriate scheduler CAM, OS developers can tailor the OS scheduling behavior to the specific performance requirements of their applications, achieving optimal real-time performance or throughput.
-
-#### 5.6 CAM Examples - Generic CAMs
-
-To illustrate the power of compile-time generics in CAMs, consider these examples:
-
-*   **Generic Vector CAM:** (Example code is already provided in Section 3. Core Language Features -> Generic Modules and Functions and repeated below for easy reference) - This CAM provides a dynamically sized array (vector) data structure.  Being generic, it can be instantiated to create vectors of `uint32`, `float32`, structs, or any other BML data type. The CAM internally uses `safeArray` to store data and provides intrinsic functions for vector operations like `create`, `push`, `get`, optimized for each target architecture and data type.
-
-    ```baremetal
-    generic <DataType> module GenericVector { // Generic module declaration with type parameter 'DataType'
-        export {
-            types { Vector; }
-            functions { vectorCreate, vectorPush, vectorGet }
-        }
-        type Vector = struct { safeArray<DataType, 128> data; }; // Using type parameter 'DataType' - size fixed at compile time, but type is generic
-
-        @arc arm {
-            statements {
-                intrinsic function Vector vectorCreate() -> Vector { /* ARM-specific generic vector creation - optimized for ARM */ return Vector(); } // ARM-specific implementation
-                intrinsic function void vectorPush(Vector ~vector, DataType value) { /* ARM-specific generic vector push - optimized for ARM and DataType */ } // ARM-specific implementation, type-aware
-                intrinsic function DataType vectorGet(Vector vector, uint32 index) -> DataType { /* ARM-specific generic vector get - optimized for ARM and DataType */ return DataType(0); } // ARM-specific implementation, type-aware
-            }
-        }
-        @arc riscv { // RISC-V specific implementation
-            statements {
-                intrinsic function Vector vectorCreate() -> Vector { /* RISC-V specific generic vector creation - optimized for RISC-V */ return Vector(); } // RISC-V specific implementation
-                intrinsic function void vectorPush(Vector ~vector, DataType value) { /* RISC-V specific generic vector push - optimized for RISC-V and DataType */ } // RISC-V specific implementation, type-aware
-                intrinsic function DataType vectorGet(Vector vector, uint32 index) -> DataType { /* RISC-V specific generic vector get - optimized for RISC-V and DataType */ return DataType(0); } // RISC-V specific implementation, type-aware
-            }
-        }
-    }
-
-    #use module "GenericVector<uint32>" as Uint32Vector; // Instantiate GenericVector CAM for uint32 - creates Uint32Vector module specialized for uint32
-    #use module "GenericVector<float32>" as Float32Vector; // Instantiate GenericVector CAM for float32 - creates Float32Vector module specialized for float32
-
-    @arc arm {
-        declarations {
-            Uint32Vector.Vector uint32Vec; // Use instantiated Uint32Vector module - declaring a Vector of uint32
-            Float32Vector.Vector float32Vec; // Use instantiated Float32Vector module - declaring a Vector of float32
-        }
-        statements {
-            uint32 maxUint32 = genericMax<uint32>(10, 20); // Instantiate and call generic function for uint32 - example of calling a generic function
-            uint32Vec = Uint32Vector.vectorCreate(); // Call function from Uint32Vector - vectorCreate specialized for uint32
-            Uint32Vector.vectorPush(~uint32Vec, maxUint32); // Call function from Uint32Vector - vectorPush specialized for uint32
-            uint32 value = Uint32Vector.vectorGet(uint32Vec, 0); // Call function from Uint32Vector - vectorGet specialized for uint32
-
-            float32Vec = Float32Vector.vectorCreate(); // Call function from Float32Vector - vectorCreate specialized for float32
-            Float32Vector.vectorPush(~float32Vec, 3.14f); // Call function from Float32Vector - vectorPush specialized for float32
-            float32 floatValue = Float32Vector.vectorGet(float32Vec, 0); // Call function from Float32Vector - vectorGet specialized for float32
-        }
-    }
-    ```
-
-*   **Generic Sorting Algorithm CAM:**
-
-    ```baremetal
-    generic <DataType> module GenericSortCam { // Generic module declaration with type parameter 'DataType'
-        export {
-            functions { sortArray }; // Exported generic sortArray function
-        }
-
-        @arc arm { // ARM-specific implementation - optimized for ARM architecture
-            statements {
-                intrinsic function void sortArray(~safeArray<DataType, /* ... */> array) { // ARM-optimized sorting algorithm for generic DataType
-                    // ... ARM-optimized sorting algorithm implementation for DataType - leverages ARM-specific instructions and optimizations ...
-                    // Example: Insertion sort, QuickSort, MergeSort, optimized for ARM's memory access patterns and instruction set
-                }
-            }
-        }
-        @arc riscv { // RISC-V specific implementation - optimized for RISC-V architecture
-            statements {
-                intrinsic function void sortArray(~safeArray<DataType, /* ... */> array) { // RISC-V optimized sorting algorithm for generic DataType
-                    // ... RISC-V optimized sorting algorithm implementation for DataType - leverages RISC-V specific instructions and optimizations ...
-                    // Example: Insertion sort, QuickSort, MergeSort, potentially leveraging RISC-V custom extensions if available
-                }
-            }
-        }
-    }
-
-    #use module "GenericSortCam<uint32>" as Uint32SortCam; // Instantiate GenericSortCam for uint32 arrays - creates Uint32SortCam module specialized for uint32
-    #use module "GenericSortCam<float32>" as Float32SortCam; // Instantiate GenericSortCam for float32 arrays - creates Float32SortCam module specialized for float32
-
-    @arc arm {
-        declarations {
-            safeArray<uint32, 100> dataArrayUint32; // Safe array of uint32 to be sorted
-            safeArray<float32, 50> dataArrayFloat32; // Safe array of float32 to be sorted
-        }
-        statements {
-            // ... initialize data arrays with unsorted data ...
-            for (uint32 i = 0; i < dataArrayUint32.size(); i++) { dataArrayUint32[i] = randomInteger(); } // Example initialization with random integers
-            for (uint32 i = 0; i < dataArrayFloat32.size(); i++) { dataArrayFloat32[i] = randomFloat(); } // Example initialization with random floats
-
-            Uint32SortCam.sortArray(~dataArrayUint32); // Sort uint32 array using specialized Uint32SortCam - ARM-optimized sorting for uint32
-            Float32SortCam.sortArray(~dataArrayFloat32); // Sort float32 array using specialized Float32SortCam - ARM-optimized sorting for float32
-        }
-    }
-    ```
-
-    This `GenericSortCam` provides a generic sorting algorithm. When instantiated as `GenericSortCam<uint32>` or `GenericSortCam<float32>`, the compiler generates specialized versions of the `sortArray` function, potentially leveraging architecture-specific optimizations for integer or floating-point data types on ARM and RISC-V. The user code remains the same regardless of the data type being sorted, showcasing the reusability and type abstraction benefits of generic CAMs.
-
-These examples demonstrate how compile-time generics in CAMs enable the creation of reusable, type-agnostic components that can be instantiated and optimized for various data types, significantly enhancing the BML CAM ecosystem and promoting code modularity and performance. Generic CAMs are a powerful tool for building reusable and adaptable components in BML, further extending the capabilities of the language for complex bare metal development.
-
-### 6. Memory Safety in BML
-
-Memory safety is a paramount concern in bare metal programming, where memory errors can lead to system crashes, unpredictable behavior, and security vulnerabilities. BML is designed with memory safety mitigation as a core principle, incorporating language features and coding paradigms to reduce common memory-related errors, while acknowledging the inherent challenges of bare metal environments. BML's memory safety approach is practical and performance-conscious, aiming to provide significant safety improvements without introducing excessive runtime overhead that would compromise performance criticality.
-
-#### 6.1 Key Memory Safety Features in BML
-
-BML employs a multi-pronged strategy for memory safety mitigation, focusing on compile-time checks, runtime protections, and language features that encourage safer coding practices.
-
-*   **Scoped Pointer Type (`DataType ^scoped`): Lexical Lifetime Enforcement - ZERO OVERHEAD DANGLING POINTER PREVENTION:**  BML introduces `DataType ^scoped` as the *primary and most performant* choice for managing pointers with lexical lifetimes. `DataType ^scoped` instances have strictly lexically scoped lifetimes, **enforced at compile time with zero runtime overhead.** This ensures that `DataType ^scoped`s are valid only within their defining code blocks, preventing access after their intended lifetime and *completely eliminating dangling pointer errors within those scopes without any performance penalty*. `DataType ^scoped` is the *ideal pointer type* for scope-bound scenarios, offering maximum safety and efficiency.  **Example:**
-
-    ```baremetal
-    function void processDataBlock(dataAddress blockStartAddress, uint32 blockSize) {
-        dataAddress blockEndAddress = blockStartAddress + blockSize;
-        dataRegion StackBufferRegion { safeArray<raw byte, 256> buffer; } // Stack-allocated buffer
-        statements {
-            raw byte^ scoped bufferPtr = StackBufferRegion.buffer.dataPtr(); // Scoped pointer to stack buffer - safe within this scope
-
-            // ... use bufferPtr to access memory within the stack buffer ...
-            for (dataAddress ptr = blockStartAddress; ptr < blockEndAddress; ptr++) {
-                if ((bufferPtr + (ptr - blockStartAddress)) < StackBufferRegion.buffer.endPtr()) { // Explicit bounds check, but scopedPtr already ensures safety within scope
-                    bufferPtr[ptr - blockStartAddress] = *ptr; // Safe access using scopedPtr
-                } else {
-                    // ... handle potential out-of-bounds condition (though scopedPtr prevents this within its scope for 'buffer') ...
-                }
-            }
-        } // Scope of 'scopedPtr' ends here - pointer is no longer valid, preventing dangling pointer errors
-
-        // bufferPtr is invalid here (out of scope) - compile-time error if accessed
-    }
-    ```
-
-*   **Capability-Based Pointer Types (`DataType ^readonly`, `DataType ^writeonly`, `DataType ^region(RegionName)`, `DataType ^nonnull`): Compile-Time Capability Enforcement - ZERO OVERHEAD ACCESS CONTROL:** BML introduces capability-based pointer type qualifiers (`DataType ^readonly`, `DataType ^writeonly`, `DataType ^region(RegionName)`, `DataType ^nonnull`) to enforce **compile-time access control and memory safety without runtime overhead**. These qualifiers are part of BML's type system and provide compile-time guarantees about pointer usage, enabling further compiler optimizations and enhancing code robustness. `DataType ^readonly` prevents write operations, `DataType ^writeonly` prevents read operations, `DataType ^region(RegionName)` enforces region confinement, and `DataType ^nonnull` guarantees non-nullness, all enforced at compile time. **Examples:**
-
-    ```baremetal
-    dataRegion SensorReadingsRegion { safeArray<uint16, 1024> sensorData; }
-
-    function void processSensorData(uint16^ readonly sensorReadingsPtr : SensorReadingsRegion, uint32 index) { // ^readonly and ^region capabilities
-        uint16 reading = sensorReadingsPtr[index]; // Valid - read access through ^readonly pointer
-        // sensorReadingsPtr[index] = 0; // Compile-time error: Write access through ^readonly pointer is invalid
-
-        function void writeSensorConfig(uint32^ writeonly configPtr : PeripheralRegion) { // ^writeonly and ^region capabilities
-            *configPtr = 0xABCD; // Valid - write access through ^writeonly pointer
-            // uint32 configValue = *configPtr; // Compile-time error: Read access through ^writeonly pointer is invalid
-        }
-
-        dataRegion ConfigRegion { uint32 configValue; }
-        function void accessConfig(uint32^ nonnull configPtr : ConfigRegion) { // ^nonnull and ^region capabilities
-            uint32 value = *configPtr; // Valid - guaranteed non-null pointer, no null check needed
-            // if (configPtr == null) { /* Redundant null check - compile-time error */ }
-        }
-    }
-    ```
-
-*   **Static Typing:** BML's static typing discipline is the first line of defense against memory errors.  The compiler rigorously enforces type rules at compile time, catching type mismatches, incorrect data usage, and many common programming errors that can lead to memory corruption. Static typing helps prevent accidental misinterpretations of memory data and ensures that operations are performed on data of the expected type, reducing the risk of type-related memory errors. **Example:**
-
-    ```baremetal
-    @arc arm {
-        declarations {
-            uint32 counter;
-            char8 character;
-        }
-        statements {
-            counter = 10; // Valid - uint32 assignment
-            character = 'A'; // Valid - char8 assignment
-            // counter = 'A'; // Compile-time error: Type mismatch - cannot assign char8 to uint32
-            // character = 10; // Compile-time error: Type mismatch - cannot assign uint32 to char8
-        }
-    }
-    ```
-
-*   **Safe Array Type (`safeArray<DataType, Size>`): Runtime Bounds Checking:** The `safeArray` type is a cornerstone of BML's memory safety strategy. `safeArray` instances are bounds-checked arrays, meaning that every access to an array element is automatically checked at runtime to ensure that the access is within the valid array bounds (0 to Size-1).  This runtime bounds checking effectively prevents buffer overflows, a major source of memory corruption and security vulnerabilities in embedded systems.  `safeArray` enhances memory safety by preventing out-of-bounds memory access.  **(While `safeArray` provides runtime bounds checking, it's important to note that BML's *primary goal* is to **eliminate runtime bounds checks whenever statically provable**. The BML compiler is designed to aggressively optimize away runtime bounds checks for `safeArray` when it can be determined at compile time that array accesses are always within bounds through advanced static analysis and potentially through formal proofs using abstract interpretation.  For performance-critical code sections where bounds are statically known or checked through other means, consider using regular arrays with optional compile-time or attribute-based bounds checking for fine-grained performance control.  However, for the vast majority of embedded applications, the safety benefits of `safeArray` outweigh the minimal runtime overhead, making it the RECOMMENDED array type in BML.)**  **Example:**
-
-    ```baremetal
-    @arc arm {
-        declarations {
-            safeArray<uint32, 5> myArray; // Safe array of size 5
-        }
-        statements {
-            myArray[0] = 1; // Valid access - index within bounds
-            myArray[4] = 5; // Valid access - index within bounds (last element)
-            // myArray[5] = 6; // Runtime error: Out-of-bounds access - index 5 is invalid
-            // myArray[-1] = 0; // Runtime error: Out-of-bounds access - negative index is invalid
-        }
-    }
-    ```
-
-*   **Array Slice Type (`arraySlice<DataType>`): Bounds-Checked Views:** The `arraySlice` type provides safe and efficient access to portions of `safeArray` data. Array slices are dynamically sized views into existing `safeArray` instances, and all accesses through array slices are also runtime bounds-checked, ensuring that slice operations remain within the valid bounds of both the original `safeArray` and the slice itself. Array slices offer a safe and zero-copy abstraction for working with array data without compromising memory safety. **Example:**
-
-    ```baremetal
-    @arc arm {
-        declarations {
-            safeArray<uint32, 10> dataArray;
-            arraySlice<uint32> mySlice;
-        }
-        statements {
-            // ... initialize dataArray ...
-            mySlice = dataArray.slice(2, 7); // Create slice from index 2 to 7 (exclusive)
-            mySlice[0] = 10; // Valid access - index 0 within slice bounds
-            mySlice[4] = 20; // Valid access - index 4 within slice bounds (last element of slice)
-            // mySlice[5] = 30; // Runtime error: Out-of-bounds access - index 5 is invalid for slice of size 5
-        }
-    }
-    ```
-
-*   **`DataType^` Pointers (Unchecked Pointers - Performance Focus):**  `DataType^` pointers, while offering flexibility and performance, are inherently unchecked for null dereferencing and dangling pointers (unless combined with `safeArray`). Developers using `DataType^` pointers must exercise caution and implement manual safety checks when necessary. **Example:**
-
-    ```baremetal
-    @arc arm {
-        declarations {
-            uint32^ rawPtr; // Raw pointer declaration
-            uint32 dataValue;
-        }
-        statements {
-            rawPtr = &dataValue; // Assign valid address
-            *rawPtr = 100; // Valid - dereference and write
-            uint32 readValue = *rawPtr; // Valid - dereference and read
-
-            // rawPtr = null; // Set pointer to null (hypothetical - BML doesn't have 'null' keyword directly, but address 0 could be assigned)
-            // uint32 derefValue = *rawPtr; // Potential runtime error: Null pointer dereference - unchecked by default (unless trackedPtr is used)
-        }
-    }
-    ```
-
-*   **Tracked Pointer Type (`DataType ^tracked`): Runtime Tracking - Safety with Overhead:** The `DataType ^tracked` type provides enhanced runtime memory safety through null pointer checks, best-effort dangling pointer detection, and region-aware bounds checking. While introducing runtime overhead, `DataType ^tracked` offers a robust safety net for critical code sections where runtime memory safety is paramount.  **Choose `DataType ^tracked` when safety is critical and some performance overhead is acceptable. For performance-critical code or scope-bound safety, prefer `DataType ^scoped` or carefully managed `DataType^` pointers.** **Example:**
-
-    ```baremetal
-    @arc arm {
-        declarations {
-            uint32^ tracked trackedPtr; // Tracked pointer declaration
-            uint32 dataValue;
-        }
-        statements {
-            trackedPtr = &dataValue; // Assign valid address
-            *trackedPtr = 100; // Safe dereference - runtime null check (if trackedPtr were null, runtime error)
-            uint32 readTrackedValue = *trackedPtr; // Safe dereference - runtime null check
-
-            // trackedPtr = null; // Set tracked pointer to null (hypothetical - BML doesn't have 'null' keyword directly, but address 0 could be assigned)
-            // uint32 nullDerefValue = *trackedPtr; // Runtime error: Null pointer dereference - trackedPtr detects null and triggers runtime error
-        }
-    }
-    ```
-
-*   **Region-Based Memory Management with Implicit Lifetime Management:** BML's region-based memory model implicitly ties variable lifetimes to the lexical scopes of memory region blocks. Variables declared within regions have their lifetimes managed by the scope of the region, reducing risks of memory leaks and dangling pointers associated with manual memory allocation and deallocation.  While not full automatic memory management, region-based memory management provides a structured and compile-time assisted approach to memory lifetime management, enhancing safety with minimal runtime overhead. **Furthermore, in Version 1.3, enhanced compile-time region lifetime tracking allows the compiler to perform more aggressive optimizations based on the precise runtime lifetimes of region-allocated objects.** **Example:**
-
-    ```baremetal
-    dataRegion MyDataRegion { // Data region declaration
-        uint32 regionVariable; // Variable declared within region
-        safeArray<uint8, 256> regionBuffer; // Safe array within region
-    } // Scope of MyDataRegion ends here - variables 'regionVariable' and 'regionBuffer' are implicitly managed by the region's lifetime
-
-    function void accessRegionData() {
-        MyDataRegion.regionVariable = 10; // Valid access within scope where MyDataRegion is visible
-        MyDataRegion.regionBuffer[0] = 0xFF; // Valid access within scope
-    }
-    // Variables declared within MyDataRegion are still accessible here if MyDataRegion's scope is still active
-    ```
-
-*   **Compile-Time Null Pointer Dereference Detection (Enhanced Static Analysis):** The BML compiler incorporates static analysis to detect potential null pointer dereferences at compile time. This analysis tracks pointer initialization, data flow, and conditional checks, issuing warnings or compile-time errors when potential null dereferences are detected.  Developers can further assist the analysis with attributes like `[nonnull]` and `[potentialNull]`, improving the precision of null pointer detection and enhancing code robustness against null pointer errors. **Example:**
-
-    ```baremetal
-    function void processPointer(uint32^ ptr [potentialNull]) { // Indicate pointer may be null
-        if (ptr != null) { // Explicit null check - avoids warning
-            uint32 value = *ptr; // Safe dereference - null check performed
-            // ... use value ...
-        } else {
-            // ... handle null pointer case ...
-        }
-        // uint32 unsafeValue = *ptr; // Potential compile-time warning: potential null dereference - no null check before dereference
-    }
-
-    function uint32^ getNonNullPointer() -> uint32^ [guaranteedNonNull] { // Indicate function returns non-null pointer
-        dataRegion { uint32 data; }
-        return &dataRegion.data; // Guaranteed non-null in this simplified example
-    }
-
-    function void example() {
-        uint32^ nonNullPtr = getNonNullPointer(); // Compiler knows nonNullPtr is non-null due to [guaranteedNonNull] attribute
-        uint32 value = *nonNullPtr; // Safe dereference - compiler knows nonNullPtr is not null
-        // if (nonNullPtr == null) { /* Redundant null check - compile-time warning */ } // Redundant null check - compiler knows nonNullPtr is not null
-    }
-    ```
-
-*   **Abstract Interpretation for Compile-Time Safety Proofs: Runtime Check Elimination - OPTIONAL FORMAL VERIFICATION (Version 1.3 Feature - Preliminary Integration):**  BML compiler integrates **abstract interpretation** for optional formal memory safety verification.  In advanced compilation modes, the compiler attempts to *prove* memory safety properties at compile time. When proofs succeed, runtime checks (e.g., `safeArray` bounds checks) can be **eliminated**, achieving zero runtime overhead for proven-safe code while retaining the safety benefits during development. Abstract interpretation enhances static analysis and provides more precise warnings, even when full proofs are not possible. **Example (Conceptual - Abstract Interpretation in Action):**
-
-    ```baremetal
-    function uint32 sumArraySafe(safeArray<uint32, 10> arr) -> uint32 { // safeArray - runtime bounds checks initially present
-        uint32 sum = 0;
-        for (uint32 i = 0; i < arr.size(); i++) { // Loop with bounds based on arr.size()
-            sum += arr[i]; // Safe access - bounds checked (initially)
-        }
-        return sum;
-    }
-
-    // In advanced compilation mode with abstract interpretation enabled:
-    // BML compiler analyzes sumArraySafe function and loop bounds
-    // Compiler *proves* that all array accesses 'arr[i]' are always within the bounds of 'arr' (0 to 9) because loop iterates from 0 to arr.size()-1
-    // Compiler *eliminates* runtime bounds checks for 'arr[i]' within the loop in the optimized machine code
-    // Result: Zero-overhead bounds safety for proven-safe code sections
-    ```
-
-*   **Default Immutability:** BML's principle of default runtime immutability encourages safer state management. Variables are runtime-immutable by default, and mutability must be explicitly declared using the `~` modifier. This promotes the use of immutable data structures and minimizes mutable shared state, reducing the potential for unintended side effects, data races in concurrent programs, and memory corruption issues associated with uncontrolled mutable state. **Example:**
-
-    ```baremetal
-    @arc arm {
-        declarations {
-            uint32 immutableValue = 10; // Immutable variable (default)
-            ~uint32 mutableValue; // Mutable variable - explicitly declared mutable
-        }
-        statements {
-            // immutableValue = 20; // Compile-time error: Cannot modify immutable variable
-            mutableValue = 20; // Valid - mutable variable can be modified
-        }
-    }
-    ```
-
-*   **Refinement Types (Compile-Time Data Validation - Version 1.4):** Refinement types allow embedding data validation constraints directly into type definitions. These constraints are checked at compile time, and optionally at runtime in debug builds (controlled by `@boundsCheckRefinement` attribute or `-debug-refinement-checks` compiler flag), but can be optimized away in release builds if statically provable. Refinement types enhance data integrity and prevent out-of-range errors and buffer overflows (size constraints). **Example:**
-
-    ```baremetal
-    type ValidSensorReading = uint16 where value in range(0..1000); // Refinement type definition - valid range 0-1000
-
-    function void processSensorValue(ValidSensorReading reading) { // Parameter of refinement type
-        // 'reading' is guaranteed to be within the range 0-1000 (compile-time checked or runtime checked in debug mode)
-        // ... process sensor reading ...
-    }
-
-    @arc arm {
-        declarations {
-            ValidSensorReading sensorValue;
-        }
-        statements {
-            sensorValue = readAnalogSensor(); // Potential compile-time validation if readAnalogSensor's return range is known
-            if (isValidSensorValue(sensorValue)) { // Runtime check (though refinement type aims for compile-time guarantee)
-                processSensorValue(sensorValue); // Valid call - 'sensorValue' is of type ValidSensorReading
-            }
-            // ValidSensorReading invalidReading = 2000; // Compile-time error: Value 2000 is outside the valid range 0-1000
-        }
-    }
-    ```
-
-*   **Capability-Based Regions (Fine-Grained Access Control - Version 1.4):** Capability-based regions extend BML's region-based memory management to incorporate fine-grained access control. Regions can be declared with associated access capabilities (read, write, execute, capability_derive), and pointers into regions inherit or can be restricted further in terms of capabilities. This enforces memory-level access control, preventing unauthorized access and modification. **Example:**
-
-    ```baremetal
-    codeRegion SecureCodeRegion capabilities(execute, capability_derive) { // Code region with execute capability
-        function codeAddress secureFunction() -> codeAddress { /* ... secure code implementation ... */ return 0; }
-    }
-
-    dataRegion ProtectedDataRegion capabilities(read) { // Data region with read-only capability
-        uint32 sensitiveData = 12345; // Read-only data
-    }
-
-    function void untrustedFunction(uint32^ dataPtr : ProtectedDataRegion) { // Function receiving pointer to ProtectedDataRegion (inherits read capability)
-        uint32 value = *dataPtr; // Valid - read access allowed
-        // *dataPtr = 50; // Compile-time error: Write access not allowed - ProtectedDataRegion is read-only
-    }
-
-    function void secureBootCode() {
-        codeAddress secureFuncPtr = SecureCodeRegion.secureFunction(); // Get code address from SecureCodeRegion
-        // executeCodeAtAddress(secureFuncPtr); // Valid - code execution in SecureCodeRegion allowed
-    }
-
-    dataRegion UnprotectedDataRegion capabilities(read, write) { uint32 publicData; }
-    function void trustedFunction(uint32^ dataPtr : UnprotectedDataRegion) { // Function receiving pointer to UnprotectedDataRegion (read and write capabilities)
-        *dataPtr = 50; // Valid - write access allowed
-    }
-    ```
-
-*   **Compile-Time Stack-Only Allocation Enforcement (Version 1.4):** BML can enforce compile-time stack-only allocation for data structures and functions using the `stackOnly` keyword or `@stackOnly` attribute. This eliminates heap allocation overhead, makes memory usage more predictable and deterministic, and is especially beneficial for real-time systems. **Example:**
-
-    ```baremetal
-    stackOnly safeArray<uint8, 64> myStackBuffer; // Enforce stack allocation for 'myStackBuffer'
-
-    @stackOnly function void processStackData() { // Enforce stack-only for function 'processStackData'
-        safeArray<uint16, 32> localStackArray; // Valid - stack-allocated local array
-        stackOnly uint32 stackCounter; // Valid - stack-allocated stackCounter
-        // trackedPtr<uint8> heapPtr = allocateHeapMemory(10); // Compile-time error: Heap allocation not allowed in @stackOnly function
-
-        // ... operations using stack-allocated variables ...
-    }
-
-    function void mainFunction() {
-        processStackData(); // Call stack-only function
-        // safeArray<uint32, 1000> largeStackArray; // Potential stack overflow risk - compiler may warn or limit stack size
-    }
-    ```
-
-*   **Hardware-Assisted Bounds Checking for Near-Zero Overhead Runtime Safety (Version 1.4 Feature):** BML can leverage hardware-assisted memory tagging and bounds checking features (e.g., ARM Memory Tagging Extension - MTE, RISC-V Memory Tagging) for near-zero overhead runtime bounds checks, significantly enhancing memory safety with minimal performance penalty when supported by the target architecture. Hardware-assisted bounds checking can be enabled via compiler flags or pragmas and is particularly effective with `safeArray` and `trackedPtr` types. **Example (Conceptual - Hardware Bounds Checking in Use):**
-
-    ```baremetal
-    // Compile with hardware bounds checking enabled (e.g., -mte flag for ARM MTE)
-
-    safeArray<uint32, 10> dataArray; // Safe array - hardware bounds checking will be used if enabled
-
-    function void arrayAccess(uint32 index) {
-        dataArray[index] = 100; // Access to safeArray - hardware performs bounds check at runtime with near-zero overhead
-
-        // If 'index' is out-of-bounds (e.g., index >= 10 or index < 0):
-        // Hardware MMU (or memory controller) detects out-of-bounds access based on memory tags
-        // Hardware triggers a fault or exception - preventing buffer overflow with minimal performance penalty
-    }
-    ```
-
-    *   **Compile-Time Reflection Capabilities (Version 1.5 Feature):** BML Version 1.5 introduces a limited and controlled form of **compile-time reflection**, enabling CAMs and advanced BML code to inspect type information *during compilation*. This reflection mechanism operates solely at compile time and incurs **zero runtime overhead**. It is designed to empower CAMs to generate highly specialized and optimized code based on type properties. (Detailed explanation of Compile-Time Reflection is provided earlier in this section). **Example:**
-
-    ```baremetal
-    compileTimeFunction void myCompileTimeFunction() {
-        compileTimeIf (isType(DataTypeKind.Integer)) { // Compile-time check if DataType is Integer
-            compileTimePrintString("DataType is an Integer type.\n"); // Compile-time print
-            compileTimeInteger constantSize = sizeof(DataTypeKind.Integer); // Compile-time get size of Integer type
-            compileTimePrintInteger(constantSize); // Compile-time print size
-        } compileTimeElse {
-            compileTimePrintString("DataType is NOT an Integer type.\n"); // Compile-time print for other types
-        } compileTimeEndIf;
-    }
-    ```
-
-    *   **Compile-Time Functions (Static Lambdas) for CAMs (Version 1.5 Feature):** BML Version 1.5 introduces **compileTimeFunction** (also referred to as "static lambdas") specifically for use within Composable Architecture Modules (CAMs). Compile-time functions are code snippets that are executed *during the BML compilation process*, as part of a CAM's optimization or code generation logic. They enable CAMs to perform complex computations, generate specialized code sequences, and pre-calculate values *before* runtime, leading to truly zero-overhead domain specialization. (Detailed explanation of Compile-Time Functions is provided earlier in this section). **Example:**
-
-    ```baremetal
-    generic <DataType> module MyGenericCam {
-        config {
-            config useFastPath : boolean = compileTimeFunction boolean { // Config parameter determined by compile-time function
-                compileTimeIf (isType(DataTypeKind.Integer)) { // Compile-time check based on generic DataType
-                    compileTimeReturnBoolean(true); // Return true if DataType is Integer - Compile-time return
-                } compileTimeElse {
-                    compileTimeReturnBoolean(false); // Return false otherwise - Compile-time return
-                } compileTimeEndIf;
-            };
-        }
-        statements {
-            intrinsic function void myIntrinsicFunction() {
-                compileTimeIf (config.useFastPath) { // Compile-time conditional code generation based on config parameter (determined by compile-time function)
-                    // Generate optimized code path for Integer DataType
-                    #operation optimizedIntegerCodeSequence; // Example optimized operation
-                } compileTimeElse {
-                    // Generate general code path for other DataTypes
-                    #operation generalCodeSequence; // Example general operation
-                } compileTimeEndIf;
-            }
-        }
-    }
-    ```
-
-    *   **Enhanced Data-Driven Code Generation with CAMs and Data Layout Attributes (Version 1.5 Feature):** BML Version 1.5 significantly enhances Data Layout Attributes and integrates them deeply with Composable Architecture Modules (CAMs) to enable **data-driven code generation**. This powerful combination allows CAMs to automatically generate and optimize code based on the data layout specified by developers through Data Layout Attributes, leading to automatic performance tuning based on data organization. (Detailed explanation of Data-Driven Code Generation is provided earlier in this section). **Example (Conceptual - Data-Driven Code Generation):**
-
-    ```baremetal
-    generic <DataType> module DataLayoutOptimizedCam {
-        statements {
-            intrinsic function void processData(safeArray<DataType, 100> data) {
-                compileTimeIf (hasDataLayoutAttribute(DataTypeKind.Struct, LayoutAttributeKind.Packed)) { // Compile-time check for 'packed' layout
-                    // Generate code optimized for packed struct layout - tighter memory access, potential alignment considerations
-                    #operation optimizedPackedStructAccessLoop; // Example optimized operation for packed structs
-                } compileElseIf (hasDataLayoutAttribute(DataTypeKind.Struct, LayoutAttributeKind.ArrayOfStructures)) { // Compile-time check for AoS layout
-                    // Generate code optimized for Array-of-Structures layout - cache-friendly access for struct arrays
-                    #operation optimizedAoSStructAccessLoop; // Example optimized operation for AoS structs
-                } compileElse {
-                    // Generate general code path if no specific data layout attribute is detected
-                    #operation generalDataAccessLoop; // Example general data access operation
-                } compileTimeEndIf;
-            }
-        }
-    }
-    ```
-
-#### 6.2 Best Practices for Memory Safety in BML
-
-While BML provides language features to mitigate memory errors, developer discipline and adherence to best practices are crucial for writing truly robust and memory-safe bare metal code.  Here are key best practices for memory safety in BML:
-
-*   **Prioritize `DataType ^scoped` for Lexically Scoped Pointers - THE FASTEST AND SAFEST CHOICE:**  **Always use `DataType ^scoped` as your *first choice* for pointers when their lifetime is naturally limited to a specific code block or function scope.** `DataType ^scoped` offers **compile-time guaranteed dangling pointer prevention with zero runtime overhead.** It is the *most efficient and safest way* to handle scope-bound pointers in BML, eliminating a major source of memory errors without sacrificing performance. Embrace `DataType ^scoped` as the *primary tool* for managing scope-limited pointers safely and efficiently. **Example:** Use `DataType ^scoped` for local pointers within functions, temporary pointers in loops, or pointers to stack-allocated buffers where the pointer's validity is inherently tied to the current scope.
-
-*   **Leverage Capability-Based Pointers (`DataType ^readonly`, `DataType ^writeonly`, `DataType ^region(RegionName)`, `DataType ^nonnull`) for Compile-Time Access Control:**  **Utilize capability-based pointer types (`DataType ^readonly`, `DataType ^writeonly`, `DataType ^region(RegionName)`, `DataType ^nonnull`) whenever possible to enforce compile-time access control and memory safety guarantees.**  `DataType ^readonly` for read-only access, `DataType ^writeonly` for write-only access, `DataType ^region(RegionName)` for region confinement, and `DataType ^nonnull` for guaranteed non-nullness.  These pointer types introduce **zero runtime overhead** and enable the compiler to perform more aggressive optimizations while ensuring memory safety. **Example:** Use `DataType ^readonly` for pointers to configuration data that should not be modified, `DataType ^writeonly` for pointers to output buffers or peripheral registers where only write operations are intended, `DataType ^region(DataRegion)` to ensure pointers remain within specific memory regions, and `DataType ^nonnull` for pointers that are guaranteed to be valid and non-null throughout their usage.
-
-*   **Prefer `safeArray` for Arrays:**  Always use `safeArray<DataType, Size>` as the default array type in BML, especially when dealing with data buffers, sensor readings, or any data that might be subject to buffer overflows.  The runtime bounds checking provided by `safeArray` is a valuable safety net and should be prioritized in most cases. Only consider using regular, unchecked arrays with extreme caution and only when performance profiling demonstrably justifies it and bounds are absolutely statically guaranteed. **Example:**  Declare data buffers, sensor reading arrays, and any arrays that receive external input or are manipulated in loops as `safeArray` to prevent buffer overflows.
-
-*   **Use `DataType ^tracked` for Critical Sections Requiring Runtime Safety:** **Utilize `DataType ^tracked` when dealing with pointers from untrusted sources, in safety-critical system components, or during debugging phases where runtime memory safety checks are highly valuable. Understand the performance overhead associated with `DataType ^tracked` and use it judiciously in performance-sensitive code.**  **Example:** Use `DataType ^tracked` for pointers received from external peripherals, pointers passed across thread boundaries, or pointers used in safety-critical control loops where runtime null pointer and dangling pointer detection are crucial, even if it incurs a small performance penalty.
-
-*   **Use `DataType^` Pointers for Performance-Critical Code with Manual Safety Management:** For performance-critical code sections where you can guarantee pointer safety through careful design, static analysis, or manual checks, `DataType^` pointers provide the most direct and efficient memory access without runtime overhead.  **Exercise extreme caution when using unchecked `DataType^` pointers and ensure thorough validation to prevent memory errors.  *Consider if the performance gain truly justifies the increased risk and manual safety management overhead.* **Example:**  Only use `DataType^` pointers in carefully profiled inner loops of performance-critical algorithms where pointer validity is rigorously controlled and checked through other means (e.g., explicit bounds checks, loop invariants, formal verification).
-
-* **Minimize `raw byte` Usage and Prefer MMR Blocks:**  Avoid using the `raw byte` type and raw pointer manipulation whenever possible.  Utilize Memory-Mapped Register Blocks (MMR Blocks) as the primary and safe way to interact with hardware registers. MMR Blocks provide type-safe and structured register access, significantly reducing the risks associated with raw memory manipulation. Only resort to `raw byte` for highly specialized low-level operations when no type-safe abstraction is feasible, and exercise extreme caution when doing so.  **Consider whether `raw byte` is truly necessary in your application code at all. Explore if specialized CAMs could encapsulate and safely manage raw byte operations when absolutely required.**
-
-*   **Be Mindful of Pointer Lifetimes (Even with `DataType ^tracked` and `DataType ^scoped`):** While `DataType ^tracked` and `DataType ^scoped` enhance pointer safety, they do not completely eliminate all pointer-related errors.  Developers must still be mindful of pointer lifetimes, particularly in scenarios involving dynamic memory allocation (if used via CAMs or external libraries) or complex pointer manipulations.  Avoid creating dangling pointers by ensuring that pointers are not used after the memory they point to has been deallocated or gone out of scope (for `DataType ^scoped`, note that it *prevents* dangling pointers within its scope).
-
-*   **Validate Input Data and Bounds:**  Always validate input data, especially when it comes from external sources (sensors, communication interfaces, user input). Perform explicit bounds checks before accessing arrays or memory regions with data derived from external inputs to prevent unexpected out-of-bounds accesses.  Leverage Refinement Types to enforce data validity at the type level.
-
-*   **Initialize Pointers and Variables:** Ensure that all pointers, especially `DataType ^nonnull` and `nonnull` pointers, are properly initialized with valid, non-null addresses before they are dereferenced. Initialize variables with meaningful default values to prevent uninitialized data issues.
-
-*   **Leverage Static Analysis and Compiler Warnings:** Pay close attention to compiler warnings, especially those related to pointer usage, null pointer dereferences, or potential memory errors.  Utilize static analysis tools (if available for BML) to further enhance compile-time error detection and proactively identify potential memory safety issues.
-
-*   **Thorough Testing and Validation:**  Rigorous testing and validation are essential for ensuring memory safety in bare metal systems.  Perform unit tests, integration tests, and system-level tests to thoroughly exercise BML code and identify potential memory-related bugs.  Utilize memory debugging tools (if supported by the target platform and BML tooling) to detect memory leaks, buffer overflows, and other runtime memory errors during testing.  Consider using hardware-assisted bounds checking (if available) for enhanced runtime safety during testing and deployment.
-
-**BML's memory safety features, combined with diligent coding practices, empower developers to write more robust and reliable bare metal embedded systems, significantly reducing the risk of common memory-related errors that are often prevalent in low-level programming.**
-
-### 7. Multi-Target Architecture Versatility
-
-#### 7.1 Architecture Blocks (`@arc`) for Conditional Compilation
-
-The `@arc architectureName { ... }` block is the cornerstone of BML's multi-targeting capabilities.  Architecture blocks allow developers to encapsulate architecture-specific code and declarations within a BML source file, creating architecture-dependent code sections within a portable codebase.
-
-*   **Architecture-Specific Code Encapsulation:** Code and declarations within an `@arc architectureName { ... }` block are associated with the specified `architectureName` (e.g., `arm`, `riscv`, `x86`, or custom architecture identifiers).  A BML source file can contain multiple `@arc` blocks, each targeting a different architecture.
-*   **Conditional Compilation:** The BML compiler selectively compiles only the code within the `@arc` block that matches the currently selected target architecture during compilation. When compiling for a specific architecture (e.g., ARM), only the code within `@arc arm { ... }` blocks is processed and included in the generated executable. Code within other `@arc` blocks (e.g., `@arc riscv`, `@arc x86`) is effectively ignored during compilation for the ARM target.
-*   **Architecture-Specific Implementations:** `@arc` blocks are typically used to provide architecture-specific implementations for functionalities that differ across platforms, such as:
-    *   **Hardware Register Access:** Code for accessing memory-mapped peripherals using MMR Blocks and `#operation` directives, which are inherently architecture-dependent.
-    *   **Interrupt Handlers:** Interrupt service routines (`interrupt function`) that might have architecture-specific entry points, vector table configurations, or context saving/restoring procedures.
-    *   **Boot Code Sequences (`archCodeBlock`):**  Low-level bootstrap loader code that is highly architecture-specific in terms of register initialization, memory setup, and instruction sequences.
-    *   **Performance-Critical Code Sections:**  Highly optimized code sections that leverage architecture-specific instructions or hardware features for maximum performance, such as DSP algorithms utilizing SIMD instructions (e.g., ARM NEON, RISC-V Vector Extension).
-
-**Example (Architecture Blocks):**
-
-```baremetal
-#use module "uartDriver"; // Assume 'uartDriver' CAM provides architecture-aware UART functionality
-
-@arc arm { // Architecture block for ARM targets
-    declarations {
-        uint32 armSpecificValue; // ARM-specific variable
-    }
-    statements {
-        armSpecificValue = 10;
-        uartSendString("Hello from ARM!\n"); // Use architecture-agnostic 'uartSendString' from 'uartDriver' CAM
-        // ... ARM-specific code ...
-    }
-}
-
-@arc riscv { // Architecture block for RISC-V targets
-    declarations {
-        uint64 riscvSpecificValue; // RISC-V specific variable
-    }
-    statements {
-        riscvSpecificValue = 10000;
-        uartSendString("Hello from RISC-V!\n"); // Use architecture-agnostic 'uartSendString' from 'uartDriver' CAM
-        // ... RISC-V specific code ...
-    }
-}
-
-@arc x86 { // Architecture block for x86 targets
-    statements {
-        consoleWriteString("Hello from x86!\n"); // Fallback output for x86 (if UART not applicable)
-        // ... x86 specific code ...
-    }
-}
-
-// Architecture-independent code (outside @arc blocks) - Compiled for ALL architectures
-function void commonFunction() {
-    // ... architecture-independent logic ...
-    uartSendString("Common Function called.\n"); // Will use UART if available, otherwise might result in linker error if no UART CAM is used globally
-}
-
-statements { // Top-level statements (outside @arc blocks) - Executed regardless of target architecture
-    commonFunction(); // Call common function - Architecture-independent function call
-}
-```
-
-In this example, the BML source file contains three `@arc` blocks (`@arc arm`, `@arc riscv`, `@arc x86`) and architecture-independent code outside of any `@arc` block. When compiled for ARM, only the code within the `@arc arm` block and the architecture-independent code will be compiled.  Similarly, when compiled for RISC-V or x86, the compiler will select the corresponding `@arc` block and the common code. The `uartSendString` function is assumed to be provided by an architecture-aware `uartDriver` CAM, which internally uses `@arc` blocks to provide platform-specific UART driver implementations, further enhancing multi-targeting.  The `consoleWriteString` function is used as a fallback output mechanism for x86, which might not have directly applicable UART peripherals in typical desktop environments.  Code outside `@arc` blocks, like `commonFunction`, is compiled for all target architectures, allowing for shared logic across platforms.
-
-#### 7.2 CAMs and Architecture Abstraction
-
-Composable Architecture Modules (CAMs) are essential for achieving true multi-target architecture versatility in BML. CAMs provide a layer of abstraction that hides hardware-specific details from the main BML application code, enabling developers to write code that is largely architecture-independent and portable.
-
-*   **CAM Interface Abstraction:** CAMs export well-defined interfaces (functions, types, constants) that are architecture-agnostic. BML application code interacts with hardware or domain-specific functionalities through these abstract interfaces, without needing to be concerned with the low-level hardware details or architecture-specific implementations.  The `interface intrinsic functions { ... }` block in CAMs is central to this abstraction, defining interfaces for architecture-specific operations.
-
-*   **Architecture-Specific Implementations within CAMs (`@arc`):** CAMs encapsulate architecture-specific implementations within `@arc architectureName { ... }` blocks.  These `@arc` blocks contain the low-level code that directly interacts with hardware peripherals or utilizes architecture-specific instructions.  The CAM itself handles the complexity of providing different implementations for each target architecture, while the BML application code remains consistent and portable.
-
-*   **Compiler-Managed Architecture Selection:** The BML compiler automatically selects the appropriate architecture-specific implementation from within a CAM based on the currently targeted architecture during compilation.  When BML code calls a CAM-provided function, the compiler resolves the call to the correct architecture-specific implementation from the relevant `@arc` block within the CAM, ensuring that the generated code is optimized for the target platform.
-
-*   **CAM Ecosystem for Hardware Support:** A rich ecosystem of CAMs is crucial for BML's multi-targeting success.  CAMs can be developed for a wide range of hardware peripherals (UART, SPI, I2C, timers, GPIOs, etc.), communication protocols, and domain-specific functionalities, with architecture-specific implementations provided within each CAM.  By leveraging this CAM ecosystem, BML developers can easily target new architectures by simply using existing CAMs or developing new CAMs for specific hardware platforms, without requiring extensive changes to their application code.
-
-**Example (CAM-Driven Architecture Abstraction):**
-
-```baremetal
-#use module "GenericSensorCam"; // Assume 'GenericSensorCam' provides architecture-abstracted sensor interface
-
-@arc arm {
-    statements {
-        sensorInit(); // Call architecture-abstracted sensor initialization function from CAM
-        uint16 sensorValue = readSensorData(); // Call architecture-abstracted sensor read function from CAM
-        uartSendString("Sensor Value: "); uartSendInteger(sensorValue); uartSendString("\n"); // Use architecture-agnostic UART output
-        // ... ARM-specific sensor processing code ...
-    }
-}
-
-@arc riscv {
-    statements {
-        sensorInit(); // Call architecture-abstracted sensor initialization function from CAM - Same BML code for different architecture
-        uint16 sensorValue = readSensorData(); // Call architecture-abstracted sensor read function from CAM - Same BML code for different architecture
-        uartSendString("Sensor Value: "); uartSendInteger(sensorValue); uartSendString("\n"); // Use architecture-agnostic UART output
-        // ... RISC-V specific sensor processing code ...
-    }
-}
-
-// User code remains architecture-agnostic - Using CAM-provided abstractions
-function void processSensorValue(uint16 value) {
-    // ... architecture-independent sensor data processing logic ...
-    uartSendString("Processing sensor data.\n");
-}
-
-statements { // Architecture-independent main application logic
-    processSensorValue(readSensorData()); // Call architecture-abstracted sensor read function - Architecture-independent call
-}
-```
-
-In this example, the BML application code in both `@arc arm` and `@arc riscv` blocks, and the architecture-independent `processSensorValue` function, interact with the sensor through the architecture-abstracted functions `sensorInit()` and `readSensorData()` provided by the `GenericSensorCam`. The CAM internally handles the architecture-specific details of sensor communication (e.g., I2C protocol, register access, hardware initialization) within its `@arc` blocks.  The BML application code remains portable and architecture-agnostic, focusing on the higher-level sensor data processing logic, while the CAM ensures optimal performance and correct hardware interaction on each target platform.
-
-#### 7.3 Toolchain Support for Multi-Targeting
-
-BML's multi-targeting capabilities are fully supported by the BML toolchain, which includes the compiler.  The toolchain provides mechanisms for specifying the target architecture during compilation and ensures that the correct architecture-specific code is generated and linked for the selected platform **directly by the `bmlc` compiler.**
-
-*   **Compiler Target Architecture Flag:** The BML compiler (`bmlc`) accepts a command-line flag or project configuration setting (e.g., `-target <architectureName>`) to specify the target architecture for compilation.  The `architectureName` corresponds to the architecture identifiers used in `@arc` blocks (e.g., `arm`, `riscv`, `x86`, or specific CPU names like `armCortexM4`).
-
-*   **Selective Compilation of `@arc` Blocks:** Based on the specified target architecture flag, the BML compiler parses the BML source files and selectively compiles only the code within the matching `@arc` blocks and the architecture-independent code outside of any `@arc` blocks.  Code within non-matching `@arc` blocks is effectively excluded from the compilation process, ensuring that only the relevant code for the target architecture is included in the generated output.
-
-*   **CAM Selection and Architecture-Specific Code Generation:** When CAMs are used in a BML project, the compiler automatically selects the appropriate architecture-specific implementations from within the CAMs based on the target architecture flag.  Calls to interface intrinsic functions are resolved to the corresponding `intrinsic function` implementations within the matching `@arc` blocks in the CAMs. The compiler backend then generates machine code that is optimized for the selected target architecture, leveraging CAM-provided optimization passes and hardware-specific code generation templates.
-
-*   **Integrated Compilation and Linking:** The BML compiler (`bmlc`) **performs both compilation and linking internally**.  It generates the necessary object code and then automatically links it to create the final executable binary.  **Users do not need to invoke separate assembler or linker tools.** The `bmlc` compiler handles all steps required to produce a ready-to-run executable for the target architecture.
-
-*   **Cross-Compilation Workflow:** The BML toolchain is designed for cross-compilation, enabling developers to compile BML code on a host development machine (e.g., x86-based PC) for execution on a different target architecture (e.g., ARM microcontroller).  The `bmlc` compiler provides all the necessary components to generate executables for various embedded target platforms from a single development environment, streamlining the cross-platform development process.
-
-**Example (Multi-Target Compilation Workflow):**
-
-1.  **BML Source Code (`sensor_app.bml`):** Contains BML application code with `@arc` blocks and CAM usage, designed for multi-targeting (e.g., for ARM and RISC-V).
-2.  **Compilation for ARM Target:**  Run BML compiler with ARM target flag: `bmlc -target armCortexM4 sensor_app.bml -o sensor_app_arm.elf`. The compiler processes `@arc arm` blocks and generates ARM machine code and links the executable.
-3.  **Compilation for RISC-V Target:** Run BML compiler with RISC-V target flag: `bmlc -target riscv64g sensor_app.bml -o sensor_app_riscv.elf`. The compiler processes `@arc riscv` blocks and generates RISC-V machine code and links the executable.
-
-4.  **Architecture-Specific Executables:** The BML toolchain generates two separate executable files: `sensor_app_arm.elf` (for ARM Cortex-M4) and `sensor_app_riscv.elf` (for RISC-V 64-bit). These executables are tailored to their respective architectures and can be deployed and executed on ARM and RISC-V based hardware platforms without requiring any changes to the BML source code.
-
-**Example `bmlc` Command-Line Usage for Multi-Target Compilation:**
-
-Assuming you have a BML source file named `my_application.bml` that uses `@arc` blocks for ARM and RISC-V architectures, here's how you would compile it for each target:
-
-**Compilation for ARM Cortex-M4:**
-
-```bash
-bmlc -target armCortexM4 my_application.bml -o my_application_arm.elf
-```
-
-*   `-target armCortexM4`: Specifies the target architecture as ARM Cortex-M4.  The `bmlc` compiler will process the `@arc arm` blocks (and potentially `@arc armCortexM4` if present) in your BML source code.
-*   `my_application.bml`:  The input BML source file.
-*   `-o my_application_arm.elf`: Specifies the output executable file name as `my_application_arm.elf`.  The `.elf` extension is commonly used for embedded executables.
-
-**Compilation for RISC-V 64-bit (Generic):**
-
-```bash
-bmlc -target riscv64g my_application.bml -o my_application_riscv.elf
-```
-
-*   `-target riscv64g`: Specifies the target architecture as RISC-V 64-bit with the "G" extension (general-purpose). The `bmlc` compiler will process the `@arc riscv` blocks (and potentially `@arc riscv64g` if present) in your BML source code.
-*   `my_application.bml`: The input BML source file.
-*   `-o my_application_riscv.elf`: Specifies the output executable file name as `my_application_riscv.elf`.
-
-**Compilation for x86-64 (Generic Desktop/Embedded x86):**
-
-```bash
-bmlc -target x86_64 my_application.bml -o my_application_x86.elf
-```
-
-*   `-target x86_64`: Specifies the target architecture as x86-64 (64-bit x86).  The `bmlc` compiler will process the `@arc x86` blocks (and potentially `@arc x86_64` if present) in your BML source code.
-*   `my_application.bml`: The input BML source file.
-*   `-o my_application_x86.elf`: Specifies the output executable file name as `my_application_x86.elf`.
-
-**Key Points about `bmlc` Command-Line Multi-Targeting:**
-
-*   **Single Compiler for Multiple Architectures:** The same `bmlc` compiler executable is used to compile for all supported target architectures. You simply change the `-target` flag to switch between architectures.
-*   **Architecture-Specific Output Files:** Each compilation command generates a separate executable file (e.g., `my_application_arm.elf`, `my_application_riscv.elf`) that is specifically tailored to the target architecture.
-*   **No Assembly or Linking Steps for Users:**  Users do not need to invoke separate assemblers or linkers. `bmlc` handles the entire compilation and linking process internally, simplifying the build workflow.
-*   **Cross-Compilation by Default:** The `bmlc` compiler is inherently designed for cross-compilation. You can run `bmlc` on a host development machine (e.g., x86 PC) and generate executables for different target architectures (e.g., ARM microcontrollers), making cross-platform embedded development straightforward.
-
-**BML's multi-targeting architecture, facilitated by `@arc` blocks, CAMs, and a robust toolchain centered around the `bmlc` compiler, empowers developers to create truly portable and high-performance bare metal embedded applications, significantly simplifying cross-platform development and maximizing code reuse across diverse hardware platforms.**
-
-### 8. Directives and Pragmas
-
-#### 8.1 Preprocessor Directives
-
-Preprocessor directives in BML, starting with `#`, are processed before the main compilation phase and are used for macro definitions, conditional compilation, module inclusion, and CPU targeting.  They provide file-level configuration and text-based source code manipulation capabilities.
-
-*   **`#define Identifier Value` (Macro Definition):** The `#define` directive defines a macro, associating an `Identifier` with a `Value`.  Macros are essentially text substitutions performed by the preprocessor before compilation.  Macros can be used to define symbolic constants, code snippets, or conditional compilation flags. **Example:**
-
-    ```baremetal
-    #define MAX_BUFFER_SIZE 1024 // Define macro 'MAX_BUFFER_SIZE' with value 1024
-    #define DEBUG_MODE true // Define boolean macro 'DEBUG_MODE'
-
-    @arc arm {
-        declarations {
-            safeArray<uint8, MAX_BUFFER_SIZE> buffer; // Use macro 'MAX_BUFFER_SIZE' in array declaration - buffer size will be 1024
-            boolean debugEnabled = DEBUG_MODE; // Use macro 'DEBUG_MODE' for boolean variable - debugEnabled will be 'true'
-        }
-        statements {
-            if (DEBUG_MODE) { // Conditional code based on macro 'DEBUG_MODE' - code inside 'if' will be compiled because DEBUG_MODE is true
-                uartSendString("Debug mode is enabled.\n"); // Conditional print statement
-            }
-            // ... code using buffer with size defined by MAX_BUFFER_SIZE ...
-        }
-    }
-    ```
-    In this example, `MAX_BUFFER_SIZE` and `DEBUG_MODE` are defined as macros. The preprocessor replaces instances of `MAX_BUFFER_SIZE` with `1024` and `DEBUG_MODE` with `true` before compilation. This allows for symbolic constants and conditional code based on macro values. Macros are processed *textually* by the preprocessor; they are simple text substitutions and do not involve type checking or scope rules.
-
-*   **`#if Condition`, `#elif Condition`, `#else`, `#endif` (Conditional Compilation):** These directives provide conditional compilation capabilities, allowing developers to selectively compile code based on preprocessor conditions.  The `#if` directive starts a conditional block, `#elif` provides alternative conditions, `#else` provides a default block, and `#endif` terminates the conditional block.  Preprocessor expressions (`Condition`) used in `#if` and `#elif` directives are evaluated at compile time, and only the code block corresponding to the true condition (or the `#else` block if no condition is true) is compiled.
-
-    **Preprocessor Directive Capabilities:**
-
-    > Preprocessor expressions used in `#if`, `#elif`, and `#define` directives fully support macro expansion and boolean logic. This expansion of preprocessor capabilities provides developers with more flexibility for conditional compilation and compile-time configuration, while still maintaining a controlled and predictable preprocessor environment compared to more complex C-style preprocessors.  You can use macros, integer literals, boolean literals, and basic boolean operators (`==`, `!=`, `&&`, `||`, `!`) within preprocessor expressions.
-
-    **Example (Conditional Compilation):**
-    ```baremetal
-    #define TARGET_ARCHITECTURE "ARM" // Define macro for target architecture - set to "ARM" for ARM builds
-
-    @arc arm {
-        statements {
-            #if TARGET_ARCHITECTURE == "ARM" // Conditional compilation based on macro 'TARGET_ARCHITECTURE' - condition is true for ARM builds
-                uartSendString("Compiling for ARM architecture.\n"); // Code compiled and included in ARM executable
-            #elif TARGET_ARCHITECTURE == "RISCV" // Condition is false for ARM builds
-                uartSendString("Compiling for RISC-V architecture.\n"); // Code *not* compiled for ARM executable
-            #else // 'else' block if none of the above conditions are true
-                uartSendString("Compiling for unknown architecture.\n"); // Code *not* compiled for ARM executable
-            #endif
-            // ... architecture-specific code ... - always compiled within @arc arm block
-        }
-    }
-
-    @arc riscv { // Architecture block for RISC-V
-        statements {
-            #if TARGET_ARCHITECTURE == "ARM" // Condition is false for RISC-V builds
-                uartSendString("Compiling for ARM architecture.\n"); // Code *not* compiled for RISC-V executable
-            #elif TARGET_ARCHITECTURE == "RISCV" // Conditional compilation based on macro 'TARGET_ARCHITECTURE' - condition is true for RISC-V builds
-                uartSendString("Compiling for RISC-V architecture.\n"); // Code compiled and included in RISC-V executable
-            #else // 'else' block if none of the above conditions are true
-                uartSendString("Compiling for unknown architecture.\n"); // Code *not* compiled for RISC-V executable
-            #endif
-            // ... RISC-V specific code ... - always compiled within @arc riscv block
-        }
-    }
-    ```
-    In this example, the `#if`, `#elif`, `#else`, and `#endif` directives create a conditional compilation block.  The preprocessor evaluates the condition `#if TARGET_ARCHITECTURE == "ARM"`. If true, the code within the `#if` block is compiled. If false, the preprocessor checks the `#elif` condition, and so on.  Conditional compilation is useful for including or excluding code based on target architecture, build configurations (debug vs. release), or other compile-time flags.  In this example, when compiling for ARM (assuming `TARGET_ARCHITECTURE` macro is set to "ARM"), the output will include "Compiling for ARM architecture." message, but when compiling for RISC-V (and if `TARGET_ARCHITECTURE` were set to "RISCV"), the output will include "Compiling for RISC-V architecture." message.
-
-*   **`#use module "ModuleName" [with config { ... }] ;` (Module Inclusion):** The `#use module` directive, already discussed in Section 4, is also considered a preprocessor directive as it is processed before the main compilation phase. It includes the exported declarations from the specified CAM or BML module into the current source file, enabling modular code organization and reuse.  For generic modules, use `#use module "GenericModuleName<ConcreteType>"` to instantiate a generic module.  **Example:**
-
-    ```baremetal
-    // In file 'main.bml'
-    #use module "UartDriverCam"; // Include UartDriverCam module - imports its exports
-
-    @arc arm {
-        statements {
-            UartDriverCam.uartInit(uartConfig); // Call exported function from UartDriverCam
-            UartDriverCam.uartSendString("Hello from BML!\n"); // Call exported function
-        }
-    }
-    ```
-
-*   **`#cpuTarget CpuName` (CPU Targeting Hint):** The `#cpuTarget` directive provides a hint to the BML compiler about the specific target CPU for optimization purposes.  While BML is architecture-agnostic at the source code level, providing CPU-specific information can enable the compiler to fine-tune code generation for optimal performance on a particular CPU microarchitecture within a target architecture family (e.g., targeting a specific ARM Cortex-M4 variant vs. a generic ARM Cortex-M profile).  The `#cpuTarget` directive is a hint and does not strictly enforce compilation for only that specific CPU, but it guides the compiler's optimization strategies. **Example:**
-
-    ```baremetal
-    #cpuTarget armCortexM7 // Hint to compiler: Optimize for ARM Cortex-M7 microarchitecture
-
-    @arc arm {
-        function void performanceCriticalFunction() {
-            // ... performance-sensitive code - compiler will attempt Cortex-M7 specific optimizations ...
-        }
-    }
-    ```
-
-#### 8.2 Operation Directives (`#operation`)
-
-Operation directives, denoted by `#operation OperationName [ArgumentList] ;`, provide an architecture-abstracted way to express low-level hardware operations within BML code.  The BML compiler, in conjunction with CAMs, translates these abstract operations into architecture-specific machine code for the target platform.  Operation directives bridge the gap between high-level BML code and low-level hardware interaction, allowing developers to express hardware operations in a portable and type-safe manner, without resorting to inline assembly in most cases.
-
-**Categories of Operation Directives:**
-
-*   **Register Operations:**
-    *   `#operation register RegisterName = Expression;`:  Writes the value of `Expression` to the conceptual `RegisterName`. **Example:** `#operation register %gpioDataRegister = 0x00FF00FF;` - writes the hexadecimal value `0x00FF00FF` to the conceptual register `%gpioDataRegister`.
-    *   `#operation register RegisterName += Expression;`, `#operation register RegisterName -= Expression;`, etc.:  Performs compound assignment operations on conceptual registers. **Example:** `#operation register %gpioControlRegister |= 0x01;` - performs a bitwise OR operation between the current value of `%gpioControlRegister` and `0x01`, and writes the result back to `%gpioControlRegister`. Supported compound assignment operators are: `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=`.
-    *   `#operation register RegisterName = ConceptualRegisterIdentifier;`: Copies the value from one conceptual register to another. **Example:** `#operation register %tempRegister = %gpioInputRegister;` - copies the value from the conceptual register `%gpioInputRegister` to the conceptual register `%tempRegister`.
-
-    **Example (Register Operations):**
-    ```baremetal
-    @arc arm {
-        conceptualRegisters { register %gpioDataRegister : uint32; register %gpioControlRegister : uint32; } // Define conceptual registers
-        statements {
-            #operation register %gpioDataRegister = 0x00FF00FF; // Write value to conceptual register %gpioDataRegister
-            #operation register %gpioControlRegister |= 0x00000001; // Bitwise OR assignment to conceptual register %gpioControlRegister
-            uint32 dataValue = %gpioDataRegister; // Read from conceptual register %gpioDataRegister into a variable
-            uartSendInteger(dataValue); // Output the read value
-        }
-    }
-    ```
-
-*   **Memory Access Operations:**
-    *   `#operation memoryStore DataSize AddressExpression, Expression;`:  Stores the value of `Expression` to the memory location specified by `AddressExpression` with the given `DataSize` (`byte`, `word`, `dword`, `qword`). **Example:** `#operation memoryStore dword 0x20000000, 0xABCD1234;` - stores the 32-bit value `0xABCD1234` at memory address `0x20000000`. `DataSize` specifies the size of the memory access: `byte` (8-bit), `word` (16-bit), `dword` (32-bit), `qword` (64-bit).
-    *   `#operation memoryLoad DataSize DestinationVariable, AddressExpression;`: Loads a value of `DataSize` from the memory location specified by `AddressExpression` into the `DestinationVariable`. **Example:** `#operation memoryLoad word sensorReading, 0x40001000;` - loads a 16-bit value from memory address `0x40001000` and stores it in the variable `sensorReading`.  `DestinationVariable` must be a variable of a data type compatible with the specified `DataSize`.
-
-    **Example (Memory Access Operations):**
-    ```baremetal
-    dataRegion { uint32 dataBuffer[10]; } // Data region declaration - defines 'dataBuffer' array in data memory
-    @arc arm {
-        statements {
-            uint32 valueToWrite = 0x12345678;
-            #operation memoryStore dword dataBuffer[5], valueToWrite; // Store dword (32-bit) value to dataBuffer[5] - array access as AddressExpression
-            uint32 readValue;
-            #operation memoryLoad dword readValue, dataBuffer[5]; // Load dword (32-bit) value from dataBuffer[5] into 'readValue' variable
-            uartSendInteger(readValue); // Output the loaded value
-        }
-    }
-    ```
-
-*   **Control Flow Operations (Boot Code - `archCodeBlock`):**
-    *   `#operation jump AddressExpression;`: Unconditional jump to the code address specified by `AddressExpression`. Primarily used within `archCodeBlock` for low-level boot code control flow. **Example:** `#operation jump resetVectorAddress;` - performs an unconditional jump to the code address represented by `resetVectorAddress` (which would typically be a `bootConstant codeAddress`).
-    *   `#operation jumpIf ConditionCode, LabelIdentifier;`: Conditional jump to the `LabelIdentifier` within `archCodeBlock` if the specified `ConditionCode` (e.g., `zero`, `notZero`, `carry`) is true. **Example:** `#operation jumpIf zero, mainApplicationLabel;` - performs a conditional jump to the label `mainApplicationLabel` if the `zero` condition code is currently set (e.g., as a result of a previous comparison or arithmetic operation). `ConditionCode` specifies the condition to check for the conditional jump.
-
-    **Example (Control Flow Operations - `archCodeBlock`):**
-    ```baremetal
-    bootCodeRegion {
-        archCodeBlock bootEntry @arc arm {
-            statements {
-                #operation jump bootLoaderStartLabel; // Unconditional jump to label 'bootLoaderStartLabel'
-                // ... some initialization code before label ...
-
-            bootLoaderStartLabel: // Label definition - target of the jump
-                // ... boot loader code starts here ...
-                #operation performBootCheck; // Hypothetical operation - perform a boot check
-                #operation jumpIf zero, bootErrorHandlerLabel; // Conditional jump to 'bootErrorHandlerLabel' if zero flag is set (indicating error - hypothetical)
-                // ... continue boot sequence if no error ...
-                #operation jump mainApplicationLabel; // Jump to main application code after successful boot
-
-            bootErrorHandlerLabel: // Error handler label - target of conditional jump on error
-                // ... error handling code ...
-                #operation haltSystem; // Hypothetical operation - halt the system in error state
-            }
-        }
-    }
-    ```
-
-*   **Memory Barrier Operations:**
-    *   `#operation memoryBarrier fullFence;`: Inserts a full memory barrier, ensuring that all preceding memory accesses are completed before any subsequent memory accesses begin. Enforces strong memory ordering. **Example:** `#operation memoryBarrier fullFence;` - inserts a full memory barrier, enforcing strict sequential consistency for memory operations across all processor cores and caches.
-    *   `#operation memoryBarrier readFence;`: Inserts a read memory barrier, ensuring that all preceding read memory accesses are completed before any subsequent read memory accesses begin. **Example:** `#operation memoryBarrier readFence;` - ensures that all read operations issued before the barrier are completed before any read operations issued after the barrier are initiated.
-    *   `#operation memoryBarrier writeFence;`: Inserts a write memory barrier, ensuring that all preceding write memory accesses are completed before any subsequent write memory accesses begin. **Example:** `#operation memoryBarrier writeFence;` - ensures that all write operations issued before the barrier are completed and their effects are visible to other processors or memory locations before any write operations issued after the barrier are initiated.
-
-    **Example (Memory Barrier Operations):**
-    ```baremetal
-    @arc multiCoreArm { // Example for a multi-core ARM architecture
-        declarations {
-            ~uint32 sharedData; // Shared data variable
-            semaphore dataReadySemaphore(0); // Semaphore for synchronization
-        }
-        function void thread1() { // Thread 1 code
-            sharedData = 1; // Write to shared data
-            #operation memoryBarrier fullFence; // Full memory barrier - ensure write is globally visible before signaling
-            signal(dataReadySemaphore); // Signal data availability to thread 2
-        }
-        function void thread2() { // Thread 2 code
-            wait(dataReadySemaphore); // Wait for data to be signaled by thread 1
-            #operation memoryBarrier fullFence; // Full memory barrier - ensure signal is received before reading shared data
-            uint32 dataValue = sharedData; // Read shared data - guaranteed to see the updated value from thread 1
-            uartSendInteger(dataValue); // Output the shared data value (should be 1)
-        }
-    }
-    ```
-
-*   **Interrupt Control Operations:**
-    *   `#operation enableInterrupts;`: Enables global interrupt processing on the target processor. **Example:** `#operation enableInterrupts;` - enables the global interrupt enable flag in the processor's control register, allowing the CPU to respond to hardware interrupts.
-    *   `#operation disableInterrupts;`: Disables global interrupt processing on the target processor. **Example:** `#operation disableInterrupts;` - disables global interrupt processing, preventing the CPU from responding to hardware interrupts (used for critical sections or atomic operations).
-    *   `#operation clearInterruptFlag Identifier;`: Clears a specific interrupt flag, where `Identifier` typically refers to a conceptual register or MMR Block member representing the interrupt flag. **Example:** `#operation clearInterruptFlag Uart0.StatusRegister.ReceiveReadyFlag;` - clears the `ReceiveReadyFlag` bit in the `StatusRegister` of the `Uart0` MMR Block, acknowledging a UART receive interrupt. `Identifier` must resolve to a bitfield member within an MMR Block or a conceptual register that represents an interrupt flag.
-
-    **Example (Interrupt Control Operations):**
-    ```baremetal
-    @arc arm {
-        mmrBlock UartRegistersType Uart0 @address(0x40001000); // Example UART MMR Block
-            bitfield InterruptStatusBits InterruptStatusRegister : offset(0x04) {
-                ReceiveDataReadyFlag boolean : bits(0..0); // Receive Data Ready interrupt flag
-            }
-            volatile register raw byte DataRegister : offset(0x00); // UART Data Register
-        }
-
-        function void Uart0_IRQHandler() interrupt { // UART0 Interrupt Service Routine
-            if (Uart0.InterruptStatusRegister.ReceiveDataReadyFlag) { // Check if Receive Data Ready flag is set
-                raw byte receivedByte = Uart0.DataRegister; // Read received byte from UART data register
-                processReceivedByte(receivedByte); // Process the received byte (example function)
-                #operation clearInterruptFlag Uart0.InterruptStatusRegister.ReceiveDataReadyFlag; // Clear the Receive Data Ready interrupt flag - Acknowledge interrupt
-            }
-        }
-
-        statements {
-            #operation enableInterrupts; // Enable global interrupts at the beginning of the application
-            // ... rest of the application code ...
-        }
-    }
-    ```
-
-*   **Custom Operations (CAM-Provided):** CAMs can extend the set of available `#operation` directives by providing their own domain-specific operations. These custom operations are defined and implemented within CAMs, allowing developers to create higher-level abstractions for hardware or domain-specific functionalities. The usage of custom `#operation` directives is defined by the specific CAM documentation. **Example (Hypothetical Motor Control CAM):**
-
-    ```baremetal
-    #use module "MotorControlCam"; // Assume MotorControlCam provides custom #operation directives for motor control
-
-    @arc arm {
-        statements {
-            #operation motorControl.setSpeed MotorChannel.Motor1, 50; // Custom #operation to set motor speed (channel, speed percentage)
-            #operation motorControl.enableMotor MotorChannel.Motor1;  // Custom #operation to enable motor (channel)
-            #operation motorControl.readEncoderCount MotorChannel.Motor1, encoderValue; // Custom #operation to read encoder count (channel, destination variable)
-        }
-    }
-    ```
-    In this example, `#operation motorControl.setSpeed`, `#operation motorControl.enableMotor`, and `#operation motorControl.readEncoderCount` are hypothetical custom operations provided by a `MotorControlCam`. These custom operations abstract away the low-level details of motor control hardware interaction, providing a higher-level, domain-specific API for motor control within BML code.  Refer to the specific CAM documentation for details on available custom operations, their syntax, and semantics.
-
-#### 8.3 Raw Binary Directive (`#rawBinary`)
-
-The `#rawBinary BinaryEncodingList ;` directive allows developers to embed raw binary data directly into the output executable file. This is essential for scenarios where specific binary data needs to be placed at particular memory locations, such as in bootloaders, firmware images, or hardware initialization sequences.
-
-*   **Embedding Raw Binary Data:** The `#rawBinary` directive takes a `BinaryEncodingList` as its argument, which specifies the raw binary data to be embedded. The `BinaryEncodingList` consists of one or more `BinaryEncodingLiteral` values, separated by whitespace.  The binary data is embedded *verbatim* into the output binary at the point where the `#rawBinary` directive appears in the source code.
-
-*   **Binary Encoding Literals:** `BinaryEncodingLiteral` can be one of the following literal types:
-    *   `HexadecimalLiteral` (e.g., `0x10`, `0xAB`, `0xFF`): Represents byte values in hexadecimal format (base-16). Each hexadecimal literal represents a single byte (2 hexadecimal digits).
-    *   `BinaryLiteral` (e.g., `0b00010000`, `0b10101011`): Represents byte values in binary format (base-2). Each binary literal represents a single byte (8 binary digits).
-    *   `DecimalLiteral` (e.g., `16`, `171`, `255`): Represents byte values in decimal format (base-10). Decimal literals must be within the valid byte range of 0 to 255.
-    *   `OctalLiteral` (e.g., `0o20`, `0o253`, `0o377`): Represents byte values in octal format (base-8). Octal literals must be within the valid byte range of 0 to 255.
-
-*   **Direct Binary Output:** The `#rawBinary` directive instructs the BML compiler to directly embed the specified binary data into the output executable file at the current location in the output stream.  The data is embedded as raw bytes, without any interpretation or modification by the compiler.  The compiler simply inserts the byte sequence represented by the `BinaryEncodingList` into the output binary at the current position in the code segment.
-
-*   **Use Cases (Bootloaders, Firmware Images):** `#rawBinary` is commonly used in bootloaders to embed initial stack pointer values, vector tables, or small binary code snippets that must be located at specific memory addresses during the very early boot process.  It is also used in firmware images to embed configuration data, cryptographic keys, or other binary data that needs to be directly included in the firmware binary.  **Example Use Cases:**
-    *   **Boot Vector Tables:** Embedding the initial interrupt vector table at a specific memory address required by the target architecture's boot process.
-    *   **Initial Stack Pointer:** Setting the initial stack pointer value for the system's stack during startup.
-    *   **Firmware Signatures or Checksums:** Embedding cryptographic signatures or checksums within the firmware image for bootloader verification or integrity checks.
-    *   **Device Calibration Data:** Embedding factory calibration data or device-specific configuration parameters directly into the firmware binary.
-    *   **Look-up Tables:** Embedding pre-calculated look-up tables for mathematical functions or data conversions directly into the code segment for performance optimization.
-
-**Example (`#rawBinary` Directive):**
-
-```baremetal
-bootCodeRegion { // Boot code region declaration - code placed in boot memory section
-    archCodeBlock bootLoader @arc arm { // Boot loader architecture block - ARM-specific boot code
-        statements {
-            #rawBinary 0x20 0x00 0x01 0x20 ; // Embed 4 bytes of raw binary data (hexadecimal literals) - Example: Initial Stack Pointer value (0x20000100 in little-endian)
-            #rawBinary 0b11101001 0b00000010 ; // Embed 2 bytes of raw binary data (binary literals) - Example:  Part of a jump instruction encoding
-            #rawBinary 42 100 255 ; // Embed 3 bytes of raw binary data (decimal literals) - Example:  Configuration bytes or magic numbers
-            #rawBinary 0o10 0o25 0o77 ; // Embed 3 bytes of raw binary data (octal literals) - Example:  Device ID or configuration flags
-            #rawBinary ; // Embed zero bytes - valid syntax for #rawBinary with an empty BinaryEncodingList - can be used for padding or alignment purposes
-
-            // ... rest of boot loader code ... - BML code for the remainder of the bootloader logic
-        }
-    }
-}
-```
-
-In this example, the `#rawBinary` directives embed raw binary data directly into the `bootCodeRegion` of the output executable. The first `#rawBinary` directive embeds 4 bytes represented by hexadecimal literals (`0x20 0x00 0x01 0x20`), which could represent an initial stack pointer value (in little-endian byte order, typical for ARM). The subsequent `#rawBinary` directives embed byte values represented in binary, decimal, and octal formats, demonstrating the flexibility of specifying raw binary data in different literal notations. The empty `#rawBinary ;` directive shows that it's also valid to embed zero bytes using this directive, which can be useful for padding or memory alignment purposes in specific bootloader or firmware layouts.  **Extreme caution should be exercised when using `#rawBinary` to ensure that the embedded binary data is correct for the target architecture and memory location, as errors in raw binary data can lead to system instability or boot failures.**
-
-#### 8.4 Interrupt Control Directives
-
-BML provides directives for configuring and controlling hardware interrupts at a higher level of abstraction compared to manual register manipulation or inline assembly. These directives simplify interrupt handling in bare metal BML code, making it easier to set up interrupt vector tables, enable/disable interrupts, and clear interrupt flags.
-
-*   **`#interruptVector VectorNumber, FunctionName ;` (Interrupt Vector Table Entry):** The `#interruptVector` directive is used to define an entry in the interrupt vector table. It associates a specific `VectorNumber` (interrupt vector index or number) with an Interrupt Service Routine (ISR) function named `FunctionName`.  This directive configures the interrupt vector table entry to point to the specified ISR function, ensuring that when an interrupt with the given vector number occurs, the corresponding ISR is executed.  `VectorNumber` must be a constant integer literal representing the interrupt vector index (e.g., `0`, `1`, `24`, `32`). `FunctionName` must be the identifier of an `interrupt function` declared in the same BML source file.  The `#interruptVector` directive must be placed within an `interruptVectorRegion { ... }` block. **Example:**
-
-    ```baremetal
-    interruptVectorRegion { // Interrupt vector region declaration - defines the interrupt vector table section
-        #interruptVector 0, Reset_Handler; // Vector 0: Reset Handler - Associate interrupt vector 0 with 'Reset_Handler' ISR function
-        #interruptVector 1, NMI_Handler; // Vector 1: NMI Handler - Associate interrupt vector 1 with 'NMI_Handler' ISR function
-        #interruptVector 2, HardFault_Handler; // Vector 2: HardFault Handler - Associate interrupt vector 2 with 'HardFault_Handler' ISR function
-        #interruptVector 24, UART0_IRQHandler; // Vector 24: UART0 Interrupt Handler - Associate vector 24 (example UART0 interrupt vector) with 'UART0_IRQHandler' ISR function
-        #interruptVector 25, SPI1_IRQHandler; // Vector 25: SPI1 Interrupt Handler - Associate vector 25 (example SPI1 interrupt vector) with 'SPI1_IRQHandler' ISR function
-        // ... more interrupt vector entries for other peripherals or interrupt sources ...
-    }
-
-    @arc arm { // Architecture block for ARM - ISR function implementations are within @arc blocks
-        function void Reset_Handler() interrupt { /* ... Reset Handler ISR code implementation for ARM ... */ } // Reset Handler ISR - vector 0
-        function void NMI_Handler() interrupt { /* ... NMI Handler ISR code implementation for ARM ... */ } // NMI Handler ISR - vector 1
-        function void HardFault_Handler() interrupt { /* ... HardFault Handler ISR code implementation for ARM ... */ } // HardFault Handler ISR - vector 2
-        function void UART0_IRQHandler() interrupt { /* ... UART0 ISR code implementation for ARM ... */ } // UART0 ISR - vector 24
-        function void SPI1_IRQHandler() interrupt { /* ... SPI1 ISR code implementation for ARM ... */ } // SPI1 ISR - vector 25
-        // ... more ISR function implementations ...
-    }
-    ```
-    In this example, `#interruptVector` directives within the `interruptVectorRegion` define entries in the interrupt vector table.  For instance, `#interruptVector 24, UART0_IRQHandler;` associates interrupt vector number 24 with the `UART0_IRQHandler` function. When a UART0 interrupt occurs (vector 24), the processor will jump to the `UART0_IRQHandler` function to handle the interrupt.  The `interruptVectorRegion` ensures that these vector table entries are placed in the correct memory location for the target architecture's interrupt handling mechanism (typically at the beginning of the code or boot memory region).
-
-*   **`#enableInterrupts ;` (Enable Global Interrupts):** The `#enableInterrupts` directive enables global interrupt processing on the target processor. This directive typically translates to setting the interrupt enable bit in the processor's status register or control register, allowing hardware interrupts to be recognized and processed by the CPU.  This is typically called once during system initialization, after setting up the interrupt vector table and configuring interrupt priorities. **Example:**
-
-    ```baremetal
-    @arc arm {
-        statements {
-            // ... initialization code - setting up interrupt vector table, configuring interrupt priorities ...
-            #operation enableInterrupts; // Enable global interrupts - Allow hardware interrupts to be processed by the CPU
-            uartSendString("Interrupts enabled.\n"); // Indicate that interrupts are now enabled
-            // ... rest of the application code that relies on interrupt-driven events ...
-        }
-    }
-    ```
-    In this example, `#enableInterrupts;` enables global interrupt processing on the ARM processor, allowing hardware interrupts to be serviced by the CPU.  This directive is usually placed after the interrupt system has been properly initialized, including setting up the vector table and configuring interrupt priorities.
-
-*   **`#disableInterrupts ;` (Disable Global Interrupts):** The `#disableInterrupts` directive disables global interrupt processing on the target processor. This directive typically translates to clearing the interrupt enable bit in the processor's status register or control register, preventing hardware interrupts from being recognized and processed by the CPU.  This is typically used to protect critical sections of code from interruption or during system shutdown or low-power states. **Example:**
-
-    ```baremetal
-    @arc arm {
-        function void criticalSection() { // Example critical section function
-            #disableInterrupts; // Disable global interrupts - Enter critical section - Prevent interrupts from occurring during this code block
-            // ... performance-critical or time-sensitive code that must execute atomically without interruption ... - Code that should not be interrupted by interrupts
-            // Example: Updating shared data structures, performing time-critical operations, accessing hardware resources that require exclusive access
-            #operation memoryBarrier fullFence; // Memory barrier - ensure all operations within the critical section are completed before re-enabling interrupts
-            #enableInterrupts; // Re-enable global interrupts - Exit critical section - Restore normal interrupt processing
-        }
-    }
-    ```
-    In this example, `#disableInterrupts;` and `#enableInterrupts;` directives are used to define a critical section.  Interrupts are disabled before entering the critical section to ensure that the code within the section executes without interruption from hardware interrupts, and then re-enabled after exiting the critical section to restore normal interrupt processing.  **Caution:** Disabling interrupts should be done sparingly and for short durations only, as prolonged interrupt disabling can negatively impact system responsiveness and real-time behavior.
-
-*   **`#clearInterruptFlag Identifier ;` (Clear Interrupt Flag):** The `#clearInterruptFlag Identifier;` directive is used to clear a specific interrupt flag. Interrupt flags are typically hardware status bits that indicate that an interrupt event has occurred. Clearing the interrupt flag is often necessary within an ISR to acknowledge the interrupt and allow subsequent interrupts of the same type to be recognized.  The `Identifier` in `#clearInterruptFlag Identifier;` typically refers to a conceptual register or MMR Block member representing the interrupt flag register.  **Example:**
-
-    ```baremetal
-    @arc arm {
-        mmrBlock UartRegistersType Uart0 @address(0x40001000); // Example UART MMR Block - assumes UART0 is memory-mapped at address 0x40001000
-            bitfield InterruptStatusBits InterruptStatusRegister : offset(0x04) { // Bitfield for Interrupt Status Register
-                ReceiveDataReadyFlag boolean : bits(0..0); // Receive Data Ready interrupt flag - bit 0 of InterruptStatusRegister
-            }
-            volatile register raw byte DataRegister : offset(0x00); // UART Data Register - register for data transmission/reception
-        }
-
-        function void Uart0_IRQHandler() interrupt { // UART0 Interrupt Service Routine - function to handle UART0 interrupts
-            if (Uart0.InterruptStatusRegister.ReceiveDataReadyFlag) { // Check if Receive Data Ready flag is set in the Interrupt Status Register
-                raw byte receivedByte = Uart0.DataRegister; // Read received byte from UART data register - clears the data available condition in some UARTs
-                processReceivedByte(receivedByte); // Process the received byte (example function - application-specific byte handling)
-                #operation clearInterruptFlag Uart0.InterruptStatusRegister.ReceiveDataReadyFlag; // Clear the Receive Data Ready interrupt flag - Acknowledge the interrupt condition, allowing new receive interrupts
-            }
-            // ... other interrupt handling logic within the UART0 ISR ... - Handle other UART interrupt sources if needed
-        }
-    }
-    ```
-    In this example, `#operation clearInterruptFlag Uart0.InterruptStatusRegister.ReceiveDataReadyFlag;` is used within the `UART0_IRQHandler` ISR to clear the `ReceiveDataReadyFlag` in the `Uart0.InterruptStatusRegister` MMR Block. This acknowledges the UART receive data ready interrupt and allows the UART peripheral to generate further receive data ready interrupts.  **It is crucial to clear interrupt flags within ISRs to prevent the same interrupt from being repeatedly triggered and causing a system lockup or infinite interrupt loop.** The specific identifier used in `#clearInterruptFlag` must correspond to a bitfield member within an MMR Block or a conceptual register that accurately represents the interrupt flag register of the target hardware peripheral.  Refer to the hardware documentation for the specific peripheral to identify the correct interrupt flag to clear within the ISR.
-
-### 9. Bootstrapping and Low-Level Programming
-
-#### 9.1 Bootstrapping with `@boot` Functions
-
-`@boot` attributed functions are the primary and recommended mechanism for expressing boot code and early initialization sequences in BML.  `@boot` functions are regular BML functions with the `@boot` attribute, signaling to the compiler that these functions are part of the system bootstrap process and require special compilation treatment for early execution. `@boot` functions are designed to replace hand-written assembly boot code in most bare metal scenarios, offering a higher-level, type-safe, and maintainable alternative for expressing low-level system initialization logic.
-
-**Key Characteristics of `@boot` Functions:**
-
-*   **Designation as Boot Code:** The `@boot` attribute explicitly marks a function as part of the system boot sequence. The BML compiler recognizes `@boot` attributed functions and ensures they are included in the boot code section of the generated executable. The `@boot` attribute acts as a marker for the compiler to treat these functions specially during compilation and linking, placing them in the appropriate memory sections for early execution during system startup.
-*   **Early Execution:** `@boot` functions are designed to be executed very early in the system startup process, typically before the main application code or operating system kernel (if any) is initialized. They are intended for performing essential hardware initialization tasks, setting up the system environment, and transitioning control to the main application or OS.  `@boot` functions are the *first BML code* to run after the minimal architecture-specific setup performed in `archCodeBlock bootEntry`. They are responsible for bringing up the system to a state where the main application or OS can take over.
-*   **Restricted Environment:** `@boot` functions execute in a more restricted environment compared to regular BML functions.  During the early boot process, certain runtime services or libraries might not be fully initialized or available.  `@boot` functions should typically rely on core BML language features, `#operation` directives for hardware access, and minimal runtime library dependencies to ensure they can execute correctly in the early boot environment.  Avoid using complex data structures, dynamic memory allocation, or extensive library dependencies within `@boot` functions to minimize overhead and ensure predictable behavior in the limited boot environment.
-*   **No Operating System Dependencies:** `@boot` functions are designed to be independent of any operating system or runtime environment. They are intended to execute directly on the bare metal hardware, without relying on OS services or abstractions.  This makes `@boot` functions suitable for implementing bootloaders, firmware initialization routines, and the initial stages of bare metal operating systems. `@boot` functions provide the foundation upon which a bare metal OS or application can be built, without assuming the presence of any OS services.
-*   **Full BML Function Syntax:** Despite their specialized nature, `@boot` functions utilize the full BML function syntax, including parameters, return types, local variables, control flow statements, and calls to other BML functions (including other `@boot` functions).  This allows developers to express boot logic in a high-level, structured, and readable manner, compared to writing raw assembly code for bootstrap sequences.  `@boot` functions offer the expressiveness and type safety of BML for even the most critical low-level system initialization code, significantly improving the developer experience compared to assembly language.
-
-**Example (`@boot` Functions):**
-
-```baremetal
-bootRegions { // Boot code region declaration - defines the memory section for boot code
-    bootCodeRegion { // Boot code memory region - code within this block is placed in the boot code section
-        @boot function void initializeClock() -> boolean { // @boot function - Clock initialization routine
-            #operation initializeClockHardware; // Hardware clock initialization directive - architecture-abstracted operation to init clock
-            if (!Clock.StatusRegister.isClockStable()) { // Check clock stability using MMR Block access - accessing Clock peripheral registers via MMR Block
-                uartSendString("Clock initialization failed!\n"); // Minimal error reporting - UART output (if UART is already initialized minimally)
-                return false; // Indicate initialization failure - return boolean status
-            }
-            uartSendString("Clock initialized successfully.\n"); // Indicate initialization success
-            return true; // Indicate successful initialization - return boolean status
-        }
-
-        @boot function void initializeMemory() -> boolean { // @boot function - Memory initialization routine
-            #operation initializeMemoryController; // Memory controller initialization directive - architecture-abstracted operation to init memory controller
-            if (!MemoryController.StatusRegister.isMemoryReady()) { // Check memory ready status using MMR Block - accessing Memory Controller registers via MMR Block
-                uartSendString("Memory initialization failed!\n"); // Minimal error reporting - UART output (if UART minimally initialized)
-                return false; // Indicate initialization failure - return boolean status
-            }
-            uartSendString("Memory initialized successfully.\n"); // Indicate initialization success
-            return true; // Indicate successful initialization - return boolean status
-        }
-
-        @boot function void initializeInterrupts() -> void { // @boot function - Interrupt system initialization routine
-            #operation initializeInterruptController; // Interrupt controller initialization directive - architecture-abstracted operation to init interrupt controller
-            interruptVectorRegion { // Configure interrupt vector table within boot code - vector table entries within boot code region
-                #interruptVector 0, Reset_Handler; // Vector 0: Reset Handler - vector table entry for Reset interrupt
-                #interruptVector 1, NMI_Handler; // Vector 1: NMI Handler - vector table entry for NMI interrupt
-                #interruptVector 2, HardFault_Handler; // Vector 2: HardFault Handler - vector table entry for HardFault interrupt
-                // ... more vector entries for other exception handlers or interrupt sources ...
-            }
-            #operation enableInterrupts; // Enable global interrupts - architecture-abstracted operation to enable interrupts
-            uartSendString("Interrupts initialized and enabled.\n"); // Indicate interrupt system initialization completion
-        }
-
-        @boot function void bootLoader() { // @boot function - Main boot loader function - orchestrates the boot sequence
-            uartSendString("Bootloader starting...\n"); // Start of bootloader sequence - minimal boot status output
-
-            if (!initializeClock()) { // Call boot function - Clock initialization - check return status for error handling
-                #operation setLedError; // Indicate error via LED - minimal hardware error indicator (hypothetical operation)
-                goto bootErrorHandlerLabel; // Jump to error handler label within boot code - direct jump for error handling in boot
-            }
-            if (!initializeMemory()) { // Call boot function - Memory initialization - check return status for error handling
-                #operation setLedError; // Indicate error via LED - minimal hardware error indicator
-                goto bootErrorHandlerLabel; // Jump to error handler label within boot code - direct jump for error handling in boot
-            }
-            initializeInterrupts(); // Call boot function - Interrupt initialization - no return status check in this example, assuming non-critical for boot
-
-            uartSendString("Bootloader initialization complete. Jumping to application...\n"); // Bootloader success message
-
-            #operation jumpToApplicationStartAddress ApplicationStartAddressConstant; // Jump to main application start address - Transfer control to application code - architecture-abstracted jump operation
-            return; // Should not reach here (bootloader should transfer control to application) - placeholder return
-
-        bootErrorHandlerLabel: // Error handler label in boot code - target for error jumps within bootloader
-            uartSendString("Bootloader error occurred!\n"); // Error message - minimal error reporting
-            #operation disableInterrupts; // Disable interrupts in error state - safety measure in error handler
-            #operation setLedError; // Indicate error via LED - hardware error indicator
-            while (true) {}; // Infinite loop - System halt in error state - prevent further execution after boot error
-        }
-
-        archCodeBlock bootEntry @arc arm { // Boot entry point - Raw machine code block - architecture-specific initial entry point
-            conceptualRegisters { register %stackPointer : address; register %programCounter : codeAddress; } // Conceptual registers - abstract registers for stack pointer and program counter
-            declarations {
-                const bootConstant address stackTopAddress = 0x20001000; // Boot constant - Stack top address - defined in boot data region
-                const bootConstant codeAddress bootLoaderStartAddress = bootLoader; // Boot constant - Bootloader start address - address of 'bootLoader' function
-                const bootConstant address applicationStartAddress = 0x00010000; // Boot constant - Application start address - address where main application is loaded
-            }
-            statements {
-                #operation register %stackPointer = stackTopAddress; // Initialize stack pointer register - set stack pointer to pre-defined top address
-                #operation register %programCounter = bootLoaderStartAddress; // Set program counter to bootLoader function address - set PC to start executing 'bootLoader' function
-                #operation instruction sequence "bx %programCounter;"; // ARM branch instruction to start bootLoader - Execute branch instruction to jump to bootloader code - ARM-specific instruction
-            }
-        } // End archCodeBlock bootEntry
-    } // End bootCodeRegion
-} // End bootRegions
-```
-
-In this comprehensive example, several `@boot` attributed functions are defined within the `bootCodeRegion`: `initializeClock()`, `initializeMemory()`, `initializeInterrupts()`, and `bootLoader()`.  The `bootLoader()` function orchestrates the boot sequence, calling other `@boot` functions to initialize different system components.  Error handling is implemented using conditional checks and `goto` to a dedicated `bootErrorHandlerLabel` within the boot code.  The `archCodeBlock bootEntry` (discussed below) is used to define the very first entry point of the boot code, which initializes the stack pointer and jumps to the `bootLoader()` function to begin the higher-level BML boot sequence.  This example showcases a typical structure of a BML bootloader, using `@boot` functions for high-level initialization logic and `archCodeBlock` for the minimal, architecture-specific entry point.  The use of `goto` in boot code, while generally discouraged elsewhere, is considered acceptable for localized error handling and control flow within `@boot` functions, where structured exception handling might not be feasible or desirable in the early boot environment.
-
-#### 9.2 Architecture Code Blocks (`archCodeBlock`)
-
-`archCodeBlock Identifier @arc architectureName { ... }` (or `archBlock`) provides a dedicated mechanism to embed raw, architecture-specific machine code *representations* for highly specialized low-level initialization routines, bootstrap loaders, or performance-critical code sections where ultimate fine-grained control over machine instructions is absolutely necessary.  `archCodeBlock` allows developers to drop down to a level closer to assembly language within BML, while still benefiting from some of BML's structured syntax and type system.  `archCodeBlock` is primarily intended for implementing the *very first entry point* of bootloaders or for implementing highly specialized, performance-critical routines that are extremely sensitive to instruction-level details.  **For most hardware interaction and low-level programming tasks, MMR Blocks, `#operation` directives, and `@boot` functions provide sufficient control and abstraction without resorting to `archCodeBlock`.  Use `archCodeBlock` sparingly and only when absolutely necessary for those exceptional low-level scenarios where no higher-level BML abstraction is adequate.**
-
-**Key Characteristics of `archCodeBlock`:**
-
-*   **Raw Machine Code Representation:**  `archCodeBlock` allows developers to express code using a *representation* of machine instructions, rather than directly writing raw binary machine code bytes.  The BML compiler backend is responsible for translating these instruction representations into actual machine code for the target architecture.  This representation is still architecture-specific but provides a slightly higher level of abstraction than raw binary, enhancing readability and maintainability compared to embedding raw bytes directly.  `archCodeBlock` provides a symbolic assembly-like syntax for expressing machine instructions, making it more manageable and less error-prone than hand-crafting raw binary code, while still giving developers fine-grained control over the generated machine code when absolutely needed.
-
-*   **Architecture-Specific Syntax (`@arc`):**  `archCodeBlock` is always associated with a specific target architecture using the `@arc architectureName` clause. The code within an `archBlock` is inherently architecture-specific and will only be compiled when targeting the designated architecture.  Each `archCodeBlock` must be placed within an `@arc` block to specify the target architecture for which the embedded machine code is intended.  The `architectureName` (e.g., `arm`, `riscv`, `x86`) must match a supported BML architecture identifier.
-
-*   **Conceptual Registers (`conceptualRegisters { ... }`):**  Within an `archBlock`, developers can utilize *conceptual registers* (`conceptualRegisters { register %registerName : DataType; ... }`) to represent processor registers in an architecture-abstracted way.  Conceptual registers are symbolic names (prefixed with `%`) that are mapped to physical registers of the target architecture by the compiler backend.  This abstraction enhances portability even within `archCodeBlock` code, as developers can use conceptual register names that remain consistent across different architectures, while the compiler handles the architecture-specific register mapping.  Conceptual registers provide a layer of indirection, allowing developers to write `archCodeBlock` code that is *somewhat* less tied to the specific physical register names of a particular architecture variant.
-
-*   **Restricted Boot Statements (`BootStatement`):**  The code within an `archBlock` is expressed using a restricted set of *boot statements* (`BootStatement`) that are specifically designed for low-level operations.  `BootStatement`s typically include:
-    *   **`BootRegisterDirectiveStatement`:**  For manipulating conceptual registers (e.g., `#operation register %stackPointer = stackTopAddress;`). Allows for writing values to and reading values from conceptual registers, enabling register initialization and data manipulation.
-    *   **`BootMemoryDirectiveStatement`:** For load and store operations to memory addresses (e.g., `#operation memoryStore word 0x20000000, %dataRegister;`).  Provides basic memory access capabilities for loading data from memory into registers and storing register values to memory.  `BootMemoryDirectiveStatement` is limited to `byte`, `word`, `dword`, and `qword` data sizes, reflecting typical low-level memory access granularities.
-    *   **`BootOperationDirectiveStatement`:** For invoking architecture-abstracted operations (limited set of operations suitable for boot code).  Currently, the primary `BootOperationDirectiveStatement` is `#operation memoryBarrier fullFence;`, which allows for inserting memory barriers within boot code to enforce memory ordering, crucial in multi-core or cached systems during early initialization.
-    *   **`BootControlFlowStatement`:** For basic control flow within boot code, including label definitions (`LabelDefinition`), unconditional jumps (`JumpStatementDirective`), and conditional jumps (`ConditionalJumpStatementDirective`). Provides essential control flow primitives for boot code logic, including direct jumps to memory addresses (`jump`) and conditional branching based on processor condition codes (`jumpIf`).
-    *   **`Comment` and `EmptyStatement`:** For code documentation and empty statements.  Comments (`//` and `/* ... */`) allow for adding explanatory notes to `archCodeBlock` code, improving readability. `EmptyStatement` (`;`) allows for no-operation statements or for structural placeholders in the code.
-    *   **`RawBinaryDirectiveStatement`:** For embedding raw binary data directly within the boot code (`#rawBinary`). Allows for embedding pre-computed binary data or architecture-specific instruction encodings directly into the boot code stream.
-
-    This restricted set of statements ensures that code within `archCodeBlock` remains deterministic, predictable, and suitable for the highly constrained environment of early boot code.  The limited instruction set and statement types are intentionally chosen to minimize complexity and ensure that `archCodeBlock` code remains focused on essential low-level initialization tasks, without attempting to implement complex application logic within these raw code blocks.  For more complex boot logic, `@boot` functions and higher-level BML constructs are strongly recommended.
-
-*   **`exactInstr { ... }` Block: Direct Machine Instruction Embedding (Last Resort Feature). WARNING: EXTREME CAUTION REQUIRED:** `exactInstr` is a powerful but extremely low-level feature that should be used sparingly and only when absolutely necessary. Prioritize higher-level BML constructs and `#operation` directives whenever possible for better portability, maintainability, and compiler optimization benefits.  Thoroughly document and justify the use of `exactInstr` when it is deemed essential. Overuse is **STRONGLY DISCOURAGED**. It is **inherently architecture-specific** and reduces portability. It increases code **complexity and maintenance burden**. It **bypasses compiler optimizations**. Debugging can be **more challenging**.  Within `archCodeBlock`, the `exactInstr { ... }` block allows developers to embed precise sequences of machine instruction *representations* directly within the boot code, providing ultimate fine-grained control over the generated machine code when absolutely necessary.
-
-    **`exactInstr` within `archCodeBlock` (Clarification):**
-
-    **The `exactInstr` (using `exactInstr { ... }` within `archCodeBlock`) is intended for *extremely rare and highly specialized situations* where developers need absolute and direct control over the precise sequence of machine instructions generated by the compiler.  This feature should be considered a *last resort* and used with **extreme caution** due to its inherent architecture-specificity, potential for reduced code portability, and increased code complexity.**  `exactInstr` is provided as an "escape hatch" for those very exceptional scenarios where no higher-level BML abstraction can achieve the required level of low-level control or performance.
-
-    **Intended Use Cases (Extremely Limited):**
-
-    *   **Hand-Tuned Performance Critical Kernels:** In highly specialized performance-critical routines (e.g., inner loops of DSP algorithms, extremely time-sensitive interrupt handlers) where even compiler optimizations might not achieve the absolute peak performance achievable with hand-crafted assembly, `exactInstr` *might* be considered. **However, thorough benchmarking and profiling are essential to justify its use, as compiler optimizations are often surprisingly effective and may outperform manually written assembly in many cases.**  Before resorting to `exactInstr` for performance reasons, always exhaustively explore BML's higher-level optimization features, CAM-driven optimizations, and data layout attributes to see if performance goals can be met without sacrificing portability and maintainability.
-    *   **Workarounds for Specific Hardware Quirks:** In rare cases, specific hardware might have undocumented behavior or require very particular instruction sequences to function correctly. `exactInstr` *could* be used to implement these highly specific hardware workarounds. **However, this approach should be thoroughly documented and considered a temporary solution, as it is tightly coupled to specific hardware revisions and is not a robust long-term solution. Consider reporting hardware quirks to the hardware vendor and exploring alternative, more portable solutions if possible.**
-    *   **Implementing Very Low-Level Bootstrap Code (Beyond `#operation` Abstraction):** For the very earliest stages of system bootstrap, before even the `#operation` directive abstractions are fully initialized or available, `exactInstr` *could* be used to implement minimal, architecture-specific initialization sequences. **However, even in boot code, higher-level BML constructs and `#operation` directives are generally preferred for readability and maintainability whenever possible. Only use `exactInstr` for the absolute minimum necessary instructions at the very beginning of the boot sequence, and prefer `@boot` functions and higher-level BML code for the rest of the boot process.**  `archCodeBlock bootEntry` itself should generally contain a minimal amount of `exactInstr` code, primarily for setting up the initial stack pointer and jumping to the higher-level BML bootloader logic implemented in `@boot` functions.
-
-    **Limitations and Cautions:**
-
-    *   **Architecture-Specificity:** `exactInstr` code is **inherently architecture-specific**. The syntax within `exactInstr` is a symbolic representation of assembly instructions but is tied to the target architecture specified by the `@arc` block. Code using this feature will **NOT be portable** across different architectures.  `exactInstr` code written for ARM will not compile or execute on RISC-V or x86, for example.
-    *   **Reduced Portability:**  Overuse of `exactInstr` will significantly reduce the portability of BML code. Code relying heavily on this feature will be tightly bound to a specific target architecture and potentially even a specific CPU microarchitecture variant.  Excessive use of `exactInstr` defeats one of the core goals of BML, which is to improve code portability compared to assembly language.
-    *   **Increased Complexity and Maintenance Burden:**  Writing and maintaining assembly code directly within BML increases code complexity and the maintenance burden.  Assembly code is generally less readable and more error-prone than higher-level BML code.  `exactInstr` code is harder to understand, debug, and modify compared to equivalent BML code using higher-level abstractions.
-    *   **Compiler Optimization Bypass:**  `exactInstr` effectively bypasses the BML compiler's optimization pipeline for the embedded assembly instructions.  While this provides fine-grained control, it also means that the compiler cannot apply its optimizations to this code section, and developers are solely responsible for ensuring its performance and correctness.  Code within `exactInstr` blocks will not benefit from BML's automatic optimization passes, CAM-driven optimizations, or other compiler-level performance enhancements.
-    *   **Debugging Challenges:** Debugging code within `exactInstr` can be more challenging than debugging regular BML code. Source-level debugging might be limited or unavailable for embedded assembly instructions, requiring developers to rely on assembly-level debuggers or hardware debuggers.  Stepping through `exactInstr` code might require using instruction-level debuggers or hardware debuggers, which are typically more complex to use than source-level debuggers.
-
-    **`InstructionRepresentation` and `OperandList` within `exactInstr`:**
-
-    The `InstructionRepresentation` within `exactInstr` allows you to represent individual machine instructions using a symbolic form.  It consists of:
-
-    *   **`"instruction"` Keyword:**  Indicates the start of an instruction representation within the `exactInstr` block.
-    *   **Instruction Mnemonic (StringLiteral or Identifier):**  Specifies the assembly instruction mnemonic (e.g., `"ldr"`, `"mov"`, `"add"`, `"bx"`). This can be provided as a `StringLiteral` (e.g., `"ldr"`) or, in future versions, potentially as an `Identifier` representing a predefined instruction mnemonic.  The instruction mnemonic should be a valid instruction mnemonic for the target architecture specified by the surrounding `@arc` block.
-    *   **Optional `OperandList`:**  A comma-separated list of operands for the instruction.  If the instruction requires operands (e.g., source and destination registers, immediate values, memory addresses), these are specified in the `OperandList`. If the instruction does not require operands (e.g., some no-operation instructions or simple control flow instructions), the `OperandList` can be omitted.
-
-    The `OperandList` consists of one or more `Operand`s, separated by commas.  An `Operand` can be:
-
-    *   **`RegisterName` (Conceptual Register):**  A conceptual register name (e.g., `%stackPointer`, `%dataRegister`) declared within the `conceptualRegisters { ... }` block of the `archCodeBlock`.  Conceptual registers provide symbolic names for physical registers, improving readability and allowing the compiler to handle architecture-specific register mappings.
-    *   **`ImmediateValue` (Constant Expression):** A constant expression representing an immediate value to be encoded in the instruction (e.g., `0x1234`, `10`, `stackTopAddress`). Immediate values are typically used as constants embedded directly within machine instructions.  `ImmediateValue` takes a `ConstantExpression` as a parameter, allowing for compile-time constant calculations to be used as immediate operands.
-    *   **`MemoryOperand` (Memory Address):**  A memory operand represented as `MemoryOperand([ BootAddress ])`, where `BootAddress` is a `ConstantExpression` or `MemoryAddressing` expression specifying a memory address. `MemoryOperand` is used to specify memory addresses as operands for load and store instructions, allowing for direct memory access within `exactInstr` code. `MemoryOperand` takes a `BootAddress` expression (which can be a constant address or a more complex addressing mode expression) enclosed in square brackets `[]`.  `RegisterName("registerName")` can be used within `MemoryOperand` to indicate register-indirect addressing (e.g., `MemoryOperand([RegisterName("r0")])` for `[r0]` addressing mode).
-
-    **Example (Clarified `exactInstr`):**
-
-    ```baremetal
-    bootCodeRegion {
-        archCodeBlock bootEntry @arc arm { // archCodeBlock for boot entry point - ARM architecture
-            conceptualRegisters { // Declare conceptual registers used in this archCodeBlock
-                register %stackPointer : address; // Conceptual stack pointer register
-                register %dataRegister : uint32;  // Conceptual data register
-                register %loopCounter : uint32; // Conceptual loop counter register
-            }
-            declarations {
-                const bootConstant address stackTopAddress = 0x20001000; // Boot constant - Stack top address - defined in boot data region
-                const bootConstant uint32 dataStartAddress = 0x20000100; // Boot constant - Data start address - example data address
-            }
-            statements {
-                #operation register %stackPointer = stackTopAddress; // Initialize stack pointer register - using #operation register directive
-
-                // Example of exactInstr block - embedding raw instruction representations (USE WITH EXTREME CAUTION):
-                exactInstr {
-                    instruction "mov" , %stackPointer , ImmediateValue(stackTopAddress) ; // Instruction 1: Represent 'mov sp, stackTopAddress' - ARM move instruction to set stack pointer
-                    instruction "ldr" , "r0", ImmediateValue(0x12345678) ; // Instruction 2: Represent 'ldr r0, =0x12345678' - ARM load register instruction with immediate value (literal pool)
-                    instruction "mov" , "r1" , ImmediateValue(0x42) ;      // Instruction 3: Represent 'mov r1, #0x42' - ARM move instruction with immediate value (short immediate)
-                    instruction "str" , "r1" , MemoryOperand([RegisterName("r0")]) ; // Instruction 4: Represent 'str r1, [r0]' - ARM store register-indirect instruction (store r1 to memory address pointed to by r0)
-                    instruction "loop_start_label:"; // Label within exactInstr block - instruction label (purely symbolic, not a BML label)
-                    instruction "add" , %loopCounter, %loopCounter, ImmediateValue(1); // Instruction 5: Example - increment loop counter register
-                    instruction "cmp" , %loopCounter, ImmediateValue(10); // Instruction 6: Example - compare loop counter to 10
-                    instruction "blt" , "loop_start_label"; // Instruction 7: Example - branch if less than (conditional jump to label within exactInstr) - ARM branch less than instruction
-                    instruction "bx" , "lr" ;                               // Instruction 8: Represent 'bx lr' - ARM branch exchange instruction for function return
-                }
-                // ... rest of boot code in BML (using higher-level constructs and #operation directives) ... - Continue bootloader logic in BML after exactInstr block
-            }
-        }
-    }
-    ```
-
-    **In summary, `exactInstr` is a powerful but extremely low-level feature that should be used sparingly and only when absolutely necessary. Prioritize higher-level BML constructs and `#operation` directives whenever possible for better portability, maintainability, and compiler optimization benefits.  Thoroughly document and justify the use of `exactInstr` when it is deemed essential.**  `exactInstr` is intended for expert users who require ultimate control over machine code generation in very specific and performance-critical situations, and who are fully aware of the trade-offs in terms of portability, maintainability, and debugging complexity. For most bare metal development tasks, BML's higher-level features and abstractions provide a more productive and safer development approach.
-
-#### 9.3 Boot Code Regions (`bootCodeRegion`, `bootDataRegion`, `interruptVectorRegion`)
-
-Boot code regions are essential for organizing and managing the critical code and data required for system initialization. BML provides dedicated memory regions specifically for boot code and related data, allowing developers to explicitly segment boot-related code and data and control their placement in memory.  These boot code regions are typically defined within a `bootRegions { ... }` block in the BML source file.  Boot code regions are used to define the memory layout and organization of the system's boot firmware, ensuring that boot components are placed in the correct memory locations and have the appropriate memory attributes (e.g., read-only, execute-only).
-
-*   **`bootCodeRegion { ... }`:**  The `bootCodeRegion { ... }` block defines a memory segment specifically for boot code.  `archCodeBlock` instances, `@boot` attributed functions, and potentially other boot-related declarations are typically placed within the `bootCodeRegion`. Code within this region is intended to be placed in a dedicated memory section (e.g., ROM, Flash) that is executed during the early boot process.  The `bootCodeRegion` typically contains the executable instructions of the bootloader, system initialization routines, and interrupt vector table setup code.  **Example:**
-
-    ```baremetal
-    bootCodeRegion { // bootCodeRegion block - defines the boot code memory segment
-        archCodeBlock bootEntry @arc arm { /* ... boot entry archBlock code ... */ } // Boot entry point - raw machine code block
-        @boot function void bootLoader() { /* ... boot loader function code ... */ } // Boot loader function - higher-level boot logic
-        @boot function bool initializeClock() -> bool { /* ... clock initialization code ... */ } // Boot function - Clock initialization routine
-        interruptVectorRegion { /* ... interrupt vector table configuration ... */ } // Interrupt vector table - placed within boot code region
-        // ... more boot code declarations (functions, archBlocks) ...
-    } // End bootCodeRegion
-    ```
-
-*   **`bootDataRegion { ... }`:** The `bootDataRegion { ... }` block defines a memory segment for boot-specific data.  `bootConstant` qualified constants and potentially other boot-related data declarations can be placed within the `bootDataRegion`. Data in this region is intended to be placed in a dedicated memory section (e.g., ROM, Flash) that is accessible during the early boot process, even before the main data regions are fully initialized.  `bootDataRegion` is used to store read-only data that is essential for the boot process, such as initial stack pointers, bootloader version information, or hardware configuration parameters that are fixed and do not change during runtime. **Example:**
-
-    ```baremetal
-    bootDataRegion { // bootDataRegion block - defines the boot data memory segment
-        const bootConstant address stackTopAddress = 0x20001000; // Boot constant - Stack top address - placed in boot data region
-        const bootConstant codeAddress applicationStartAddress = 0x00010000; // Boot constant - Application start address - placed in boot data region
-        const bootConstant uint32 bootloaderVersion = 0x0100; // Boot constant - Bootloader version - placed in boot data region
-        safeArray<uint8, 16> bootloaderName = "MyBootloader v1.0"; // Safe array in boot data region - read-only bootloader name string
-        // ... more boot data declarations (constants, read-only data structures) ...
-    } // End bootDataRegion
-    ```
-
-*   **`interruptVectorRegion { ... }`:** The `interruptVectorRegion { ... }` block defines a memory segment specifically for the interrupt vector table.  `#interruptVector` directives are placed within this region to configure the interrupt vector table entries, associating interrupt vector numbers with ISR function addresses. The interrupt vector table is a critical data structure for interrupt handling and must be located at a specific, architecture-defined memory address during boot. The `interruptVectorRegion` ensures that the interrupt vector table is placed in the correct location in memory, as required by the target processor's interrupt handling architecture. **Example:**
-
-    ```baremetal
-    interruptVectorRegion { // interruptVectorRegion block - defines the interrupt vector table memory segment
-        #interruptVector 0, Reset_Handler; // Vector 0: Reset Handler - vector table entry for Reset interrupt
-        #interruptVector 1, NMI_Handler; // Vector 1: NMI Handler - vector table entry for NMI interrupt
-        #interruptVector 2, HardFault_Handler; // Vector 2: HardFault Handler - vector table entry for HardFault interrupt
-        #interruptVector 24, UART0_IRQHandler; // Vector 24: UART0 Interrupt Handler - vector table entry for UART0 interrupt
-        // ... more interrupt vector table entries for exception handlers and peripheral interrupts ...
-    } // End interruptVectorRegion
-    ```
-
-*   **`bootRegions { ... }` Block (Grouping Boot Regions):** The `bootRegions { ... }` block is used to group together the `bootCodeRegion`, `bootDataRegion`, and `interruptVectorRegion` declarations, providing a structured way to organize all boot-related memory segments within a BML source file.  The `bootRegions` block acts as a container for all memory regions specifically related to the boot process, improving code organization and clarity. It is typically placed at the top level of the BML source file, before other region declarations or application code. **Example:**
-
-    ```baremetal
-    bootRegions { // Boot regions block - container for all boot-related memory regions
-
-        bootCodeRegion { // Boot code memory region - contains executable boot code
-            archCodeBlock bootEntry @arc arm { /* ... boot entry archBlock code ... */ } // Boot entry point
-            @boot function void bootLoader() { /* ... boot loader function code ... */ } // Boot loader logic
-            // ... other boot code functions and declarations ...
-        } // End bootCodeRegion
-
-        bootDataRegion { // Boot data memory region - contains read-only boot data
-            const bootConstant address stackTopAddress = 0x20001000; // Initial stack pointer
-            const bootConstant codeAddress applicationStartAddress = 0x00010000; // Application start address
-            // ... more boot data constants ...
-        } // End bootDataRegion
-
-        interruptVectorRegion { // Interrupt vector table region - contains interrupt vector table entries
-            #interruptVector 0, Reset_Handler; // Reset vector
-            #interruptVector 24, Uart0_IRQHandler; // UART0 interrupt vector
-            // ... more interrupt vectors ...
-        } // End interruptVectorRegion
-
-    } // End bootRegions block - all boot-related memory regions are grouped within 'bootRegions'
-    ```
-
-**Why Boot Code Regions are Essential for System Startup:** Dedicated boot code regions are crucial for organizing and managing the critical code and data required for system initialization:
-
-*   **Memory Segmentation and Placement Control:** Boot code regions allow developers to explicitly define separate memory segments for boot code, boot data, and the interrupt vector table. This provides fine-grained control over memory layout and ensures that boot-related components are placed in the correct memory locations (e.g., ROM, Flash, specific address ranges) as required by the target architecture's boot process.  The BML compiler and linker use the region information to place code and data in the designated memory sections during the final executable image generation.
-*   **Boot Sequence Organization:** Boot code regions help organize and structure the boot sequence. By placing `@boot` functions and `archCodeBlock`s within `bootCodeRegion`, developers clearly delineate the code that is part of the boot process from the main application code. This improves code readability and maintainability of boot-related code. The `bootRegions` block provides a logical grouping of all boot-related components, making it easier to understand and manage the boot process as a distinct part of the overall system codebase.
-*   **Separation of Boot Data:** `bootDataRegion` provides a dedicated segment for boot-specific constants and data that are needed during the early boot stages. This separates boot data from general application data and allows for placing boot constants (like stack top addresses, vector table base addresses) in read-only memory (e.g., ROM, Flash).  Data declared within `bootDataRegion` is typically intended to be read-only and persistent across system resets or power cycles, making it suitable for storing critical boot configuration parameters and initial values.
-*   **Interrupt Vector Table Configuration:** `interruptVectorRegion` is specifically designed for configuring the interrupt vector table, a critical data structure for interrupt handling. Placing `#interruptVector` directives within this region ensures that the vector table is correctly initialized and located at the architecture-defined vector table address.  The `interruptVectorRegion` ensures that the interrupt vector table is placed at the correct memory offset and with the proper alignment required by the target processor's interrupt controller.
-*   **Bootloader and Firmware Image Structure:** Boot code regions are essential for structuring bootloaders and firmware images. Bootloaders typically have distinct code and data sections that need to be placed at specific memory addresses for the system to boot correctly. Boot code regions facilitate the creation of well-structured bootloader and firmware binaries.  By using boot code regions, developers can create BML source code that directly mirrors the memory layout requirements of bootloaders and embedded firmware, simplifying the process of generating correct and bootable binary images.
-*   **Memory Protection (in Advanced Systems):** In more advanced embedded systems with memory protection units (MMUs), boot code regions can be used to set up memory protection attributes for boot code and data segments, enhancing system security and robustness during the boot process.  The compiler and linker can use the region information to generate memory map data or configuration tables that can be used by the bootloader or OS kernel to configure the MMU and enable memory protection for different memory regions, including boot code regions. This allows for isolating boot code and data in protected memory regions, preventing accidental or malicious modification of critical boot components.
-
-### 10. Tooling and Debugging Support
-
-#### 10.1  BML Tooling in Version 1.5: Command-Line Workflow (Production Ready Core)
-
-**Version 1.5 Tooling - Current State Clarification:** As of Version 1.5, the BML toolchain provides a foundational command-line workflow centered around the `bmlc` compiler. While advanced IDE integration and fully featured debuggers are planned for future versions (see roadmap in Section 10.2), the current tooling offers essential functionalities for bare metal development and is considered production-ready for command-line workflows. The minimum viable tooling set for BML Version 1.5 includes: the command-line `bmlc` compiler, basic source-level debugging with command-line GDB/LLDB, and the BML CAM Development Guide and a set of core CAMs (UartDriverCam, GpioCam, BasicMathCam, GenericVectorCam, etc.). Basic source-level debugging with GDB/LLDB for BML Version 1.5 (setting breakpoints, stepping through code, variable inspection, call stack examination) has been tested and is functional for command-line debugging.  **BML Version 1.5 is designed to be fully functional and productive within a command-line development environment, offering a robust foundation for bare metal programming.**
-
-*   **BML Command-Line Compiler (`bmlc`):** The `bmlc` compiler is the core component of the BML toolchain and the primary tool for BML users. It is a command-line tool that takes BML source files (`.bml`) as input and performs the complete compilation and linking process to generate executable binaries.  `bmlc` handles:
-    *   **Lexical Analysis and Parsing:**  Parses BML source code, handles `@arc` blocks based on `-target`, and fully supports Version 1.5 language features including Generics and Result Type, Compile-Time Reflection, Compile-Time Functions, and Data-Driven Code Generation. The `bmlc` compiler rigorously checks the syntax of BML code, ensuring adherence to the language grammar and providing detailed error messages for any syntax violations.
-    *   **CAM Integration and Optimization:**  Integrates CAMs, performs optimizations, and directly generates machine code and links the executable. (**`bmlc` handles assembly and linking internally - users do not need to invoke separate tools.**) `bmlc` automatically discovers and integrates CAMs used in a BML project via `#use module` directives, leveraging CAM-provided intrinsic functions and optimization passes to generate highly optimized machine code. The compiler performs all necessary steps from source code to executable binary in a single command invocation.
-    *   **Error Reporting and Diagnostics:** Provides informative and accurate error messages and warnings for syntax errors, type errors, semantic issues, and other potential problems in BML code, aiding developers in writing correct and robust programs.  `bmlc` is designed to provide clear and helpful error messages that pinpoint the location of errors in the source code and explain the nature
-*   **Error Reporting and Diagnostics:** Provides informative and accurate error messages and warnings for syntax errors, type errors, semantic issues, and other potential problems in BML code, aiding developers in writing correct and robust programs.  `bmlc` is designed to provide clear and helpful error messages that pinpoint the location of errors in the source code and explain the nature of the problem in a user-friendly manner. Error messages include:
-        *   **Source File and Line Number:** Error messages clearly indicate the source file name and line number where the error occurred, allowing developers to quickly locate the problematic code section.
-        *   **Error Type and Description:** Error messages provide a concise description of the type of error encountered (e.g., syntax error, type mismatch, undefined identifier) and a brief explanation of the cause of the error.
-        *   **Contextual Information:**  In some cases, the compiler provides contextual information within error messages to help developers understand the error in the surrounding code context. This might include showing the relevant code snippet or suggesting possible fixes.
-        *   **Warnings for Potential Issues:**  `bmlc` also issues warnings for potential code issues that are not strictly errors but might indicate potential problems or deviations from best practices. Warnings help developers identify and address code sections that could be improved for robustness, performance, or maintainability.
-        *   **Compile-Time Error Detection:** BML's strong static typing and semantic analysis capabilities allow `bmlc` to detect a wide range of errors at compile time, including type errors, scope errors, memory safety violations (where statically provable), and other common programming mistakes. Catching errors at compile time is crucial for improving code reliability and reducing debugging effort in bare metal development.
-
-    The `bmlc` compiler is invoked from the command line, typically with the following basic syntax:
-
-    ```bash
-    bmlc [options] <input_file.bml> -o <output_file.elf>
-    ```
-
-    Common `bmlc` command-line options include:
-
-    *   `-target <architecture>`: Specifies the target architecture for compilation (e.g., `armCortexM4`, `riscv64g`, `x86_64`).
-    *   `-g`:  Enables generation of debug information (DWARF format) for source-level debugging with GDB/LLDB.
-    *   `-S`:  Generates and outputs assembly code (in `.s` file) as an optional intermediate output for advanced users or compiler debugging only.
-    *   `-O<level>`:  Specifies optimization level (e.g., `-O0` for no optimization, `-O1`, `-O2`, `-O3` for increasing levels of optimization).
-    *   `-I<include_path>`: Adds an include path for CAM modules and header files.
-    *   `-L<library_path>`: Adds a library path for linking external libraries.
-    *   `-cam_path <cam_path>`: Specifies the path to the CAM module directory.
-    *   `-enable_ai`:  Enables experimental Abstract Interpretation-based memory safety analysis and runtime check elimination (preliminary feature - may increase compilation time).
-
-    **Example `bmlc` Compilation Commands:**
-
-    *   **Compile for ARM Cortex-M4 with Debugging Enabled and Output to `my_app_arm.elf`:**
-
-        ```bash
-        bmlc -target armCortexM4 -g my_application.bml -o my_application_arm.elf
-        ```
-
-    *   **Compile for RISC-V 64-bit with Optimization Level 2 and Output to `my_app_riscv.elf`:**
-
-        ```bash
-        bmlc -target riscv64g -O2 my_application.bml -o my_application_riscv.elf
-        ```
-
-    *   **Compile with CAM Modules from a Specific Directory (`./my_cams`) and Include Path (`./include`) for Header Files:**
-
-        ```bash
-        bmlc -target armCortexM4 -cam_path ./my_cams -I./include my_application.bml -o my_application_arm.elf
-        ```
-
-*   **Assembly Output Inspection (Optional, for Advanced Users):** The BML compiler provides an **optional** feature to generate and output the assembly code it produces as an **intermediate step** (before creating the final executable). This is intended **primarily for advanced users, compiler developers, or for very specific debugging or performance analysis needs, *not for the standard BML user workflow*.**  Developers can inspect this assembly output to verify compiler optimizations or analyze low-level code generation if required.  Use the `-S` flag with `bmlc` to generate assembly output (in `.s` file).
-
-    **Example: Generating Assembly Output:**
-
-    ```bash
-    bmlc -target armCortexM4 -S my_application.bml -o my_application_arm.elf
-    ```
-
-    This command will generate both the executable `my_application_arm.elf` *and* an assembly file (typically `my_application_arm.s` or similar, depending on the target architecture and output file naming conventions). You can then open and inspect the `.s` file with a text editor to examine the generated assembly code.
-
-*   **Basic Debugging with GDB/LLDB (Command-Line Debuggers):**  Basic source-level debugging is achievable using standard command-line debuggers like GDB (GNU Debugger) and LLDB (LLVM Debugger). The BML compiler (`bmlc`) generates debug information in DWARF format, which is compatible with GDB and LLDB.  Developers can:
-    *   **Set Breakpoints in BML Source:**  Set breakpoints directly in BML source code, including code using generics and Result types, at function entry points, within loops, or at specific lines of code.
-    *   **Step Through BML Code:** Step through the BML code line by line, observing the program flow at the source level, even within performance-critical data processing loops, generic functions, and error handling logic using `Result` types.
-    *   **Inspect BML Variables:** Inspect the values of BML variables (e.g., sensor readings, configuration parameters, driver state variables, including `Result` type instances and generic type instances) by name directly in the debugger's variable watch window, without needing to translate variable names to memory addresses or register names.
-    *   **Examine Call Stack:**  Inspect the function call stack to understand the sequence of function calls leading to the current point of execution, aiding in understanding program flow and call relationships, including calls within generic functions and CAMs.
-    *   **Mixed-Level Debugging for Hardware Interaction (Advanced):** When investigating hardware interaction issues **at a very granular level**, switch to assembly-level view within the debugger to examine the generated machine code for hardware access routines (e.g., register reads/writes using `#operation` or MMR Blocks), step through assembly instructions, and inspect register values at the hardware level.
-
-    **Basic GDB/LLDB Debugging Workflow Example (Command-Line):**
-
-    1.  **Compile with Debug Information:** Compile your BML code with the `-g` flag to generate debug information:
-
-        ```bash
-        bmlc -target armCortexM4 -g my_application.bml -o my_application_debug.elf
-        ```
-
-    2.  **Start GDB/LLDB (Example using GDB):**  Launch GDB (or LLDB) and load the executable:
-
-        ```bash
-        gdb my_application_debug.elf
-        ```
-
-    3.  **Set Breakpoints:** Set breakpoints in your BML source code using the `break` command followed by the function name or line number:
-
-        ```gdb
-        break mainFunction  // Break at the start of 'mainFunction'
-        break my_application.bml:50 // Break at line 50 of 'my_application.bml'
-        ```
-
-    4.  **Run the Program:** Start program execution using the `run` command:
-
-        ```gdb
-        run
-        ```
-
-        The program will execute until it hits a breakpoint.
-
-    5.  **Step Through Code:** Use stepping commands to control execution flow:
-        *   `next` (or `n`): Step to the next *line* of code (steps over function calls).
-        *   `step` (or `s`): Step into a function call.
-        *   `continue` (or `c`): Continue execution until the next breakpoint or program termination.
-
-    6.  **Inspect Variables:** Examine the values of BML variables using the `print` command (or `p`):
-
-        ```gdb
-        print counter  // Print the value of the variable 'counter'
-        print sensorValue // Print the value of 'sensorValue'
-        ```
-
-    7.  **Examine Call Stack:**  Inspect the function call stack using the `backtrace` (or `bt`) command:
-
-        ```gdb
-        backtrace
-        ```
-
-    8.  **Quit Debugger:** Exit GDB/LLDB using the `quit` command:
-
-        ```gdb
-        quit
-        ```
-
-    This basic workflow provides a foundation for source-level debugging of BML code using command-line debuggers. Refer to the documentation for GDB or LLDB for more advanced debugging commands and features.
-
-#### 10.2 Roadmap for Enhanced Tooling (Future Development)
-
-The BML project is committed to continuously improving the tooling and debugging experience for BML developers. The roadmap for future tooling development focuses on enhancing the `bmlc` compiler and IDE integration for a seamless and user-friendly workflow, further streamlining the development process without requiring users to interact with separate tools like assemblers or linkers:
-
-*   **BML IDE Plugin (VS Code, Eclipse):**  A dedicated BML IDE plugin is planned for popular IDEs like VS Code and Eclipse. This plugin will provide a rich development environment for BML, offering features such as:
-    *   **Syntax Highlighting and Code Completion:**  Enhanced text editor features with BML-specific syntax highlighting, intelligent code completion suggestions, and real-time error checking as you type.
-    *   **Integrated Build System:** Seamless integration with the BML compiler (`bmlc`), allowing developers to build and compile BML projects directly from within the IDE with a single click or command.  The IDE plugin will manage the compilation process and handle CAM integration automatically.
-    *   **Source-Level Debugger Integration:** Deep integration with source-level debuggers (GDB/LLDB) directly within the IDE. Developers will be able to set breakpoints in BML source code, step through code execution, inspect variables by name, examine the call stack, and perform other debugging operations directly within the IDE's graphical debugger interface.  The IDE plugin will simplify the debugging workflow and provide a visual debugging experience for bare metal BML development.
-    *   **CAM Management and Browsing:** Features for managing and browsing Composable Architecture Modules (CAMs). The IDE plugin will provide a CAM explorer or CAM catalog view, allowing developers to easily discover, browse, and integrate CAMs into their BML projects.  It will also provide features for configuring CAM parameters and managing CAM dependencies within the IDE.
-    *   **Refactoring and Code Navigation:**  Code refactoring tools for renaming variables, functions, and types, and code navigation features for quickly jumping to definitions, finding usages, and exploring BML codebases.
-
-*   **Enhanced Static Analysis Tools:**  Further enhancements to static analysis tools within the BML compiler are planned to improve compile-time error detection and memory safety verification. These enhancements may include:
-    *   **Deeper Abstract Interpretation:**  Continued development and integration of abstract interpretation techniques to enable more formal compile-time proofs of memory safety properties. Enhanced abstract interpretation will expand the compiler's ability to automatically eliminate runtime checks (e.g., `safeArray` bounds checks) in proven-safe code sections, achieving truly zero-overhead safety in wider portions of BML code.
-    *   **Improved Null Pointer Dereference Detection:**  Enhanced static analysis to more accurately detect potential null pointer dereferences at compile time, providing more precise warnings and preventing null pointer errors.
-    *   **Data Race Detection (Concurrency Analysis):**  Static analysis capabilities to detect potential data races in concurrent BML programs, helping developers write safer and more reliable multi-threaded code. Concurrency analysis may involve techniques like happens-before analysis or static data race detection algorithms.
-    *   **Contract Checking (Pre- and Post-Conditions):**  Implementation of compile-time contract checking based on function pre- and post-condition attributes (as discussed in Section 8.1). The compiler will attempt to statically verify function contracts, issuing warnings or errors if potential contract violations are detected at compile time.
-    *   **Integration with Formal Verification Tools:**  Potential integration with external formal verification tools or theorem provers to enable more rigorous formal verification of BML code, particularly for safety-critical embedded systems.
-
-*   **Integration with Bare Metal Build Systems and Toolchains:** BML tooling will be designed for seamless integration with existing bare metal build systems and toolchains, **with `bmlc` as the central compilation and build tool**.  This integration will allow BML to be incorporated into established embedded development workflows and ecosystems.  Integration efforts may include:
-    *   **Build System Integration (CMake, Make, etc.):**  Providing CMake modules, Makefiles, or other build system integration scripts to easily incorporate BML compilation into existing build processes for embedded projects. This will allow developers to use familiar build systems to manage BML projects and integrate BML code with code written in other languages (e.g., C, assembly).
-    *   **Toolchain Integration (GCC, LLVM, etc.):**  Ensuring compatibility and interoperability with standard embedded toolchains based on GCC, LLVM, or other compiler infrastructures. BML compiler output (e.g., object files, assembly code) will be designed to be compatible with standard toolchain components, allowing for seamless linking with existing C/C++ libraries or assembly code.
-    *   **Debugger Integration (GDB, LLDB):**  Maintaining and enhancing debugger integration with GDB and LLDB, ensuring that BML source-level debugging works smoothly with standard debugging tools used in embedded development.
-    *   **RTOS Integration:**  Providing guidelines and examples for integrating BML code and BML-based OS CAMs with Real-Time Operating Systems (RTOS). BML is designed to be RTOS-friendly, and integration efforts will focus on demonstrating how BML can be effectively used in RTOS-based embedded systems.
-
-**(Appendix: BML Toolchain Workflow - SIMPLIFIED - `bmlc` DIRECT TO EXECUTABLE - `bmlasm` REMOVED from User Flow)**
-
-The BML toolchain provides a streamlined workflow for compiling and building bare metal embedded applications, centered around the **`bmlc` command-line compiler as the single user-facing tool**.
-
-1.  **BML Source Code (`.bml` files) and CAM Modules (`.bml` or pre-compiled object files), now including code that leverages Generics and Result Types, Refinement Types, Capability-Based Regions, Stack-Only Allocation, Hardware Bounds Checking, Data-Layout Attributes, Compile-Time Reflection, Compile-Time Functions, and Data-Driven Code Generation.**
-2.  **BML Compiler (`bmlc`):**
-    *   Parses BML source, handles `@arc` blocks based on `-target`, and fully supports Version 1.5 language features including Generics and Result Type, Compile-Time Reflection, Compile-Time Functions, and Data-Driven Code Generation, Refinement Types, Capability-Based Regions, Stack-Only Allocation, Hardware Bounds Checking, and Data-Layout Attributes.
-    *   Integrates CAMs, performs optimizations (including optimizations specific to generic instantiations, refinement types, capability-based pointer types, stack-only allocation, hardware bounds checking, data-layout attributes, compile-time reflection, compile-time functions, and data-driven code generation), and **directly generates machine code and links the executable.** (**`bmlc` handles assembly and linking internally - users do not need to invoke separate tools.**)
-    *   Outputs the **final executable binary file** (e.g., `.elf` file).
-
-### 11. Standard Library and CAM Ecosystem
-
-#### 11.1 Minimal Core Standard Library - Zero Overhead Design
-
-BML, being a bare metal language, intentionally minimizes its core standard library to reduce runtime overhead and code footprint, which are critical in resource-constrained embedded systems.  The core standard library is designed with a **zero-overhead philosophy**, providing only the essential runtime functions and basic utilities that are architecture-independent and fundamental for bare metal programming.  This minimalist approach ensures that the core library itself does not become a source of performance bottlenecks or increase code size unnecessarily.  The BML core standard library is intended to be *lean and efficient*, providing only the absolute necessities for basic program execution and concurrency management, while relying on the CAM ecosystem for extended functionalities and domain-specific libraries.
-
-**Key Components of the BML Core Standard Library:**
-
-*   **Data Type Support Functions:** Basic functions for working with BML's built-in data types, such as:
-    *   **Integer Conversion Functions:** Functions for converting between different integer types (e.g., `toUint32(int16 value) -> uint32;`). These functions are type-safe and handle potential overflow or truncation issues based on the target data types.  **Example:** `toUint32(-10)` converts the `int16` value -10 to its `uint32` representation.  `toUint8(300)` might truncate the `int32` value 300 to fit within the `uint8` range (resulting in 44, due to modulo 256 behavior), and the compiler may issue a warning about potential data loss.
-    *   **Floating-Point Math Functions (Minimal Set):** A minimal set of essential floating-point math functions (e.g., `float32 sqrtf(float32 value) -> float32;`, `float64 sin(float64 value) -> float64;`).  For more comprehensive and performance-optimized math libraries, developers are expected to utilize specialized DSP CAMs or external libraries. The core standard library provides only a basic set of floating-point operations for fundamental mathematical tasks.  For more advanced math functionalities, such as trigonometric functions, exponential functions, logarithms, or more specialized numerical algorithms, developers should use dedicated math CAMs or link against external, optimized math libraries (e.g., libm for C).
-    *   **String Manipulation Functions (Basic Set):** Basic string manipulation functions for working with StringLiteral types (e.g., `uint32 stringLength(StringLiteral str) -> uint32;`, `char8 stringCharAt(StringLiteral str, uint32 index) -> char8;`). For more advanced string processing or text manipulation, developers can leverage CAM-provided text processing libraries or external C libraries if needed.  The core standard library provides only the most essential string operations, such as determining string length and accessing characters at a given index.  For more complex string operations like string concatenation, substring extraction, string searching, or text formatting, developers are expected to use CAMs or external string libraries.
-    *   **Tuple Manipulation Functions:** Functions for working with tuple types, primarily `tupleItemAt(tupleVariable, index) -> DataType;` for accessing tuple elements by index.  Tuple creation and destructuring are language constructs and do not require runtime library functions.  `tupleItemAt()` allows accessing tuple elements at runtime using a zero-based index.  Tuple creation (e.g., `tuple(value1, value2)`) and tuple destructuring (e.g., `tuple(var1, var2) = myTuple;`) are handled directly by the compiler and do not require separate runtime library functions.
-    *   **Result Type Support Functions (Version 1.4):**  Minimal runtime support for the `Result` type, primarily constructor functions `Ok(value)` and `Err(error)` to create `Result` instances.  Pattern matching for `Result` types may be added in future versions, but for Version 1.5, error handling with `Result` types is typically done using `if` statements and checks against `Result` instances. The core runtime library provides the basic infrastructure for creating and using `Result` types, but more advanced error handling patterns or exception-like mechanisms are intentionally omitted to maintain zero-overhead error handling.
-
-*   **Concurrency Primitives (Minimal Runtime Support):**  The core standard library provides minimal runtime support functions for BML's concurrency features:
-    *   **Thread Management Functions:** Basic functions for thread creation (`thread threadName functionName(arguments) [stackSize: size];`), thread termination (implicit on function return), and thread sleeping (`sleepThread(uint32 milliseconds) -> void;`).  Thread scheduling and context switching are typically handled by the underlying architecture or Concurrency CAMs, with minimal runtime support provided by the core library.  The core library provides the fundamental primitives for creating and managing threads, but the actual thread scheduling policy and context switching mechanisms are intended to be flexible and customizable through CAMs, allowing for different concurrency models to be implemented on top of the core language.
-    *   **Synchronization Primitive Functions:**  Runtime library functions for mutex creation (`mutex mutexName = mutex();`), semaphore creation (`semaphore semaphoreName = semaphore(initialCount);`), `lock(mutex)`, `unlock(mutex)`, `wait(semaphore)`, `signal(semaphore)`, `yield()`, and `await`.  These functions provide the basic building blocks for thread synchronization and communication in concurrent BML programs.  The core library provides the essential synchronization primitives (mutexes and semaphores) and thread control functions (`yield`, `await`) needed for building concurrent applications. More advanced synchronization primitives, such as condition variables, reader-writer locks, or atomic operations, may be provided by specialized Concurrency CAMs if needed for specific concurrency models or application requirements.
-
-*   **Memory Management (Region-Based):** The core language and compiler provide region-based memory management features (data regions, bss regions, stack regions, etc.) as built-in language constructs.  The core runtime library itself does not include dynamic memory allocation (e.g., `malloc`, `free`) to minimize runtime overhead and promote deterministic memory management in bare metal systems.  Region-based memory management is a core language feature of BML and is implemented directly by the compiler. The core runtime library does not include heap allocation or garbage collection mechanisms. Dynamic memory allocation, if required for specific application needs (e.g., dynamic data structures, heap-based memory pools), is expected to be provided by specialized Memory Management CAMs or by interfacing with external memory management libraries (e.g., a custom heap manager or a memory allocator provided by aReal-Time Operating System).
-
-*   **Error Handling and Assertions:** Runtime support for assertion checking (`#assert` directive) and basic error handling mechanisms (e.g., a default error handler function that can be overridden by the developer) are included in the core runtime library.  More advanced exception handling or error propagation mechanisms beyond the `Result` type (Version 1.4) are intentionally excluded from the core library to minimize runtime overhead.  The core runtime library provides a basic assertion mechanism (`#assert`) for runtime checks during development and debugging. In case of assertion failures or unhandled runtime errors, a default error handler function (which can be customized or overridden by the developer) might be provided to perform minimal error reporting or system halt.  For more sophisticated error handling strategies, such as exception handling or more advanced error reporting mechanisms, developers are expected to use CAMs or external error handling libraries if appropriate for their target environment.
-
-*   **Architecture Abstraction (Conceptual Registers, `#operation`):** The core BML compiler and language provide the infrastructure for conceptual registers and `#operation` directives, enabling architecture-abstracted hardware interaction.  However, the actual implementations of `#operation` directives and the definitions of conceptual registers are typically provided by CAMs, making the core language itself architecture-agnostic and extensible. The core language defines the syntax and semantics of conceptual registers and `#operation` directives, but the *meaning* and *implementation* of these constructs are delegated to CAMs, allowing for architecture-specific hardware abstractions to be provided by the CAM ecosystem, rather than being built into the core language itself. This design promotes flexibility and allows BML to adapt to a wide range of hardware architectures and peripherals through the extensible CAM mechanism.
-
-**The BML core standard library is deliberately kept minimal and focused on essential functionalities.  For more advanced features, domain-specific libraries, and hardware-specific functionalities, BML relies on the CAM ecosystem, which provides a rich and extensible library landscape tailored to the diverse needs of bare metal embedded systems development.  The BML CAM Ecosystem is designed to be the primary source of extended functionalities, libraries, and hardware support for BML applications, allowing developers to selectively include the CAMs they need for their projects, maintaining the zero-overhead and performance-centric nature of the BML language.**
-
-#### 11.2 Composable Architecture Module (CAM) Ecosystem - The Performance-Optimized Extended Library
-
-The CAM ecosystem serves as BML's extended and highly customizable "standard library," but with a crucial distinction: **CAMs are designed to be performance-optimized and domain-specific, allowing developers to selectively include functionalities without incurring unnecessary overhead.**  CAMs provide a vast and growing collection of modules that offer a wide range of functionalities, hardware abstractions, and domain-specific optimizations, effectively extending the core BML language to address diverse embedded system requirements, while maintaining BML's commitment to peak performance.  With Version 1.5, the CAM ecosystem is further enhanced by the introduction of compile-time generics, Refinement Types, Capability-Based Regions, Stack-Only Allocation, Hardware Bounds Checking, Data-Layout Attributes, Compile-Time Reflection, Compile-Time Functions, and Data-Driven Code Generation, allowing for even more reusable, safe, and performant CAM components. **The BML CAM Ecosystem is intended to be a vibrant and community-driven repository of reusable, high-quality, and performance-optimized components for bare metal embedded systems development.**
-
-*   **Opt-in Functionality and Overhead Control:**  The CAM ecosystem follows an "opt-in" model. Developers `#use module` only the CAMs they actually need for their project. This allows for fine-grained control over the functionalities included in the final executable and avoids linking in code or runtime libraries that are not used, minimizing code size and runtime overhead. **This "pay-as-you-go" approach to libraries is essential for bare metal systems where every byte and every CPU cycle counts.**  By selectively including CAMs, developers can precisely tailor the functionalities and code footprint of their BML applications, ensuring that only the necessary features are included in the final firmware image, optimizing resource utilization and minimizing overhead.
-
-*   **Performance-Optimized Implementations:** CAMs are designed with performance as a primary consideration. CAM developers are encouraged to provide highly optimized implementations for their functionalities, leveraging architecture-specific instructions, efficient algorithms, and low-overhead coding techniques.  **CAMs are intended to be "performance multipliers," enabling developers to achieve near-assembly level performance even when using high-level BML code.** CAM authors are expected to utilize BML's low-level control features, such as MMR Blocks, `#operation` directives, `archCodeBlock`, and intrinsic functions, to create highly efficient implementations within CAMs. The BML compiler, in turn, is designed to leverage these CAM-provided optimizations and generate machine code that rivals hand-tuned assembly in performance-critical scenarios.
-
-*   **Domain-Specific Libraries and Optimizations:**  The CAM ecosystem allows for the creation of domain-specific libraries tailored to particular application areas (e.g., DSP, networking, RTOS, cryptography).  These domain-specific CAMs can include not only optimized algorithms and functionalities but also **domain-specific optimization passes that are injected into the BML compiler pipeline**, further enhancing performance for specific application domains.  **Example:** A DSP CAM might include optimized implementations of common DSP algorithms like FIR filters, FFTs, and IIR filters, leveraging SIMD instructions (e.g., ARM NEON, RISC-V Vector Extension) for vectorized processing and peak performance on supported architectures.  Furthermore, the DSP CAM could inject a compiler optimization pass that automatically vectorizes BML code that uses these DSP functions, or even replaces higher-level BML code patterns with highly specialized, hand-tuned assembly kernels for maximum DSP performance.
-
-*   **Hardware Abstraction without Performance Penalty:** CAMs provide hardware abstraction through interface intrinsic functions and conceptual registers, but this abstraction is designed to be **zero-overhead**.  The compiler, guided by CAMs, directly translates abstract operations into efficient, hardware-specific machine code, ensuring that hardware abstraction does not come at the cost of performance degradation.  The use of interface intrinsic functions allows CAM authors to provide a consistent, architecture-agnostic API to users, while internally implementing the hardware-specific details within `@arc` blocks.  The BML compiler then ensures that calls to these interface functions are resolved to the most efficient, architecture-specific implementations, effectively eliminating any runtime overhead associated with the abstraction layer.  **Users of CAMs get the benefit of hardware abstraction for portability and maintainability, without sacrificing performance compared to direct hardware manipulation.**
-
-*   **Enhanced Reusability with Generics (Version 1.4):**  The introduction of compile-time generics in Version 1.4 further enhances the reusability and abstraction capabilities of the CAM ecosystem. Developers can now create generic CAMs that are type-agnostic and can be instantiated for different BML data types, maximizing code reuse and reducing code duplication.  This allows for the creation of more general-purpose and adaptable CAM components.  Furthermore, new features like Refinement Types, Capability-Based Regions, Stack-Only Allocation, Hardware Bounds Checking, Data-Layout Attributes, Compile-Time Reflection, Compile-Time Functions, and Data-Driven Code Generation further enhance the CAM ecosystem by allowing for the creation of CAMs that are not only reusable but also offer stronger safety guarantees and are meticulously optimized for performance and hardware utilization. **Example:** A generic data structure CAM, such as `GenericVectorCam`, can be instantiated to create vectors of various data types (e.g., `uint32`, `float32`, custom structs).  The CAM provides a single, reusable implementation of the vector data structure and its associated operations, while the compiler generates specialized and optimized code for each data type instantiation.  This significantly reduces the effort required to develop and maintain data structures and algorithms for different data types in bare metal environments.
-
-**CAM Ecosystem Status (Version 1.5):** At Version 1.5 release, the BML CAM ecosystem is in its initial stages of development but is actively growing.  A set of core CAMs, including basic device drivers (UART, GPIO, SPI, I2C for common microcontroller architectures like ARM Cortex-M, RISC-V, and x86), essential utility CAMs (string manipulation, basic math), and demonstration CAMs are available.  The "Bare Metal Unix CAM" (BMUnixCAM) is under active development but not yet feature-complete in Version 1.5.  Developers are encouraged to consult the "BML CAM Catalog" (available at: [https://www.baremetallanguage.org/cam-catalog-v1.5](https://www.baremetallanguage.org/cam-catalog-v1.5)) for the current list of available CAMs and their documentation.  **Essential CAMs in Version 1.5 (Initial Set):**
-
-> *   **UartDriverCam:** Provides a UART driver for common microcontroller architectures (ARM Cortex-M, RISC-V). Supports basic UART functionalities (init, send byte, receive byte, send string), configurable baud rate, and UART instance selection. Documentation and usage examples are available in the BML CAM Catalog.  `UartDriverCam` simplifies UART communication in BML applications, providing a portable and efficient interface for serial communication over UART peripherals.
-> *   **GpioCam:**  Provides GPIO (General Purpose Input/Output) control for basic digital I/O operations on microcontrollers. Supports digital pin read, digital pin write (high/low), pin direction configuration (input/output), and basic GPIO port manipulation. Documentation and usage examples are available in the BML CAM Catalog. `GpioCam` allows developers to control GPIO pins in a structured and type-safe manner, abstracting away the low-level register details of GPIO peripherals.
-> *   **BasicMathCam:**  Includes a minimal set of optimized math functions (integer and basic float operations). Provides essential mathematical operations, including integer arithmetic, bitwise operations, comparison functions, and basic floating-point math (addition, subtraction, multiplication, division, square root). Documentation available in the BML CAM Catalog. `BasicMathCam` offers optimized implementations of common math functions, potentially leveraging hardware-specific math instructions or libraries for improved performance.
->   * **GenericVectorCam:** Provides a generic vector (dynamically sized array) data structure, instantiable for various data types. Supports dynamic resizing, element access, push/pop operations, and iteration. Documentation and usage examples are available in the BML CAM Catalog. `GenericVectorCam` offers a reusable and type-safe dynamic array implementation, useful for various data storage and manipulation tasks in BML applications. It leverages compile-time generics to provide specialized vector implementations for different data types without runtime overhead.
->   * **DSPLibCam (Draft - Basic DSP Functions):** A preliminary DSP library CAM providing basic DSP functions like FIR filters and FFT (Fast Fourier Transform) implementations optimized for certain architectures. Documentation available in the BML CAM Catalog (Draft status). `DSPLibCam` is an example of a domain-specific CAM, showcasing how CAMs can provide optimized libraries for specialized application domains.  The DSP library is in draft status and may have limited functionality or architecture support in Version 1.5, but it demonstrates the potential for creating high-performance DSP applications using BML and CAMs.
-
-The BML CAM Development Guide provides resources and guidelines for developers interested in creating and contributing new CAMs to the ecosystem, including generic CAMs, and CAMs leveraging Compile-Time Reflection, Compile-Time Functions, and Data-Driven Code Generation. Future CAM development will focus on expanding the coverage of hardware peripherals, communication protocols, and domain-specific algorithms, and on providing increasingly performance-optimized implementations and compiler-integrated optimizations within CAMs, with a strong emphasis on leveraging compile-time generics, refinement types, capability-based regions, stack-only allocation, hardware bounds checking, and data-layout attributes for enhanced reusability, safety and performance.  **The BML community is encouraged to contribute to the CAM ecosystem, creating a rich and diverse library of reusable components that empower BML developers to build a wide range of bare metal embedded systems efficiently and effectively.**
-
-### 12. Conformance and Language Evolution
-
-#### 12.1 BML Conformance
-
-Adherence to this BML Language Specification is essential for ensuring code portability, predictability, and compatibility across different BML compilers and target platforms.  BML Conformance is defined as follows:
-
-*   **Conforming BML Compiler:** A conforming BML compiler must correctly implement all features and language constructs defined in this Version 1.5 of the Bare Metal Language Specification, including:
-    *   **Syntax and Grammar:** The compiler must correctly parse and process BML source code according to the EBNF grammar provided in the Appendix of this document. The compiler must accept any BML code that conforms to the specified grammar and reject code that violates the grammar, providing informative syntax error messages.
-    *   **Static Typing and Type System:** The compiler must enforce BML's static typing discipline and correctly implement the comprehensive data type system, type qualifiers (including capability-based pointer qualifiers), and type conversion rules as defined in Section 2 and Section 3. The compiler must perform rigorous type checking at compile time, ensuring that all BML code adheres to the type safety rules of the language and reporting type errors accurately.
-    *   **Language Constructs:** The compiler must correctly implement all language constructs, including operators, control flow statements, functions, data structures (structs, unions, enums, arrays, pointers, tuples, and Result types), concurrency primitives, directives, and pragmas, Compile-Time Reflection operators and intrinsics, Compile-Time Functions, and Data Layout Attributes.  The compiler must ensure that all BML language constructs behave as defined in this specification, including their semantics, side effects, and interactions with other language features.
-    *   **CAM Integration:** The compiler must correctly implement the CAM integration mechanisms, including module usage (`#use module`), CAM configuration (`with config { ... }`), interface intrinsic function resolution, CAM-driven optimization pass injection, and generic CAM instantiation and usage, and CAM-driven Data Generation based on Data Layout Attributes and Compile-Time Functions.  The compiler must properly handle CAMs, including loading CAM metadata from manifest files, resolving CAM exports, applying CAM configurations, and utilizing CAM-provided intrinsic functions and optimization passes during compilation and code generation.
-    *   **Code Generation and Linking:** The compiler must generate correct and efficient machine code for the specified target architectures (ARM, RISC-V, x86) based on the BML source code and active CAMs, and perform the necessary linking steps to produce executable binaries.  Generated code should adhere to the target architecture's instruction set architecture (ISA) and calling conventions. The compiler should leverage region lifetime tracking, capability-based pointer types, and abstract interpretation (when enabled) to optimize code generation for performance and memory safety, and generate data-driven optimized code based on Data Layout Attributes and Compile-Time Functions. The generated machine code must be functionally correct and execute as expected on the target hardware, adhering to the target architecture's ABI (Application Binary Interface) and system conventions.
-    *   **Error Reporting and Diagnostics:** The compiler must provide informative and accurate error messages and warnings for syntax errors, type errors, semantic issues, and other potential problems in BML code, aiding developers in writing correct and robust programs.  Error messages should be clear, concise, and provide sufficient information to help developers understand and fix the reported issues. The compiler should strive to provide helpful diagnostics that guide developers towards writing correct and idiomatic BML code.
-
-*   **Conforming BML Program:** A BML program is considered conforming if it:
-    *   **Syntactically Valid:**  Adheres to the BML syntax and grammar as defined in this Version 1.5 of the Language Specification. The BML source code must be parsable by a conforming BML compiler without syntax errors.
-    *   **Type-Correct:**  Is type-correct according to BML's static typing rules and passes compile-time type checking without errors, including type checks related to capability-based pointers, region usage, generics, and `Result` type usage, refinement types, capability-based regions, stack-only allocation, hardware bounds checking, data-layout attributes, compile-time reflection, compile-time functions, and data-driven code generation features.  A conforming BML program must not violate any of the type safety rules or constraints enforced by the BML type system.
-    *   **Uses Supported Language Features:** Utilizes only language features and constructs defined in this Version 1.5 of the Language Specification.  A conforming BML program must not rely on any language extensions or features that are not explicitly documented and specified in this version of the specification.
-    *   **CAM Compatibility:**  If using CAMs, relies on CAMs that are also conforming to the BML CAM specification and are compatible with the BML compiler version being used, and correctly handles generic CAM instantiations according to Version 1.5 rules, and correctly leverages Data Layout Attributes for Data-Driven Code Generation with CAMs.  A conforming BML program that uses CAMs must only use CAMs that adhere to the BML CAM development guidelines and are intended to be used with a BML compiler conforming to Version 1.5 of the specification.
-
-#### 12.2 Language Evolution and Versioning
-
-The Bare Metal Language is intended to be an evolving language, adapting to new hardware architectures, embedded system requirements, and advancements in programming language design.  However, language evolution will be carefully managed to ensure stability, backward compatibility, and maintain the core principles of BML.  **Version 1.5 of the BML Language Specification represents a significant step forward, adding powerful features while adhering to these principles.**
-
-*   **Versioned Specifications:** Future versions of the BML Language Specification will be released as needed to introduce new features, address errata, or clarify existing aspects of the language.  Each version of the specification will be clearly numbered (e.g., Version 1.6, Version 2.0) and dated to distinguish different versions.  This document represents Version 1.5 - the **PRODUCTION READY and FEATURE COMPLETE** release with Tuple Support, Range-Based For Loops, Capability Pointers, Region Lifetime Tracking, Abstract Interpretation (Preliminary), Compile-Time Generics, Result Type, Refinement Types, Capability-Based Regions, Stack-Only Allocation, Hardware Bounds Checking, Data-Layout Attributes, Compile-Time Reflection, Compile-Time Functions, and Data-Driven Code Generation.  Future language features and enhancements will be carefully considered and introduced in subsequent versions of the specification, ensuring a controlled and well-defined language evolution process.
-
-*   **Backward Compatibility:**  Backward compatibility will be a primary consideration in BML language evolution.  New versions of the language will strive to maintain compatibility with code written in previous versions, ensuring that existing BML programs can be recompiled and executed with newer compilers without requiring significant code modifications.  Breaking changes will be avoided unless absolutely necessary and will be carefully considered and communicated with sufficient lead time.  Version 1.5 is designed to be largely backward compatible with previous BML code (Versions 1.0-1.3), with minor syntax adjustments and feature additions that are designed to be non-breaking for existing codebases.  The BML project is committed to minimizing breaking changes in future versions to ensure a smooth evolution path for the language and to protect developers' investment in BML code.
-
-*   **Language Evolution Process:**  The process for BML language evolution will typically involve the following steps:
-    1.  **Feature Proposals and Feedback:**  New feature proposals, bug reports, and requests for language enhancements are submitted through a designated feedback mechanism (e.g., a forum, issue tracker, or mailing list).  The BML project welcomes community feedback and contributions to guide the language evolution process. Developers are encouraged to submit feature requests, report bugs, and participate in discussions about potential language enhancements.
-    2.  **Design and Review:** The BML project team reviews feature proposals, evaluates their impact on language principles, performance, safety, and backward compatibility, and designs potential language extensions or modifications.  Community discussion and feedback are incorporated into the design process.  The BML project team will carefully consider all feature proposals, weighing the benefits and trade-offs of each potential language change against the core design principles of BML and the need for backward compatibility.
-    3.  **Specification Update:**  Approved language changes and new features are formally documented in a revised version of the BML Language Specification.  The specification is updated to reflect the new language features, syntax, semantics, and any changes to existing constructs. The BML Language Specification is the definitive source of information about the BML language, and any language changes or additions will be formally documented in updated versions of this specification.
-    4.  **Compiler Implementation:** The BML compiler is updated to implement the new language features and changes defined in the revised Language Specification.  Compiler development and testing are performed to ensure correct and efficient implementation of the language extensions, including features like compile-time generics, compile-time reflection, and data-driven code generation. The BML compiler implementation will be carefully tested and validated to ensure that it correctly implements all new language features and maintains compatibility with existing BML code.
-    5.  **Tooling Updates:**  BML tooling (debugger, IDE plugins) is updated to support the new language features and changes, ensuring a consistent and integrated development experience for the updated language version.  The BML project is committed to providing a comprehensive and user-friendly development experience, and tooling updates will be released in conjunction with language updates to ensure that developers have the necessary tools to effectively utilize new BML features.
-    6.  **Release and Documentation:** The updated BML compiler, toolchain, and Language Specification are released as a new version of BML.  Comprehensive documentation, tutorials, and examples are provided to guide developers in using the new language features and tooling.  Each new version of BML will be accompanied by updated documentation, tutorials, and examples to help developers learn and adopt the new language features and tooling enhancements.  Release notes and changelogs will also be provided to clearly communicate the changes and improvements in each new version.
-
-Future language evolution will prioritize features that enhance performance, safety, low-level control, and developer productivity, while maintaining backward compatibility and the core zero-overhead principles of BML.  Enhancements to abstract interpretation and formal verification capabilities remain a key area of ongoing development, and future versions will explore potential extensions to generics and error handling mechanisms like Result types based on feedback and practical usage, as well as further refinement of memory safety features like Refinement Types, Capability-Based Regions, Stack-Only Allocation, and Hardware-Assisted Bounds Checking, Compile-Time Reflection, Compile-Time Functions, and Data-Driven Code Generation.  **The BML project is committed to a thoughtful and community-driven language evolution process, ensuring that BML remains a robust, performant, and developer-friendly language for bare metal embedded systems programming for years to come.**
-
-**Memory Model Considerations (Beyond Regions - Acknowledgment):** While BML Version 1.x primarily focuses on region-based memory management, which is well-suited for many bare metal scenarios and assembly replacement, the BML project acknowledges the existence of other memory models (e.g., heap-based allocation, garbage collection).  Future versions of BML *may* explore optional support for alternative memory management models, potentially through CAM extensions, if there is a demonstrated need and a way to integrate them without compromising BML's performance and predictability goals.  However, region-based memory management remains the central and recommended memory management paradigm for BML in Version 1.x and is considered sufficient for addressing the primary goals of assembly language replacement and efficient bare metal programming.  The BML project will continue to evaluate and consider alternative memory management models based on community feedback and advancements in embedded systems memory management techniques, but any future additions will be carefully designed to align with BML's core principles of performance, safety, and predictability.
-
-### 13. Appendix: Complete EBNF Grammar (Version 1.5 - Final)
+*   `await identifier = expression;` / `yield(expression);`: Asynchronous operations using awaitable types, which can be used to implement non-blocking operations and implement cooperative multitasking. The `await` statement will wait for the result of an asynchronous operation, without blocking the current thread. The `yield` statement can be used to return the result of the asynchronous operation.
+    *   Example: `await myAwaitable = myAsyncFunction(); yield(myResult);`
+*   `lock(identifier) { ... }` / `unlock(identifier);`: Critical section access to protect shared memory from data races, guaranteeing atomic access to shared resources by different threads. A mutex is a synchronization primitive used to implement critical sections.
+    *   Example: `lock(myMutex) { /* Critical section */ }; unlock(myMutex);`
+*   `wait(identifier);` / `signal(identifier);`: Synchronization primitives used to manage access to shared resources and coordinate concurrent tasks.
+     * The `wait` operation may or may not release a lock (depending on implementation details).  The `signal` operation does not release the lock. CAMs can offer more control over these primitives, using customized implementations.
+    *   Example: `wait(mySemaphore); /* Access resource */; signal(mySemaphore);`
+*   Default memory consistency is sequential consistency, using `memoryBarrier();` for explicit ordering of memory accesses. There is no implicit memory barrier at the end of `parallel` blocks, as the developer must have full control of the memory access and ordering semantics.
+     *  **Memory Barriers:**
+        *   BML uses sequential consistency as its default memory model, which means that, by default, memory operations appear to execute in the order specified by the program.
+        *   When interacting with shared memory, volatile variables or peripheral devices, the compiler may not preserve the order of the memory accesses, due to optimizations, or memory hierarchies.
+       *   Memory barriers are used to enforce a specific order on memory access operations. When a memory barrier is executed, the CPU guarantees that all previous memory operations are completed before any subsequent operation starts.
+       *   The `memoryBarrier();` operation will generate a target specific instruction that will act as a memory barrier. It is usually not required, unless you have a specific memory ordering that the compiler cannot enforce.
+       *   Memory barriers should be used when you have multiple threads that access the same memory regions, or when you are interacting with memory-mapped devices that have dependencies on the order of the memory operations.
+*    `transaction { ... }`: Ensures atomic execution of the code block. The implementation of transaction blocks depends on the target. For a single-core processor, the compiler will typically generate code that disables interrupts and system preemption during the execution of the transaction. For a multi-core system, the code will generate a lock or a memory barrier operation, which depends on the availability of hardware support. There are limitations on the operations that can be performed within a transaction to ensure atomicity. Calling functions may break the atomicity guarantees and the compiler will try to enforce these rules at compile time, if possible. The behaviour of calling functions inside transactions is implementation specific.
+
+**9. Tooling and Debugging**
+
+*  **Compiler Error Handling**
+     *  The compiler reports compile-time errors in the following format (or similar, depending on the compiler implementation):
+     *   `filename:line:column: error: Error message`
+     * For example: `MyFile.bml:10:20: error: Type mismatch in assignment`.
+     *   The compiler may also output a specific code associated with each error, to facilitate automated analysis of the error messages.
+     * The CAMs can generate error messages with a specific format, by using the function `compilerError()`. The compiler may provide a CAM API or some other mechanism to guarantee a specific formatting for the error messages.
+*   **`bmlc` Compiler:** Command-line tool for compiling BML code:
+    *   `-target <architecture>`: Specifies the target architecture, e.g., `arm`, `riscv`, or `x86`.
+    *   `-g`: Enables debug information for GDB/LLDB, to allow for source-level debugging using standard tools.
+    *   `-S`: Outputs assembly code for the specified target, which allows for analysis of the generated code.
+        *   `-O<level>`: Optimization level (e.g., `-O0`, `-O1`, `-O2`, `-O3`). `-O0` disables optimization, and `-O3` enables all optimizations.
+    *   `-I<include_path>`: Adds a directory to the include path to allow the compiler to find modules, libraries, or header files.
+    *   `-cam_path <cam_path>`: Adds a directory to the CAM module path, to allow the compiler to locate and use CAMs.
+     *  `-enableCaching`: Enables caching of CAM outputs, to speed up compilation times. By default this is disabled.
+    *   `-enableAi`: Enables abstract interpretation for enhanced compile-time error detection (experimental and may increase compilation time and may not be stable).
+     *   `-enable-hardware-bounds-checking`: Enables hardware assisted bounds checking, using the MMU if available, which may reduce or eliminate the overhead of performing runtime bounds checks.
+        * `-debug-ir`: Enables outputting the intermediate representation of the code for debugging purposes.
+        *  `-debug-cam`: Enables outputting debug information for the CAMs, allowing developers to understand the CAM's code and transformations.
+        * `-debug-transformations`: Enables outputting information about the code transformations performed by the compiler, which allows the developer to understand how the code is being modified during the compilation process.
+*   **Source-Level Debugging:** With GDB or LLDB (command-line), which allows the user to set breakpoints, inspect variables, and step through the code. It also allows debugging CAMs, and stepping through the CAM code.
+*   **Runtime Error Handling:**
+        *   Runtime exceptions are generated when an access to an `safeArray` is performed out of bounds, or if the tracked pointer points to an invalid memory region.
+       *   The default behavior is target and compiler specific. It might be implemented by generating a trap instruction, or by invoking a runtime exception handler.
+       * The user can override the default error handling mechanism by using CAMs, which are responsible to map the error handling mechanism to a specific platform. For example, a CAM can map the error handling to an interrupt handler, that can handle specific error codes related to the runtime exceptions generated by BML code.
+        * It is also possible to perform custom error handling by using the `Result` type, which forces the user to explicitly check for errors.
+*   **`BML Advanced Compiler Guide`:** (Separate document) - Compiler internals and advanced debugging techniques, which is intended for advanced users that require deeper insight into the compilation process. The advanced compiler guide also includes more details on how to debug the CAM code, and use the output provided by the compiler to debug low-level code transformations.
+*  **Debugging Complexity:** While source-level debugging is supported, debugging low-level issues that involve memory corruption and interactions with hardware components may be more difficult in BML compared to the direct observability provided by assembly-level debugging. BML introduces an abstraction layer via the CAMs, and the developer must be familiar with how the CAMs interact with the hardware and the BML runtime to fully debug low-level issues. Debugging memory-mapped peripherals may be more complex in BML compared to assembly language, because there is no direct instruction level control over the hardware. The user must rely on the CAMs to generate the correct instructions. Debugging runtime exceptions caused by out of bounds accesses, or other memory related errors may require more effort by the user, to analyse the stack traces, and to identify the source of the issue. However, the advanced debugging tools, and information provided by the compiler, helps to reduce the overall debugging complexity.
+
+**10. Standard Library and CAM Ecosystem**
+
+*   **Minimal Core Library:** Zero-overhead.
+    * String literals are encoded using UTF-8. Character literals are encoded using the encoding of the character type (e.g. UTF-8, UTF-16, or UTF-32).
+    *   Examples:
+        *   `uint32 stringLength(StringLiteral str) -> uint32;` (string length calculation). This function computes the length of a given string literal. It can be used for creating loops that iterate over characters in a string literal, or for allocating buffers based on the size of a given string literal. It does not check if the string literal is null terminated, and does not support generic string variables.
+        *   `toUint32(int16 value) -> uint32;` (integer conversion from a 16 bit signed integer to a 32 bit unsigned integer). This function converts a 16 bit signed integer to a 32 bit unsigned integer. It can be used to perform type conversion between integer types. No error checking or overflow checking is performed.
+        *   `memoryBarrier();` (explicit memory barrier). This function generates a hardware-specific memory barrier that guarantees that memory operations are performed in the specified order. This function should be used to guarantee memory consistency when interacting with shared memory, or peripherals. It is an empty operation in systems without caches or multiple cores.
+        *   **`print(StringLiteral format, ...);`  (prints a string or a variable). This function prints a formatted message. The format string uses standard format specifiers, such as %d, %x, %s, or using string interpolation using `f""`: `print(f"The value is {x}");`. This function is intended to provide basic debug or console output, and its implementation depends on the target platform. The parenthesis can be omitted if only one parameter is passed: `print "Hello";`.
+        *   `void exit(int32 code);` (exits the program with a given code). This function exits the program with a given exit code. The exact implementation is platform specific.
+        *  `arraySlice<DataType> slice(uint32 safe [Size] array, uint32 start, uint32 length);` (Creates a slice of an existing safe array). This function returns a mutable view of a specified section of an existing array. The start and the length parameters must be inside the array limits.
+        *  `void compilerError(StringLiteral message);` (Generates a custom compiler error, used by CAMs to generate more specific error messages). This function generates a compile-time error. This function should only be used in CAMs.
+        *  `uint32 countLeadingZeros(uint32 value) -> uint32;` (Counts the leading zero bits). This function counts the number of leading zero bits (starting from the MSB). The result is between 0 and 32.
+        *  `uint32 countTrailingZeros(uint32 value) -> uint32;` (Counts the trailing zero bits). This function counts the number of trailing zero bits (starting from the LSB). The result is between 0 and 32.
+        * `uint32 countSetBits(uint32 value) -> uint32;` (Counts the number of bits that are set to 1). This function counts the number of bits that are set to 1 in a 32 bit integer.
+        *   `Result<OkType, ErrType> myFunction() -> Result<OkType, ErrType>;`:  If there is an error, the function may return `Err`, otherwise, it will return `Ok` followed by the data, or it may return `Ok()`, if no data is provided.
+        *   `void registerInterfaceFunction(StringLiteral name, StringLiteral functionSignature, FunctionPtr implementation);` (CAM API to register new interface intrinsic function dynamically). This function allows the CAM to register a new interface intrinsic function dynamically, that will be visible to other modules. The `functionSignature` is a string that includes the function parameters and return type. The implementation is a function pointer, that must have the same signature as the `functionSignature` string.
+        *  `void addTransformation(Transformation transformation);` (CAM API to add a new transformation to the code). This function allows the CAM to add code transformations by passing a transformation object. The `Transformation` object contains the code to remove, the code to insert, the transformation type, and a data structure with information about the target.
+       *   `void newCAM(StringLiteral camName, interfaceDefinitions, implementation);` (CAM API to create new CAMs during compile time). This function allows the CAM to dynamically generate a new CAM with a given name, a set of interface intrinsic functions and a set of implementation functions.
+        *  `boolean hasSymbolicRegion()`: Returns true if there is a symbolic region in the current program context.
+         * `StringLiteral symbolicExpression(identifier)`: Returns the symbolic expression for a given identifier in the current program context.
+         * `StringLiteral getAttribute(identifier, StringLiteral attributeName)`: Returns the string literal of a given attribute.
+        *  `boolean hasInstruction(StringLiteral instructionName)`: Returns true if an instruction is present in the current code context.
+          * `StringLiteral getInstructionCode()`: Returns the current instruction as a string, which can be used to perform code transformations.
+          *`TargetData instructionTarget()`: Returns information about the current code target.
+          *   `StringLiteral capture(StringLiteral pattern, StringLiteral expression, identifier)`: Captures the sub-expression based on a given pattern, that can be used to perform code transformations.
+           *`boolean match(StringLiteral pattern, StringLiteral expression)`: checks if the expression matches the pattern specified as a string.
+*   **CAM Ecosystem:** Provides extended and reusable components, hardware drivers, operating system components, algorithms and data structures. The main mechanism to extend the language is through CAMs. BML relies on CAMs to generate optimized code for a given target architecture. BML does not allow to bypass the CAMs and access the hardware directly. If a CAM does not expose a specific hardware feature, or if it does not provide access to some specific hardware instruction, that feature or instruction cannot be accessed directly from BML code. The developer must request the CAM developer to expose new features. BML relies on CAMs for generating the required code to interact with peripherals. If a CAM does not expose a specific hardware feature, it cannot be accessed directly from BML code. The features exposed by BML are limited to the capabilities of the CAMs used in the compilation process. CAMs can be extended to expose new hardware features and to provide different optimizations. If a CAM does not provide some specific feature, the developer can create a new CAM or extend an existing one, to expose that functionality. This approach allows to have a flexible and adaptable system.
+
+**11. Conformance and Language Evolution**
+
+*   **Conforming Compiler:** Adheres to BML Language Specification, and generates code that follows the described behaviour.
+    *   The compiler must generate a warning when a null pointer is dereferenced without checking for null, and also generate a warning when a scoped pointer escapes its scope, if the appropriate flags are enabled.
+    *   The compiler must perform all the compile-time checks specified by the language, such as refinement type restrictions, region based memory access, and other static safety checks.
+    *   The compiler must properly manage the cache of CAM outputs and intermediate representations, when the `-enableCaching` flag is specified.
+     *   The compiler must report compile time errors using a clear and concise format. The format for error reporting can vary depending on the compiler implementation. A typical error message should have the file name, line number, and a clear description of the error, and also provide context where the error occurred. The CAMs can generate error messages with a specific format, by using the function `compilerError()`. The compiler may provide a CAM API or some other mechanism to guarantee a specific formatting for the error messages.
+*   **Conforming Program:** Valid syntax, type-correct, uses supported features, and compatible CAMs, and follows all the language specifications.
+*   **Language Evolution:** Backward compatibility is an important goal, and community participation is welcome.
+
+**12. Appendix: EBNF Grammar**
 
 ```ebnf
-SourceFile =
-    MultiTargetSourceFile
-  | ModuleDefinitionFile ;
+sourceFile =
+    { multiTargetSourceFile } , eof;
 
-MultiTargetSourceFile =
-    { PreprocessorDirectiveStatement } ,
-    { RegionDeclarationBlock } ,
-    { ModuleUseDirective } ,
-    { TargetArchitectureBlock } ,
-    EOF ;
+multiTargetSourceFile =
+    { preprocessorDirectiveStatement }
+  , { regionDeclarationBlock }
+  , { moduleUseDirective }
+  , { targetArchitectureBlock | moduleDefinition }
+  , eof ;
 
-ModuleDefinitionFile =
-    ModuleDefinition ,
-    EOF ;
-
-ModuleDefinition =
-    [ GenericModuleDeclarationHeader , Whitespace ] , "module" , Whitespace , ModuleName , Whitespace , "{" ,
-    ModuleDeclarationBlock ,
-    ModuleStatementBlock ,
-    ExportBlock ,
+moduleDefinition =
+    [ genericModuleDeclarationHeader ] , "module" , moduleName , "{" ,
+    moduleDeclarationBlock ,
+    moduleStatementBlock ,
+    exportBlock ,
+     [ metaBlock ] ,
     "}" ;
 
-GenericModuleDeclarationHeader = // ADDED for Generics
-    "generic" , Whitespace , "<" , Whitespace , TypeParameterList , Whitespace , ">" , Whitespace ; // ADDED for Generics
+metaBlock =
+    "Meta" ;
 
-ModuleDeclarationBlock =
-    "declarations" , Whitespace, "{" , { Declaration , Whitespace } , "}" , Whitespace ;
+genericModuleDeclarationHeader =
+    "generic" , "<" , typeParameterList , ">" ;
 
-ModuleStatementBlock =
-    "statements" , Whitespace, "{" , { Statement , Whitespace } , "}" , Whitespace ;
+moduleDeclarationBlock =
+    "declarations" , "{" , { declaration } , "}" ;
 
-ExportBlock =
-    "export" , Whitespace , "{" , Whitespace ,
-    [ ExportedFunctions ] ,
-    [ ExportedTypes ] ,
-    [ ExportedConstants ] ,
-    [ ExportedConceptualRegisters ] ,
-    [ ExportedMMRBlocks ] ,
-    [ ExportedInterfaceIntrinsicFunctions ] ,
-    Whitespace , "}" , Whitespace ;
+moduleStatementBlock =
+    "statements" , "{" , { statement | moduleUseDirective} , "}" ;
 
-ExportedFunctions =
-    "functions" , Whitespace , "{" , Whitespace , [ ExportFunctionList ] , Whitespace , "}" , Whitespace ;
-ExportedTypes =
-    "types" , Whitespace , "{" , Whitespace , [ ExportTypeList ] , Whitespace , "}" , Whitespace ;
-ExportedConstants =
-    "constants" , Whitespace , "{" , Whitespace , [ ExportConstantList ] , Whitespace , "}" , Whitespace ;
-ExportedConceptualRegisters =
-    "conceptualRegisters" , Whitespace , "{" , Whitespace , [ ExportConceptualRegisterList ] , Whitespace , "}" , Whitespace ;
-ExportedMMRBlocks =
-    "mmrBlocks" , Whitespace , "{" , Whitespace , [ ExportMMRBlockList ] , Whitespace , "}" , Whitespace ;
-ExportedInterfaceIntrinsicFunctions =
-    "interface intrinsic functions" , Whitespace , "{" , Whitespace , [ ExportInterfaceIntrinsicFunctionList ] , Whitespace , "}" , Whitespace ;
-
-
-ExportFunctionList =
-    Identifier { "," , Whitespace , Identifier } ;
-ExportTypeList =
-    Identifier { "," , Whitespace , Identifier } ;
-ExportConstantList =
-    Identifier { "," , Whitespace , Identifier } ;
-ExportConceptualRegisterList =
-    Identifier { "," , Whitespace , Identifier } ;
-ExportMMRBlockList =
-    Identifier { "," , Whitespace , Identifier } ;
-ExportInterfaceIntrinsicFunctionList =
-    FunctionSignature { "," , Whitespace , FunctionSignature } ;
-
-
-TargetArchitectureBlock =
-    "@arc" , Whitespace , ArchitectureName , Whitespace , "{" ,
-    DeclarationBlock ,
-    StatementBlock ,
-    [ BootFunctionDefinition ] ,
+exportBlock =
+    "export" , "{" ,
+    [ exportedFunctions ] ,
+    [ exportedTypes ] ,
+    [ exportedConstants ] ,
+    [ exportedConceptualRegisters ] ,
     "}" ;
 
-DeclarationBlock =
-    "declarations" , Whitespace, "{" , { Declaration , Whitespace } , "}" , Whitespace ;
+exportedFunctions =
+    "functions" , "{" ,  exportedFunctionList  , "}" ;
 
-StatementBlock =
-    "statements" , Whitespace, "{" , { Statement , Whitespace } , "}" , Whitespace ;
+exportedTypes =
+    "types" , "{" ,  exportTypeList  , "}" ;
 
-Declaration =
-    VariableDeclaration
-  | ConstantDeclaration
-  | FunctionDeclaration
-  | TypeDefinition
-  | StructDefinition
-  | UnionDefinition
-  | ConfigDefinition
-  | ArchitectureConditionalDeclaration
-  | archCodeBlock // MODIFIED architectureMachineCodeBlock -> archCodeBlock
-  | InterruptServiceRoutineDeclaration
-  | EnumDefinition
-  | TypeAliasDeclaration
-  | AttributedVariableDeclaration
-  | AttributedFunctionDeclaration
-  | AttributedStructDefinition
-  | AttributedEnumDefinition
-  | ThreadDeclaration
-  | MutexDeclaration
-  | SemaphoreDeclaration
-  | AwaitableDeclaration
-  | MMRBlockDefinition
-  | DestructuringDeclaration
-  | InterfaceIntrinsicFunctionDeclaration
-  | RefinementTypeDefinition // ADDED RefinementTypeDefinition
+exportedConstants =
+    "constants" , "{" ,  exportConstantList  , "}" ;
 
-RefinementTypeDefinition = // ADDED RefinementTypeDefinition
-    "type" , Whitespace , Identifier , Whitespace , "=" , Whitespace , BaseDataType , Whitespace , "where" , Whitespace , ConstraintExpression , Whitespace , ";" ; // ADDED RefinementTypeDefinition
+exportedConceptualRegisters =
+    "conceptualRegisters" , "{" ,  exportConceptualRegisterList , "}" ;
 
-ConstraintExpression = // ADDED ConstraintExpression
-    ValueRangeConstraint // ADDED ValueRangeConstraint
-  | LengthConstraint      // ADDED LengthConstraint
+exportedFunctionList =
+    identifier { "," , identifier } ;
+
+exportTypeList =
+    identifier { "," , identifier } ;
+
+exportConstantList =
+    identifier { "," , identifier } ;
+
+exportConceptualRegisterList =
+    identifier { "," , identifier } ;
+
+targetArchitectureBlock =
+    "@arc" , architectureName , "{" ,
+    declarationBlock ,
+    statementBlock ,
+    [ bootFunctionDefinition ],
+    [ instrDSLBlock ] ,
+     [ camFunctionDefinition ] ,
+    "}" ;
+
+declarationBlock =
+    "declarations" , "{" , { declaration } , "}" ;
+
+statementBlock =
+    "statements" , "{" , { statement } , "}" ;
+
+camFunctionDefinition =
+    "function", identifier, "(" , "CompilerContext", identifier , ")" , block;
+declaration =
+    variableDeclaration
+  | constantDeclaration
+  | functionDeclaration
+  | typeDefinition
+  | structDefinition
+  | unionDefinition
+  | configDefinition
+  | architectureConditionalDeclaration
+  | archCodeBlock
+  | interruptServiceRoutineDeclaration
+  | enumDefinition
+  | attributedVariableDeclaration
+  | attributedFunctionDeclaration
+  | attributedStructDefinition
+  | attributedEnumDefinition
+  | threadDeclaration
+  | mutexDeclaration
+  | semaphoreDeclaration
+  | awaitableDeclaration
+  | destructuringDeclaration
+  | interfaceIntrinsicFunctionDeclaration
+  | refinementTypeDefinition
+  | registerPoolDeclaration
+  | traitDefinition
+  | dslDefinition
+  |  regionBasedTypeDefinition
+  | compileTimeFunctionDeclaration
+  | adtDefinition
+  | camDataRegionDefinition
+  | registerDeclaration
   ;
 
-ValueRangeConstraint = // ADDED ValueRangeConstraint
-    "value" , Whitespace , "in" , Whitespace , "range" , Whitespace , "(" , Whitespace , ConstantExpression , Whitespace , ".." , Whitespace , ConstantExpression , Whitespace , ")" ; // ADDED ValueRangeConstraint
+registerDeclaration =
+    dataType , [ regionSpecifier ] , identifier, typeAttributeList, ";" ;
 
-LengthConstraint = // ADDED LengthConstraint
-    "length" , Whitespace , "<" , Whitespace , ConstantExpression ; // ADDED LengthConstraint
+camDataRegionDefinition =
+    "CAMDataRegion",  [regionCapabilitySpecifier], identifier , "{" , {camDataRegionDeclaration }, "}" ;
 
+camDataRegionDeclaration =
+    variableDeclaration
+    | constantDeclaration
+    | structDefinition
+    | unionDefinition
+    | configDefinition
+    | typeDefinition
+    | comment
+    | enumDefinition
+    | interfaceIntrinsicFunctionDeclaration
+    | destructuringDeclaration
+    | stackOnlyVariableDeclaration
+    | refinementTypeDefinition
+    ;
 
-InterfaceIntrinsicFunctionDeclaration =
-    "interface" , Whitespace , "intrinsic" , Whitespace , "function" , Whitespace , FunctionSignature , Whitespace , ";" ;
+compileTimeFunctionDeclaration =
+    "compileTimeFunction" , [ "export" ] , identifier , "(" , [ parameterList ] , ")" , [ "->" , dataType | awaitableType ] , block;
 
-FunctionSignature =
-    [ GenericFunctionDeclarationHeader , Whitespace ] , Identifier , Whitespace , "(" , [ Whitespace , ParameterList ] , Whitespace , ")" , Whitespace , [ "->" , Whitespace , DataType ] ;
+regionBasedTypeDefinition =
+    "type" , identifier , "=" , baseDataType , "@region" , "(" , stringLiteral , ")" , ";" ;
 
+registerPoolDeclaration =
+    "registerPool",  identifier , typeAttributeList, ";" ;
 
-VariableDeclarationCore =
-    DataType Identifier [ Whitespace "=" Whitespace Expression ] Whitespace ";" ;
+refinementTypeDefinition =
+    "type" , identifier , "=" , baseDataType , "where" , constraintExpression , ";" ;
 
-VariableDeclaration =
-    [ TypeAttributeList , Whitespace ] , [ MutabilityModifier , Whitespace ] , VariableDeclarationCore ;
+constraintExpression =
+    valueRangeConstraint
+  | lengthConstraint
+  | arbitraryPredicateConstraint
+  ;
 
-MutabilityModifier =
-    "~" ;
+arbitraryPredicateConstraint =
+    expression ;
 
-ConstantDeclaration =
-    "const" , Whitespace , DataType , Whitespace , Identifier , Whitespace , "=" , Whitespace , ConstantExpression , Whitespace , ";" ;
+valueRangeConstraint =
+    "value" , "in" , "range" , "(" , constantExpression , ".." , constantExpression , ")" ;
 
-FunctionDeclaration =
-    "function" , Whitespace , [ "inline" | "pure" | "noinline" | BootFunctionAttribute | GenericFunctionDeclarationHeader | StackOnlyFunctionAttribute | CompileTimeFunctionAttribute , Whitespace ] , Identifier , Whitespace , "(" , [ Whitespace , ParameterList ] , Whitespace , ")" , Whitespace , [ "->" , Whitespace , DataType ] , Whitespace , Block ; // MODIFIED FunctionDeclaration to include CompileTimeFunctionAttribute
+lengthConstraint =
+    "length" , "<" , constantExpression ;
 
-BootFunctionDefinition =
-    BootFunctionDeclaration , Whitespace , Block ;
+interfaceIntrinsicFunctionDeclaration =
+    "interface" , "intrinsic" , "function" , functionSignature , ";" ;
 
-BootFunctionDeclaration =
-    "@boot" , Whitespace , "function" , Whitespace , [ "inline" | "pure" | "noinline" | GenericFunctionDeclarationHeader | StackOnlyFunctionAttribute | CompileTimeFunctionAttribute , Whitespace ] , Identifier , Whitespace , "(" , [ Whitespace , ParameterList ] , Whitespace , ")" , Whitespace , [ "->" , Whitespace , DataType ] , Whitespace , Block ; // MODIFIED BootFunctionDeclaration to include CompileTimeFunctionAttribute
+functionSignature =
+    [ genericFunctionDeclarationHeader ] , identifier , "(" , [ parameterList ] , ")" , [ "->" , dataType | awaitableType ] , [ "ensures",  expression ] ;
 
-BootFunctionAttribute =
+variableDeclarationCore =
+    dataType? identifier [ "=" expression ] ";"
+    ;
+
+variableDeclaration =
+    [ typeAttributeList], [ mutabilityModifier ], variableDeclarationCore ;
+
+mutabilityModifier =
+  "~";
+
+constantDeclaration =
+    "const" , [ "export" ] , dataType , identifier , "=" , constantExpression , ";" ;
+
+functionDeclaration =
+     "function" , [ "inline" | "pure" | "noinline" | bootFunctionAttribute | genericFunctionDeclarationHeader | stackOnlyFunctionAttribute | compileTimeFunctionAttribute  | "inlineAlways" | "inlineIfSmall" ] , [ "export" ] , identifier ,  "(" , [ parameterList ] , ")" , [ "->" , dataType | awaitableType ] , [ "ensures",  expression ] , block
+   | "function", [ "inline" | "pure" | "noinline" | genericFunctionDeclarationHeader | stackOnlyFunctionAttribute | compileTimeFunctionAttribute  | "inlineAlways" | "inlineIfSmall" ] , [ "export" ] , identifier, dataType, identifier, block;
+
+bootFunctionDefinition =
+    bootFunctionDeclaration , block ;
+
+bootFunctionDeclaration =
+    "@boot" , "function" , [ "inline" | "pure" | "noinline" | genericFunctionDeclarationHeader | stackOnlyFunctionAttribute | compileTimeFunctionAttribute ] , identifier , "(" , [ parameterList ] , ")" , [ "->" , dataType | awaitableType ] , [ "ensures",  expression ] , block ;
+
+bootFunctionAttribute =
     "@boot" ;
 
-CompileTimeFunctionAttribute = // ADDED CompileTimeFunctionAttribute
-    "compileTimeFunction" ; // ADDED CompileTimeFunctionAttribute
+compileTimeFunctionAttribute =
+    "compileTimeFunction" ;
 
-StackOnlyFunctionAttribute = // ADDED StackOnlyFunctionAttribute
-    "@stackOnly" ; // ADDED StackOnlyFunctionAttribute
+stackOnlyFunctionAttribute =
+    "@stackOnly" ;
 
-GenericFunctionDeclarationHeader = // ADDED for Generics
-    "generic" , Whitespace , "<" , Whitespace , TypeParameterList , Whitespace , ">" , Whitespace ; // ADDED for Generics
+genericFunctionDeclarationHeader =
+    "generic" , "<" , typeParameterList , ">" ;
 
-TypeParameterList = // ADDED for Generics
-    Identifier { "," , Whitespace , Identifier } ; // ADDED for Generics
+typeParameterList =
+    identifier { "," , identifier } ;
 
+parameterList =
+    parameter { "," , parameter } ;
 
-ParameterList =
-    Parameter { "," , Whitespace , Parameter } ;
+parameter =
+    dataType , identifier [ "=" constantExpression ] ;
 
-Parameter =
-    DataType , Whitespace , Identifier [ Whitespace "=" Whitespace ConstantExpression ] ;
+typeDefinition =
+    "type" , [ "export" ] , identifier , "=" , dataTypeExpression , ";" ;
 
-TypeDefinition =
-    "type" , Whitespace , Identifier , Whitespace , "=" , Whitespace , DataTypeExpression , Whitespace , ";" ;
+dataTypeExpression =
+    dataType ;
 
-DataTypeExpression =
-    DataType ;
+structDefinition =
+    "struct" , [ typeAttributeList ] , identifier , [ "@mapped" , [ "(" , addressExpression , ")" ] ] , "{" ,
+    { structMemberDeclaration }
+    "}" , ";"
+   | "struct" , [ typeAttributeList ] , identifier ,  dataType, identifier, ";"
+    | "struct" , [ typeAttributeList ] , identifier ,  "@mapped" , [ "(" , addressExpression , ")" ] ,  "@initializerList"  , "{" ,
+        { structMemberDeclaration }
+        "}" , ";"
+;
 
-StructDefinition =
-    "struct" , Whitespace , Identifier , Whitespace , "{" ,
-    { StructMemberDeclaration , Whitespace }
-    "}" , Whitespace , ";" ;
+structMemberDeclaration =
+    attributedStructMemberDeclaration
+  | structMemberDeclarationCore ;
 
-StructMemberDeclaration =
-    AttributedStructMemberDeclaration
-  | StructMemberDeclarationCore ;
+attributedStructMemberDeclaration =
+    typeAttributeList , structMemberDeclarationCore ;
 
-AttributedStructMemberDeclaration =
-    TypeAttributeList , Whitespace, StructMemberDeclarationCore ;
+structMemberDeclarationCore =
+    [ "nonvolatile" ] , [ "volatile" ] , dataType , identifier , [ typeAttribute ] , ";" ;
 
-StructMemberDeclarationCore =
-    DataType , Whitespace , Identifier , Whitespace , [ DataLayoutAttribute , Whitespace ] , ";" ; // MODIFIED StructMemberDeclarationCore to include DataLayoutAttribute
+unionDefinition =
+    "union" , identifier , "{" ,
+    { unionMemberDeclaration }
+    "}" , ";" ;
 
-UnionDefinition =
-    "union" , Whitespace , Identifier , Whitespace , "{" ,
-    { UnionMemberDeclaration , Whitespace }
-    "}" , Whitespace , ";" ;
+unionMemberDeclaration =
+    dataType , identifier , ";" ;
 
-UnionMemberDeclaration =
-    DataType , Whitespace , Identifier , Whitespace , ";" ;
+configDefinition =
+    "config" , identifier , [ "extends" , identifier ] , "{" ,
+    { configMemberDeclaration }
+    "}" , ";" ;
 
-MMRBlockDefinition =
-    "mmrBlock" , Whitespace , Identifier , Whitespace , "@address" , Whitespace , "(" , Whitespace , AddressExpression , Whitespace , ")" , Whitespace , "{" ,
-    { MMRBlockMemberDeclaration | MMRBitfieldDeclaration , Whitespace }
-    "}" , Whitespace , ";" ;
+configMemberDeclaration =
+    [ "override" ] , "config" , dataType , identifier , "=" , constantExpression , ";" ;
 
-MMRBlockMemberDeclaration =
-    AttributedMMRBlockMemberDeclaration
-  | MMRBlockMemberDeclarationCore ;
+architectureConditionalDeclaration =
+    "when" , ( "@arc" | "cpu" ) , "is" , cpuName , declaration
+  { "elseWhen" , ( "@arc" | "cpu" ) , "is" , cpuName , declaration }
+  [ "else" , declaration ] ;
 
-AttributedMMRBlockMemberDeclaration =
-    TypeAttributeList , Whitespace, MMRBlockMemberDeclarationCore ;
+archCodeBlock =
+   [ "@boot" ] , "archCodeBlock" , identifier , [ "extends" , identifier ] , "@arc" , architectureName , "{" ,
+    { statement | bootCodeStatement}
+    "}"
+ | "@arc" , architectureName , "{" ,
+    { statement | bootCodeStatement}
+   "}" ;
 
-MMRBlockMemberDeclarationCore =
-    "volatile" , Whitespace , "register" , Whitespace , DataType , Whitespace , Identifier , Whitespace , ":" , Whitespace , "offset" , Whitespace , "(" , Whitespace , ConstantExpression , Whitespace , ")" , Whitespace , ";" ;
+interruptServiceRoutineDeclaration =
+    "interrupt" , [ interruptAttributes ] , "function" , identifier , "(" , ")" , block ;
 
-MMRBitfieldDeclaration =
-    "bitfield" , Whitespace , Identifier , Whitespace , "in" , Whitespace , "RawRegister" , Whitespace , "{" ,
-    { BitfieldMemberDeclaration , Whitespace }
-    "}" ;
+interruptAttributes =
+    "(" , interruptAttribute { "," , interruptAttribute } , ")" ;
 
-BitfieldMemberDeclaration =
-    DataType , Whitespace , Identifier , Whitespace , ":" , Whitespace , "bits" , Whitespace , "(" , Whitespace , ConstantExpression , Whitespace , ".." , Whitespace , ConstantExpression , Whitespace , ")" , Whitespace , ";" ;
-
-
-ConfigDefinition =
-    "config" , Whitespace , Identifier , Whitespace , [ Whitespace , "extends" , Whitespace , Identifier ] , Whitespace , "{" ,
-    { ConfigMemberDeclaration , Whitespace }
-    "}" , Whitespace , ";" ;
-
-ConfigMemberDeclaration =
-    [ "override" , Whitespace ] , "config" , Whitespace , DataType , Whitespace , Identifier , Whitespace , "=" , Whitespace , ConstantExpression , Whitespace , ";" ;
-
-ArchitectureConditionalDeclaration =
-    "when" , Whitespace , ( "@arc" | "cpu" ) , Whitespace , "is" , Whitespace , CpuName , Whitespace , Declaration
-    { Whitespace , "elseWhen" , Whitespace , ( "@arc" | "cpu" ) , Whitespace , "is" , Whitespace , CpuName , Whitespace , Declaration }
-    [ Whitespace , "else" , Whitespace , Declaration ] ;
-
-archCodeBlock = // MODIFIED architectureMachineCodeBlock -> archCodeBlock
-    "archCodeBlock" , Whitespace , Identifier , [ Whitespace , "extends" , Whitespace , Identifier ] , Whitespace , "@arc" , Whitespace , ArchitectureName , Whitespace , "{" , // MODIFIED architectureMachineCodeBlock -> archCodeBlock
-    { BootStatement , Whitespace }
-    "}" ;
-
-InterruptServiceRoutineDeclaration =
-    "interrupt" , Whitespace , [ InterruptAttributes ] , "function" , Whitespace , Identifier , "(" , Whitespace , ")" , Whitespace , Block ;
-
-InterruptAttributes =
-    "(" , Whitespace , InterruptAttribute { "," , Whitespace , InterruptAttribute } , Whitespace , ")" ;
-
-InterruptAttribute =
+interruptAttribute =
     "fast"
-  | ( "priority" , Whitespace , "=" , Whitespace , IntegerLiteral )
+  | ( "priority" , "=" , integerLiteral )
   | "naked" ;
 
-ArchitectureName =
-    "intel" | "arm" | "riscV" | Identifier ;
+architectureName =
+    "intel" | "arm" | "riscV" | identifier ;
 
-CpuName =
-    "intelPentium4" | "intelCorei7" | "amdAthlon" | "amdRyzen" | "armCortexM0" | "armCortexM3" | "armCortexM4" | "armCortexM7" | "armCortexM33" | "armCortexM55" | "armCortexA7" | "armCortexA9" | "armCortexA15" | "armCortexA53" | "armCortexA57" | "armCortexA72" | "armCortexA76" | "armCortexA78" | "riscv32i" | "riscv32e" | "riscv64i" | "riscv64g" | Identifier ;
+cpuName =
+    "intelPentium4" | "intelCorei7" | "amdAthlon" | "amdRyzen" | "armCortexM0" | "armCortexM3" | "armCortexM4" | "armCortexM7" | "armCortexM33" | "armCortexM55" | "armCortexA7" | "armCortexA9" | "armCortexA15" | "armCortexA53" | "armCortexA57" | "armCortexA72" | "armCortexA76" | "armCortexA78" | "riscv32i" | "riscv32e" | "riscv64i" | "riscv64g" | identifier ;
 
-ModuleName =
-    Identifier | StringLiteral ;
+moduleName =
+    identifier | stringLiteral ;
 
-DataType =
-    [ RegionSpecifier , Whitespace ] , { TypeQualifier , Whitespace } , BaseDataType , [ ":" , Whitespace , IntegerLiteral ] , [ ArrayDimension ], [ PointerSymbol ], [ GenericTypeInstantiation ] ; // MODIFIED DataType to include GenericTypeInstantiation
+dataType =
+    [ regionSpecifier ] , { typeQualifier } , baseDataType , [ ":" , integerLiteral ] , [ arrayDimension ], [ pointerSymbol ], [ genericTypeInstantiation ] , [dependentTypeInstantiation] ;
 
-BaseDataType =
-    IntegerTypeSpecifier
-  | FloatTypeSpecifier
-  | "integer"
-  | "longInt"
+dependentTypeInstantiation =
+    "<" , constantExpression , ">";
+
+baseDataType =
+    integerTypeSpecifier
+  | floatTypeSpecifier
   | "address"
   | "codeAddress"
   | "dataAddress"
   | "genericAddress"
   | "bootAddress"
   | "boolean"
-  | CharacterTypeSpecifier
-  | "struct" , Whitespace , Identifier
-  | "union" , Whitespace , Identifier
-  | "mmrBlock" , Whitespace , Identifier
-  | "config" , Whitespace , Identifier
-  | Identifier
-  | FunctionPointerType
-  | "raw" , Whitespace , "byte"
-  | SafeArrayType
-  | DataType , Whitespace , "^scoped" // MODIFIED scopedPtr -> DataType ^scoped - Symbol for scopedPtr
-  | DataType , Whitespace , "^tracked" // MODIFIED trackedPtr -> DataType ^tracked - Symbol for trackedPtr
+  | characterTypeSpecifier
+  | "struct" , identifier
+  | "union" , identifier
+  | "config" , identifier
+  | identifier
+  | functionPointerType
+  | "rawbyte"
+  | safeArrayType
+  | dataType , "scoped"
+  | dataType , "tracked"
   | "threadHandle"
   | "mutex"
-  | "semaphore"
-  | AwaitableType
-  | ArraySliceType
-  | TupleType
-  | CapabilityPointerType
-  | ResultType // ADDED ResultType
-  | RefinementType // ADDED RefinementType - For EBNF completeness - Identifier for Refinement Type usage as DataType
+  | "sync"
+  | awaitableType
+  | arraySliceType
+  | tupleType
+  | capabilityPointerType
+  | resultType
+  | refinementType
+  | regionBasedType ;
+
+regionBasedType =
+    identifier;
+
+resultType =
+    "Result" , "<" , dataType, "," , dataType, ">" ;
+
+capabilityPointerType =
+    dataType , capabilityQualifier;
+
+capabilityQualifier =
+    "" , "+"
+  | "" , "-"
+  | "" , "@" , identifier
+  | "" , "!"
+  | "scoped"
+  | "tracked"
   ;
 
-RefinementType = // ADDED RefinementType - For EBNF completeness
-    Identifier; // ADDED RefinementType - For EBNF completeness
+tupleType =
+    "tuple" , "<" , dataType { "," , dataType } , ">" ;
 
-ResultType = // ADDED ResultType
-    "Result" , Whitespace , "<" , Whitespace, DataType, Whitespace, "," , Whitespace, DataType, Whitespace, ">" ; // ADDED ResultType
+arraySliceType =
+    "arraySlice" , "<" , dataType, ">" ;
 
+awaitableType =
+    dataType , "await" ;
 
-CapabilityPointerType =  // ADDED CapabilityPointerType
-    DataType , Whitespace, CapabilityQualifier; // MODIFIED CapabilityPointerType - No longer generic, qualifiers postfix
+safeArrayType =
+     baseDataType, [ "safe" | "!" ], "[" , (constantExpression | identifier) , "]" ;
 
-CapabilityQualifier = // MODIFIED CapabilityQualifier - Symbols instead of keywords, postfix
-    "^readonly"  // MODIFIED readOnlyPtr -> ^readonly
-  | "^writeonly" // MODIFIED writeOnlyPtr -> ^writeonly
-  | "^region" , Whitespace , "(" , Whitespace, Identifier, Whitespace, ")" // MODIFIED regionBoundPtr -> ^region(...)
-  | "^nonnull" // MODIFIED noNullPtr -> ^nonnull
-  | "^scoped"  // MODIFIED scopedPtr -> ^scoped - Symbol for scopedPtr
-  | "^tracked"  ;  // MODIFIED trackedPtr -> ^tracked - Symbol for trackedPtr
-
-
-TupleType =
-    "tuple" , Whitespace , "<" , Whitespace, DataType { "," , Whitespace , DataType } , Whitespace, ">" ;
-
-ArraySliceType =
-    "arraySlice" , Whitespace , "<" , Whitespace, DataType, Whitespace, ">" ;
-
-AwaitableType =
-    "awaitable" , Whitespace , "<" , Whitespace, DataType, Whitespace, ">" ;
-
-SafeArrayType =
-    "safeArray" , Whitespace , "<" , Whitespace, DataType, Whitespace, "," , Whitespace, ConstantExpression, Whitespace, ">" ;
-
-PointerSymbol =
+pointerSymbol =
     "^" ;
 
-FunctionPointerType =
-    [ RegionSpecifier , Whitespace ] , "function" , Whitespace , "(" , [ Whitespace , ParameterList ] , Whitespace , ")" , Whitespace , [ "->" , Whitespace , DataType ] ;
+functionPointerType =
+    [ regionSpecifier ] , "function" , "(" , [ parameterList ] , ")" , [ "->" , dataType | awaitableType] ;
 
-RegionSpecifier =
-    "dataRegion" , [ Whitespace , RegionCapabilitySpecifier ] // MODIFIED RegionSpecifier to include RegionCapabilitySpecifier
-  | "bssRegion" , [ Whitespace , RegionCapabilitySpecifier ] // MODIFIED RegionSpecifier to include RegionCapabilitySpecifier
-  | "rodataRegion" , [ Whitespace , RegionCapabilitySpecifier ] // MODIFIED RegionSpecifier to include RegionCapabilitySpecifier
-  | "stackRegion" , [ Whitespace , RegionCapabilitySpecifier ] // MODIFIED RegionSpecifier to include RegionCapabilitySpecifier
-  | "peripheralRegion" , [ Whitespace , RegionCapabilitySpecifier ] // MODIFIED RegionSpecifier to include RegionCapabilitySpecifier
-  | "moduleDataRegion" , [ Whitespace , RegionCapabilitySpecifier ] // MODIFIED RegionSpecifier to include RegionCapabilitySpecifier
-  | "bootCodeRegion" , [ Whitespace , RegionCapabilitySpecifier ] // MODIFIED RegionSpecifier to include RegionCapabilitySpecifier
-  | "interruptVectorRegion" , [ Whitespace , RegionCapabilitySpecifier ] ; // MODIFIED RegionSpecifier to include RegionCapabilitySpecifier
+regionSpecifier =
+   "dataRegion" , [ regionCapabilitySpecifier ]
+  | "rodataRegion" , [ regionCapabilitySpecifier ]
+  | "stackRegion" , [ regionCapabilitySpecifier ]
+  | "peripheralRegion" , [ regionCapabilitySpecifier ]
+    | "moduleDataRegion" , [ regionCapabilitySpecifier ]
+  | "bootCodeRegion" , [ regionCapabilitySpecifier ]
+  | "interruptVectorRegion" , [ regionCapabilitySpecifier ] ;
 
-RegionCapabilitySpecifier = // ADDED RegionCapabilitySpecifier
-    "capabilities" , Whitespace , "(" , Whitespace , CapabilityList , Whitespace , ")" ; // ADDED RegionCapabilitySpecifier
+regionCapabilitySpecifier =
+    "capabilities" , "(" , capabilityList , ")" ;
 
-CapabilityList = // ADDED CapabilityList
-    Capability { "," , Whitespace , Capability } ; // ADDED CapabilityList
+capabilityList =
+    capability { "," , capability } ;
 
-Capability = // ADDED Capability
-    "read" | "write" | "execute" | "capability_derive" ; // ADDED Capability
+capability =
+    "read" | "write" | "execute" | "capability_derive" ;
 
-
-RegionDeclarationBlock =
-    BootRegionBlock
-  | AttributedDataRegionBlock
-  | AttributedBssRegionBlock
-  | AttributedRodataRegionBlock
-  | AttributedStackRegionBlock
-  | AttributedPeripheralRegionBlock
-  | AttributedModuleDataRegionBlock
+regionDeclarationBlock =
+    bootRegionBlock
+  | attributedDataRegionBlock
+  | attributedRodataRegionBlock
+  | attributedStackRegionBlock
+  | attributedPeripheralRegionBlock
+  | attributedModuleDataRegionBlock
+    | attributedCamDataRegionBlock
   ;
 
-BootRegionBlock =
-    "bootRegions" , Whitespace, "{" ,
-    [ BootCodeRegionBlock ] ,
-    [ BootDataRegionBlock ] ,
-    [ InterruptVectorRegionBlock ] ,
-    "}" , Whitespace ;
+bootRegionBlock =
+    "bootRegions" , "{" ,
+    [ bootCodeRegionBlock ] ,
+    [ bootDataRegionBlock ] ,
+    [ interruptVectorRegionBlock ] ,
+    "}" ;
 
-BootCodeRegionBlock =
-    "bootCodeRegion" , Whitespace , "{" , { BootCodeRegionDeclaration } , "}" , Whitespace ;
+bootCodeRegionBlock =
+    "bootCodeRegion" , "{" , { bootCodeRegionDeclaration } , "}" ;
 
-BootDataRegionBlock =
-    "bootDataRegion" , Whitespace , "{" , { BootDataRegionDeclaration } , "}" , Whitespace ;
+bootDataRegionBlock =
+    "bootDataRegion" , "{" , { bootDataRegionDeclaration } , "}" ;
 
-InterruptVectorRegionBlock =
-    "interruptVectorRegion" , Whitespace , "{" , { InterruptVectorRegionDeclaration } , "}" , Whitespace ;
+interruptVectorRegionBlock =
+    "interruptVectorRegion" , "{" , { interruptVectorRegionDeclaration } , "}" ;
 
-AttributedDataRegionBlock =
-    TypeAttributeList , Whitespace, DataRegionBlockCore;
+attributedDataRegionBlock =
+    typeAttributeList , dataRegionBlockCore;
 
-AttributedBssRegionBlock =
-    TypeAttributeList , Whitespace, BssRegionBlockCore;
+attributedRodataRegionBlock =
+    typeAttributeList , rodataRegionBlockCore;
 
-AttributedRodataRegionBlock =
-    TypeAttributeList , Whitespace, RodataRegionBlockCore;
+attributedStackRegionBlock =
+    typeAttributeList , stackRegionBlockCore;
 
-AttributedStackRegionBlock =
-    TypeAttributeList , Whitespace, StackRegionBlockCore;
+attributedPeripheralRegionBlock =
+    typeAttributeList , peripheralRegionBlockCore;
 
-AttributedPeripheralRegionBlock =
-    TypeAttributeList , Whitespace, PeripheralRegionBlockCore;
+attributedModuleDataRegionBlock =
+    typeAttributeList , moduleDataRegionBlockCore;
 
-AttributedModuleDataRegionBlock =
-    TypeAttributeList , Whitespace, ModuleDataRegionBlockCore;
+attributedCamDataRegionBlock =
+  typeAttributeList, camDataRegionBlockCore;
 
-DataRegionBlockCore =
-    "dataRegion" , Whitespace , [ RegionCapabilitySpecifier ] , Whitespace, "{" , { DataRegionDeclaration } , "}" , Whitespace ;
+dataRegionBlockCore =
+    "dataRegion" ,  [regionCapabilitySpecifier] , "{" , { dataRegionDeclaration } , "}"
+ | "dataRegion" , [ regionCapabilitySpecifier ], identifier, dataType, identifier, ";"
+ ;
 
-BssRegionBlockCore =
-    "bssRegion" , Whitespace , [ RegionCapabilitySpecifier ] , Whitespace, "{" , { BssRegionDeclaration } , "}" , Whitespace ;
+rodataRegionBlockCore =
+    "rodataRegion" , [ regionCapabilitySpecifier ], "{" , { rodataRegionDeclaration } , "}" ;
 
-RodataRegionBlockCore =
-    "rodataRegion" , Whitespace , [ RegionCapabilitySpecifier ] , Whitespace, "{" , { RodataRegionDeclaration } , "}" , Whitespace ;
+stackRegionBlockCore =
+    "stackRegion" , [ regionCapabilitySpecifier ], "{" , { stackRegionDeclaration } , "}" ;
 
-StackRegionBlockCore =
-    "stackRegion" , Whitespace , [ RegionCapabilitySpecifier ] , Whitespace, "{" , { StackRegionDeclaration } , "}" , Whitespace ;
+peripheralRegionBlockCore =
+    "peripheralRegion" , [ regionCapabilitySpecifier ], "{" , { peripheralRegionDeclaration } , "}" ;
 
-PeripheralRegionBlockCore =
-    "peripheralRegion" , Whitespace , [ RegionCapabilitySpecifier ] , Whitespace, "{" , { PeripheralRegionDeclaration } , "}" , Whitespace ;
+moduleDataRegionBlockCore =
+    "moduleDataRegion" , [ regionCapabilitySpecifier ], "{" , { moduleDataRegionDeclaration } , "}" ;
 
-ModuleDataRegionBlockCore =
-    "moduleDataRegion" , Whitespace , [ RegionCapabilitySpecifier ] , Whitespace, "{" , { ModuleDataRegionDeclaration } , "}" , Whitespace ;
+camDataRegionBlockCore =
+    "CAMDataRegion",  [regionCapabilitySpecifier], identifier, "{" , {camDataRegionDeclaration }, "}" ;
 
-
-DataRegionDeclaration =
-    VariableDeclaration
-  | ConstantDeclaration
-  | StructDefinition
-  | UnionDefinition
-  | ConfigDefinition
-  | TypeDefinition
-  | Comment
-  | EnumDefinition
-  | MMRBlockDefinition
-  | InterfaceIntrinsicFunctionDeclaration
-  | DestructuringDeclaration
-  | StackOnlyVariableDeclaration // ADDED StackOnlyVariableDeclaration
-  | RefinementTypeDefinition // ADDED RefinementTypeDefinition Declaration Level
+dataRegionDeclaration =
+    variableDeclaration
+  | constantDeclaration
+  | structDefinition
+  | union
+  | configDefinition
+  | typeDefinition
+  | comment
+  | enumDefinition
+  | interfaceIntrinsicFunctionDeclaration
+  | destructuringDeclaration
+  | stackOnlyVariableDeclaration
+  | refinementTypeDefinition
+  | dataRegionDeclarationCore
   ;
 
-BssRegionDeclaration =
-    VariableDeclaration
-  | StructDefinition
-  | UnionDefinition
-  | ConfigDefinition
-  | TypeDefinition
-  | Comment
-  | EnumDefinition
-  | MMRBlockDefinition
-  | InterfaceIntrinsicFunctionDeclaration
-  | DestructuringDeclaration
-  | StackOnlyVariableDeclaration // ADDED StackOnlyVariableDeclaration
-  | RefinementTypeDefinition // ADDED RefinementTypeDefinition Declaration Level
+dataRegionDeclarationCore =
+    identifier , "=" , [ "new" , dataType | expression ] , ";" ;
+
+rodataRegionDeclaration =
+    constantDeclaration
+  | structDefinition
+  | unionDefinition
+  | configDefinition
+  | typeDefinition
+  | comment
+  | enumDefinition
+  | interfaceIntrinsicFunctionDeclaration
+  | destructuringDeclaration
+  | stackOnlyVariableDeclaration
+  | refinementTypeDefinition
   ;
 
-RodataRegionDeclaration =
-    ConstantDeclaration
-  | StructDefinition
-  | UnionDefinition
-  | ConfigDefinition
-  | TypeDefinition
-  | Comment
-  | EnumDefinition
-  | MMRBlockDefinition
-  | InterfaceIntrinsicFunctionDeclaration
-  | DestructuringDeclaration
-  | StackOnlyVariableDeclaration // ADDED StackOnlyVariableDeclaration
-  | RefinementTypeDefinition // ADDED RefinementTypeDefinition Declaration Level
+stackRegionDeclaration =
+    variableDeclaration
+  | comment
+  | emptyStatement
+  | interfaceIntrinsicFunctionDeclaration
+  | destructuringDeclaration
+  | stackOnlyVariableDeclaration
+  | refinementTypeDefinition
   ;
 
-StackRegionDeclaration =
-    VariableDeclaration
-  | Comment
-  | EmptyStatement
-  | InterfaceIntrinsicFunctionDeclaration
-  | DestructuringDeclaration
-  | StackOnlyVariableDeclaration // ADDED StackOnlyVariableDeclaration
-  | RefinementTypeDefinition // ADDED RefinementTypeDefinition Declaration Level
+peripheralRegionDeclaration =
+    variableDeclaration
+  | constantDeclaration
+  | comment
+  | emptyStatement
+  | interfaceIntrinsicFunctionDeclaration
+  | structDefinition
+  | destructuringDeclaration
+  | stackOnlyVariableDeclaration
+  | refinementTypeDefinition;
+
+moduleDataRegionDeclaration =
+    variableDeclaration
+  | constantDeclaration
+  | structDefinition
+  | unionDefinition
+  | configDefinition
+  | typeDefinition
+  | comment
+  | enumDefinition
+  | interfaceIntrinsicFunctionDeclaration
+  | destructuringDeclaration
+  | stackOnlyVariableDeclaration
+  | refinementTypeDefinition;
+
+bootCodeRegionDeclaration =
+    comment
+  | emptyStatement
+  | interfaceIntrinsicFunctionDeclaration
+  | rawBinaryDirectiveStatement
   ;
 
-PeripheralRegionDeclaration =
-    VariableDeclaration
-  | ConstantDeclaration
-  | Comment
-  | EmptyStatement
-  | MMRBlockDefinition
-  | InterfaceIntrinsicFunctionDeclaration
-  | DestructuringDeclaration
-  | StackOnlyVariableDeclaration // ADDED StackOnlyVariableDeclaration
-  | RefinementTypeDefinition // ADDED RefinementTypeDefinition Declaration Level
+bootDataRegionDeclaration =
+    variableDeclaration
+  | constantDeclaration
+  | comment
+  | emptyStatement
+  | interfaceIntrinsicFunctionDeclaration
+  | destructuringDeclaration
+  | stackOnlyVariableDeclaration
+  | refinementTypeDefinition;
+
+interruptVectorRegionDeclaration =
+    interruptVectorDirective
+  | comment
+  | emptyStatement
+  | interfaceIntrinsicFunctionDeclaration
   ;
 
-ModuleDataRegionDeclaration =
-    VariableDeclaration
-  | ConstantDeclaration
-  | StructDefinition
-  | UnionDefinition
-  | ConfigDefinition
-  | TypeDefinition
-  | Comment
-  | EnumDefinition
-  | MMRBlockDefinition
-  | InterfaceIntrinsicFunctionDeclaration
-  | DestructuringDeclaration
-  | StackOnlyVariableDeclaration // ADDED StackOnlyVariableDeclaration
-  | RefinementTypeDefinition // ADDED RefinementTypeDefinition Declaration Level
-  ;
+enumDefinition =
+   "enum" , identifier , "{" ,
+    [ enumMemberList ]
+    "}" , ";"
+  |  "enum" , identifier , enumMemberList , ";"
+  |  "enum" , "typeKind" , "{" ,
+    [ typeKindMemberList ]
+    "}" , ";"
+  | "enum" , "layoutAttributeKind" , "{" ,
+    [ layoutAttributeKindMemberList ]
+    "}" , ";" ;
 
-BootCodeRegionDeclaration =
-    Comment
-  | EmptyStatement
-  | InterfaceIntrinsicFunctionDeclaration
-  | RawBinaryDirectiveStatement
-  ;
+enumMemberList =
+    enumMember { "," , enumMember } ;
 
-BootDataRegionDeclaration =
-    VariableDeclaration
-  | ConstantDeclaration
-  | Comment
-  | EmptyStatement
-  | MMRBlockDefinition
-  | InterfaceIntrinsicFunctionDeclaration
-  | DestructuringDeclaration
-  | StackOnlyVariableDeclaration // ADDED StackOnlyVariableDeclaration
-  | RefinementTypeDefinition // ADDED RefinementTypeDefinition Declaration Level
-  ;
+enumMember =
+    identifier [ "=" constantExpression ] ;
 
-InterruptVectorRegionDeclaration =
-    InterruptVectorDirective
-  | Comment
-  | EmptyStatement
-  | InterfaceIntrinsicFunctionDeclaration
-  ;
+typeKindMemberList =
+    typeKindMember { "," , typeKindMember } ;
 
-EnumDefinition =
-    "enum" , Whitespace , Identifier , Whitespace , "{" ,
-    [ EnumMemberList ] , Whitespace
-    "}" , Whitespace , ";"
-  |  "enum" , Whitespace , "TypeKind" , Whitespace , "{" , // ADDED TypeKind Enum Definition
-    [ TypeKindMemberList ] , Whitespace
-    "}" , Whitespace , ";"
-  | "enum" , Whitespace , "LayoutAttributeKind" , Whitespace , "{" , // ADDED LayoutAttributeKind Enum Definition
-    [ LayoutAttributeKindMemberList ] , Whitespace // ADDED LayoutAttributeKind Enum Definition
-    "}" , Whitespace , ";" // ADDED LayoutAttributeKind Enum Definition
+typeKindMember =
+    "Integer" | "Float" | "Struct" | "Enum" | "Pointer" | "Array" | "Tuple" | "Result" | "Refinement" ;
 
-EnumMemberList =
-    EnumMember { "," , Whitespace , EnumMember } ;
+layoutAttributeKindMemberList =
+    layoutAttributeKindMember { "," , layoutAttributeKindMember } ;
 
-EnumMember =
-    Identifier [ Whitespace , "=" Whitespace , ConstantExpression ] ;
+layoutAttributeKindMember =
+    "Packed" | "Aligned" | "RowMajor" | "ArrayOfStructures" ;
 
-TypeAliasDeclaration =
-    "type" , Whitespace , Identifier , Whitespace , "=" , Whitespace , DataType , Whitespace , ";" ;
 
-AttributedVariableDeclaration =
-    TypeAttributeList , Whitespace, [ MutabilityModifier , Whitespace ], VariableDeclarationCore ;
+attributedVariableDeclaration =
+    typeAttributeList , [ mutabilityModifier ], variableDeclarationCore ;
 
-AttributedFunctionDeclaration =
-    TypeAttributeList , Whitespace, FunctionDeclaration ;
+attributedFunctionDeclaration =
+    typeAttributeList , functionDeclaration ;
 
-AttributedStructDefinition =
-    TypeAttributeList , Whitespace, StructDefinition ;
+attributedStructDefinition =
+    typeAttributeList , structDefinition ;
 
-AttributedEnumDefinition =
-    TypeAttributeList , Whitespace, AttributedEnumDefinition ;
+attributedEnumDefinition =
+    typeAttributeList , enumDefinition ;
 
-TypeAttributeList =
-    "[" , Whitespace , TypeAttribute { "," , Whitespace , TypeAttribute } , Whitespace , "]" ;
+typeAttributeList =
+     [ typeAttribute { "," , typeAttribute } ] ;
 
-TypeAttribute =
-    Identifier
-  | AttributeName , "(" , Whitespace , AttributeArgumentList , Whitespace , ")"
+typeAttribute =
+     identifier
+  | "@attribute" , "(" , attributeName , [ "," , attributeArgumentList ] , ")"
   | "boundsCheck"
   | "noBoundsCheck"
   | "boundsCheckStatic"
-  | "optimize" , Whitespace , "(" , Whitespace , OptimizationAttributeList , Whitespace , ")"
+  | "optimize" , "(" , optimizationAttributeList , ")"
   | "potentialNull"
   | "guaranteedNonNull"
-  | "boundsCheck" , Whitespace , ":" , Whitespace , BoundsCheckOption
-  | "stackOnly" // ADDED stackOnly Attribute for TypeAttribute
-  | "layout" , Whitespace , "(" , Whitespace , LayoutAttributeList , Whitespace , ")" // ADDED layout Attribute for TypeAttribute
-  | "boundsCheckRefinement" , Whitespace , "(" , Whitespace , BoundsCheckOption , Whitespace , ")" // ADDED boundsCheckRefinement Attribute
-  | "hasDataLayoutAttribute" , Whitespace , "(" , Whitespace , LayoutAttributeKindIdentifier , Whitespace , ")" // ADDED hasDataLayoutAttribute for TypeAttribute - NEW in Version 1.5
-  | "isType" , Whitespace , "(" , Whitespace , TypeKindIdentifier , Whitespace , ")" // ADDED isType Attribute for TypeAttribute - NEW in Version 1.5
-  | "sizeof" , Whitespace , "(" , Whitespace , TypeKindIdentifier , Whitespace , ")" // ADDED sizeof Attribute for TypeAttribute - NEW in Version 1.5
+  | "boundsCheck" , ":" , boundsCheckOption
+  | "stackOnly"
+   | "@packed"
+  | "@aligned" , "(" , integerLiteral , ")"
+  | "@row_major"
+  | "@array_of_structures"
+  | "boundsCheckRefinement" , "(" , boundsCheckOption , ")"
+  | "hasDataLayoutAttribute" , "(" , layoutAttributeKindIdentifier , ")"
+  | "isType" , "(" , typeKindIdentifier , ")"
+   | "sizeof" , [ "(" , typeKindIdentifier , ")" ]
+  | "bitfield" , "(" , identifier , "." , identifier , ")"
+    | "linearAccess"
+  | "circularBuffer"
+  | "readOnce"
+  | "writeOnce"
+  | "cacheLineAligned"
+   | "@register" , "(" , stringLiteral , "," , stringLiteral , ")"
+  | "schedule" , "(" , stringLiteral , ")"
+  | "linearAccessGuaranteed" , "(" , [integerLiteral ] ,")"
+  | "noOverlapGuaranteed"
+  | "vector" , "(" , integerLiteral , ")"
+  | "vectorAligned"
+  | "inlineAlways"
+  | "noinline"
+  | "inlineIfSmall"
+   | "@in"
+  | "@out"
+  | "@inOut"
+    | "transform" , "(" , stringLiteral , ")"
+  |  "allocator" , "(" , identifier , ")"
+  | "unit" , "(" , stringLiteral , ")"
+  | "registerPool" , "(" , stringLiteral , ")"
+    | "scope" ,"(" , "this" ,")"
+    | "lifetime" , "(" , stringLiteral ,")"
+    | "capability" , "(" , capabilityList ,")"
+    | "limit" , "(" , stringLiteral ,")"
+    | "hardwareDescription", "(" , stringLiteral ,")"
+     | "enable" , "(" , stringLiteral ,")"
+      | "disable" , "(" , stringLiteral ,")"
+    | "@algorithm", "(" , stringLiteral, ")"
+    ;
+
+layoutAttributeList =
+    layoutAttribute { "," , layoutAttribute } ;
+
+layoutAttribute =
+    "packed"
+  | "aligned" , "(" , integerLiteral , ")"
+  | "row_major"
+  | "array_of_structures" ;
+
+layoutAttributeKindIdentifier =
+    "Packed" | "Aligned" | "RowMajor" | "ArrayOfStructures" ;
+
+typeKindIdentifier =
+    "Integer" | "Float" | "Struct" | "Enum" | "Pointer" | "Array" | "Tuple" | "Result" | "Refinement" ;
+
+boundsCheckOption =
+    "runtime" | "compileTime" | "auto" | "off" | identifier ;
+
+optimizationAttributeList =
+    optimizationAttribute { "," , optimizationAttribute } ;
+
+optimizationAttribute =
+    "instructionSchedule" , ":" , instructionScheduleOption ;
+
+instructionScheduleOption =
+    "aggressive" | "default" | "none" | identifier ;
+
+dataFlowAttribute =
+    "in" | "out" | "inOut" ;
+
+attributeName = identifier;
+attributeArgumentList = constantExpression { "," , constantExpression };
+
+
+bootStatement =
+    bootRegisterDirectiveStatement
+  | bootMemoryDirectiveStatement
+  | bootControlFlowStatement
+  | comment
+  | emptyStatement
+  | rawBinaryDirectiveStatement
+  | bootRegionDirectiveStatement
   ;
 
-LayoutAttributeList = // ADDED LayoutAttributeList
-    LayoutAttribute { "," , Whitespace , LayoutAttribute } ; // ADDED LayoutAttributeList
+bootRegionDirectiveStatement =
+    "bootRegion" , regionName , identifier , ";" ;
 
-LayoutAttribute = // ADDED LayoutAttribute
-    "packed" // ADDED packed LayoutAttribute
-  | "aligned" , Whitespace , "(" , Whitespace , IntegerLiteral , Whitespace , ")" // ADDED aligned LayoutAttribute
-  | "row_major" // ADDED row_major LayoutAttribute
-  | "column_major" // ADDED column_major LayoutAttribute
-  | "structure_of_arrays" // ADDED structure_of_arrays LayoutAttribute
-  | "array_of_structures" ; // ADDED array_of_structures LayoutAttribute
+regionName =
+    "bootCode" | "bootData" | "interruptVector" ;
 
-LayoutAttributeKindIdentifier = // ADDED LayoutAttributeKindIdentifier
-    "Packed" | "Aligned" | "RowMajor" | "ColumnMajor" | "StructureOfArrays" | "ArrayOfStructures" ; // ADDED LayoutAttributeKindIdentifier - For TypeAttribute parameters
+bootRegisterDirectiveStatement =
+    "register" , registerName , "=" , bootOperand , ";" ;
 
-TypeKindIdentifier = // ADDED TypeKindIdentifier
-    "Integer" | "Float" | "Struct" | "Enum" | "Pointer" | "Array" | "Tuple" | "Result" | "Refinement" ; // ADDED TypeKindIdentifier - For TypeAttribute parameters
+bootMemoryDirectiveStatement =
+    "memoryStore" , "(" , bootDataSize , "," , bootAddress , ","
+  , bootOperand , ")" , ";"
+  | "memoryLoad" , "(" , bootDataSize , "," , bootAddress , "," , bootOperand , ")" , ";"
+   | "config" , identifier , "=" , constantExpression , ";" ;
 
-BoundsCheckOption =
-    "runtime" | "compileTime" | "auto" | "off" | Identifier ; // ADDED "auto" BoundsCheckOption
-
-OptimizationAttributeList =
-    OptimizationAttribute { "," , Whitespace , OptimizationAttribute } ;
-
-OptimizationAttribute =
-    "instructionSchedule" , Whitespace , ":" , Whitespace , InstructionScheduleOption ;
-
-InstructionScheduleOption =
-    "aggressive" | "default" | "none" | Identifier ;
-
-AttributeName = Identifier;
-AttributeArgumentList = ConstantExpression { "," , Whitespace , ConstantExpression };
-
-RawBinaryDirectiveStatement =
-    "#" , Whitespace , RawBinaryDirectiveName , Whitespace , BinaryEncodingList , Whitespace , ";" ;
-
-RawBinaryDirectiveName =
-    "rawBinary" ;
-
-BinaryEncodingList =
-    [ BinaryEncodingLiteral { Whitespace , BinaryEncodingLiteral } ] ; // Modified to allow empty BinaryEncodingList
-
-BinaryEncodingLiteral =
-    HexadecimalLiteral | BinaryLiteral | DecimalLiteral | OctalLiteral ; // Added OctalLiteral
-
-BootStatement =
-    BootOperationDirectiveStatement
-  | BootRegisterDirectiveStatement
-  | BootMemoryDirectiveStatement
-  | BootControlFlowStatement
-  | Comment
-  | EmptyStatement
-  | RawBinaryDirectiveStatement
-  ;
-
-BootOperationDirectiveStatement = OperationDirectiveStatement ;
-
-BootRegisterDirectiveStatement =
-    "register" , Whitespace , RegisterName , Whitespace , "=" , Whitespace , BootOperand , Whitespace , ";" ;
-
-BootMemoryDirectiveStatement =
-    ( "store" | "load" ) , Whitespace , BootDataSize , Whitespace , BootAddress , Whitespace , "," , Whitespace , BootOperand , Whitespace , ";" ;
-
-BootDataSize =
+bootDataSize =
     "byte" | "word" | "dword" | "qword" ;
 
-BootAddress =
-    ConstantExpression
-  | MemoryAddressing
+bootAddress =
+    constantExpression ;
+
+bootOperand =
+    register
+  | immediateValue
+  | bootMemoryOperand ;
+
+bootMemoryOperand =
+    "[" , bootAddress , "]" ;
+
+bootControlFlowStatement =
+    labelDefinition
+  | jumpStatementDirective
+  | conditionalJumpStatementDirective
+  | gotoDirectiveStatement
   ;
 
-BootOperand =
-    Register
-  | ImmediateValue
-  | BootMemoryOperand ;
+labelDefinition =
+    identifier , ":" , ";" ;
 
-BootMemoryOperand =
-    "[" , Whitespace , BootAddress , Whitespace , "]" ;
+jumpStatementDirective =
+    "jump" , addressExpression , ";" ;
 
-BootControlFlowStatement =
-    LabelDefinition
-  | JumpStatementDirective
-  | ConditionalJumpStatementDirective ;
+conditionalJumpStatementDirective =
+    "jumpIf" , conditionCode , "," , identifier , ";" ;
 
-LabelDefinition =
-    Identifier , Whitespace , ":" , Whitespace , ";" ;
+gotoDirectiveStatement =
+    "goto" , ( identifier | "tailcall" ) , [ identifier , "(" , [ argumentList ] , ")" ] , ";" ;
 
-JumpStatementDirective =
-    "jump" , Whitespace , AddressExpression , Whitespace , ";" ;
-
-ConditionalJumpStatementDirective =
-    "jumpIf" , Whitespace , ConditionCode , Whitespace , "," , Whitespace , Identifier , Whitespace , ";" ;
-
-ConditionCode =
+conditionCode =
     "zero" | "notZero" | "carry" | "noCarry" | "overflow" | "noOverflow" | "greaterThan" | "greaterEqual" | "lessThan" | "lessEqual" | "equal" | "notEqual";
 
-OperationDirectiveStatement =
-    "#" , Whitespace , "operation" , Whitespace , OperationName , [ Whitespace , OperationArgumentList ] , Whitespace , ";" ;
 
-OperationGroupStatement =
-    "operationGroup" , Whitespace , Identifier , [ Whitespace , TypeAttributeList ] , Whitespace , "{" , Whitespace , { Statement , Whitespace } , "}" , Whitespace ;
-
-InterruptVectorDirective =
-    "#" , Whitespace , "interruptVector" , Whitespace , IntegerLiteral , Whitespace , "," , Whitespace , Identifier , Whitespace , ";" ;
-
-EnableInterruptsDirectiveStatement =
-    "#" , Whitespace , "enableInterrupts" , Whitespace , ";" ;
-
-DisableInterruptsDirectiveStatement =
-    "#" , Whitespace , "disableInterrupts" , Whitespace , ";" ;
-
-ClearInterruptFlagDirectiveStatement =
-    "#" , Whitespace , "clearInterruptFlag" , Whitespace , Identifier , Whitespace , ";" ;
-
-PreprocessorDirectiveStatement =
-    DefineDirectiveStatement
-  | IfDirectiveStatement
-  | UseModuleDirectiveStatement
-  | CpuTargetDirectiveStatement
+preprocessorDirectiveStatement =
+    defineDirectiveStatement
+  | ifDirectiveStatement
+  | useModuleDirectiveStatement
+  | useCamDirectiveStatement
+  | cpuTargetDirectiveStatement
   ;
 
-DefineDirectiveStatement =
-    "#" , Whitespace , "define" , Whitespace , Identifier , Whitespace , PreprocessorExpression , Whitespace , LineTerminator ;
+defineDirectiveStatement =
+    "#define" , identifier , constantExpression , lineTerminator ;
 
-IfDirectiveStatement =
-    IfBlock { ElseIfBlock } [ ElseBlock ] , EndIfBlock ;
+ifDirectiveStatement =
+    ifBlock { elseIfBlock } [ elseBlock ] , endIfBlock ;
 
-IfBlock =
-    "#" , Whitespace , "if" , Whitespace , PreprocessorExpression , Whitespace , LineTerminator , { PreprocessorDirectiveStatement | RegionDeclarationBlock | ModuleUseDirective | TargetArchitectureBlock | ModuleDefinition | Declaration | Statement | BootStatement | InterruptServiceRoutineDeclaration | Comment | EmptyStatement } ;
+ifBlock =
+    "#if" , constantExpression , lineTerminator, { preprocessorDirectiveStatement | regionDeclarationBlock | moduleUseDirective | targetArchitectureBlock | moduleDefinition | declaration | statement | bootStatement | interruptServiceRoutineDeclaration | comment | emptyStatement } ;
 
-ElseIfBlock =
-    "#" , Whitespace , "elif" , Whitespace , PreprocessorExpression , Whitespace , LineTerminator , { PreprocessorDirectiveStatement | RegionDeclarationBlock | ModuleUseDirective | TargetArchitectureBlock | ModuleDefinition | Declaration | Statement | BootStatement | InterruptServiceRoutineDeclaration | Comment | EmptyStatement } ;
+elseIfBlock =
+    "#elif" , constantExpression, lineTerminator, { preprocessorDirectiveStatement | regionDeclarationBlock | moduleUseDirective | targetArchitectureBlock | moduleDefinition | declaration | statement | bootStatement | interruptServiceRoutineDeclaration | comment | emptyStatement } ;
 
-ElseBlock =
-    "#" , Whitespace , "else" , Whitespace , LineTerminator , { PreprocessorDirectiveStatement | RegionDeclarationBlock | ModuleUseDirective | TargetArchitectureBlock | ModuleDefinition | Declaration | Statement | BootStatement | InterruptServiceRoutineDeclaration | Comment | EmptyStatement } ;
+elseBlock =
+    "#else" , lineTerminator, { preprocessorDirectiveStatement | regionDeclarationBlock | moduleUseDirective | targetArchitectureBlock | moduleDefinition | declaration | statement | bootStatement | interruptServiceRoutineDeclaration | comment | emptyStatement } ;
 
-EndIfBlock =
-    "#" , Whitespace , "endif" , Whitespace , LineTerminator ;
+endIfBlock =
+    "#endif" , lineTerminator ;
 
-UseModuleDirectiveStatement =
-    "#" , Whitespace , "use" , Whitespace , "module" , Whitespace , ModuleName , [ GenericModuleInstantiation ] , [ Whitespace , "with" , Whitespace , "config" , Whitespace , "{" , { ConfigParameterAssignment , Whitespace } , "}" ] , Whitespace , ";" ; // MODIFIED ModuleUseDirective to include GenericModuleInstantiation
+useModuleDirectiveStatement =
+    "#use" ,  moduleName , [ genericModuleInstantiation ] , [ "with" , "config" , "{" , { configParameterAssignment } , "}" ] , ";" ;
 
-GenericModuleInstantiation = // ADDED GenericModuleInstantiation
-    "<" , Whitespace , ConcreteTypeList , Whitespace , ">" ; // ADDED GenericModuleInstantiation
+useCamDirectiveStatement =
+      "#use" ,  moduleName , [ genericModuleInstantiation ] ,  [ "merge" , moduleName  { "," , moduleName } ] ,  [ "override" ,  (  "function" , identifier , "with" , "config" , "{" , { configParameterAssignment } , "}" ) | "function" , identifier ] ,  ";" ;
 
-CpuTargetDirectiveStatement =
-    "#" , Whitespace , "cpuTarget" , Whitespace , CpuName , Whitespace , LineTerminator ;
+genericModuleInstantiation =
+    "<" , concreteTypeList , ">" ;
 
-PreprocessorExpression =
-    ConstantExpression ;
+cpuTargetDirectiveStatement =
+    "cpuTarget" , cpuName , lineTerminator ;
 
-Statement =
-    ExpressionStatement
-  | CompoundStatement
-  | SelectionStatement
-  | IterationStatement
-  | JumpStatement
-  | DirectiveStatement
-  | OperationGroupStatement
-  | EmptyStatement
-  | ParallelBlockStatement
-  | ThreadStatement
-  | LockStatement
-  | UnlockStatement
-  | WaitStatement
-  | SignalStatement
-  | YieldStatement
-  | AwaitStatement
-  | ExactInstructionSequenceStatement // MODIFIED architectureMachineCodeBlock -> archCodeBlock
-   | DestructuringDeclaration
-  | StackOnlyVariableDeclarationStatement // ADDED StackOnlyVariableDeclarationStatement
-  | CompileTimeFunctionCallStatement // ADDED CompileTimeFunctionCallStatement
+statement =
+    expressionStatement
+  | compoundStatement
+  | selectionStatement
+  | iterationStatement
+  | jumpStatement
+  | directiveStatement
+  | emptyStatement
+  | parallelBlockStatement
+  | threadStatement
+  | lockStatement
+  | unlockStatement
+  | waitStatement
+  | signalStatement
+  | yieldStatement
+  | awaitStatement
+  | destructuringDeclaration
+  | stackOnlyVariableDeclarationStatement
+  | compileTimeFunctionCallStatement
+  | withStatement
+    | compileTimeIfStatement
+    | transactionStatement
+     | hardwareForLoopStatement
+     | "memoryStore" , "(" , bootDataSize , "," , bootAddress , "," , bootOperand , ")" , ";"
+     | "memoryLoad" , "(" , bootDataSize , "," , bootAddress , "," , bootOperand , ")" , ";"
+     | "compilerError" , "(" , stringLiteral , ")" , ";"
+      | bootCodeStatement
+     | symbolicBlock
+  ;
+symbolicBlock =
+      "symbolic" , "{" , { statement }, "}" ;
+
+bootCodeStatement =
+    bootRegisterDirectiveStatement
+  | bootMemoryDirectiveStatement
+  | bootControlFlowStatement
+  | rawBinaryDirectiveStatement
+  | bootRegionDirectiveStatement
+;
+
+block =
+    "{" , { statement | declaration } , "}" ;
+
+hardwareForLoopStatement =
+    "for" , "hardware" , "(" , variableDeclaration | expression, ";" , expression , ";" , expression , ")" , statement ;
+
+transactionStatement =
+    "transaction" ,block ;
+
+stackOnlyVariableDeclarationStatement =
+    "stackOnly" , variableDeclarationCore ;
+
+destructuringDeclaration =
+    [ typeAttributeList ], [ mutabilityModifier ] , dataType , destructuringVariableList , [ "from" ] , identifier , ";"
+  | [ typeAttributeList ],  [ mutabilityModifier ] , "tuple" , "(" , destructuringVariableList , ")" , "=" , identifier , ";" ;
+
+destructuringVariableList =
+    identifier { "," , identifier } ;
+
+compileTimeFunctionCallStatement =
+    identifier , "(" , [ argumentList ] , ")" , ";" ;
+
+withStatement =
+     "with" , "(" , expression , ")" , "{" , { withStatementMember } , "}" , ";" ;
+
+withStatementMember =
+   identifier , ":=" , expression , ";" ;
+
+expressionStatement =
+    [ expression ] , ";" ;
+
+compoundStatement =
+    block ;
+
+selectionStatement =
+    ifStatement
+  | switchStatement
+    | matchStatement;
+
+matchStatement =
+    "match" , "(" , expression , ")" , "{" , { caseStatement } , "}" ;
+
+ifStatement =
+     "if" , "(" , expression , ")" , statement , [ "else" , statement ]
+  |  "if" , "(" , expression , ")" , block , [ "else" , block ]
   ;
 
+switchStatement =
+    "switch" , "(" , expression , ")" , "{" , { caseStatement } , [ defaultCaseStatement ] , "}" ;
 
-StackOnlyVariableDeclarationStatement = // ADDED StackOnlyVariableDeclarationStatement
-    "stackOnly" , Whitespace , VariableDeclarationCore ; // ADDED StackOnlyVariableDeclarationStatement
+caseStatement =
+    "case" , constantExpression , ":" , statement , "break" , ";" ;
 
+defaultCaseStatement =
+    "default" , ":" , statement , "break" , ";" ;
 
-DestructuringDeclaration =
-    [ TypeAttributeList , Whitespace ] , [ MutabilityModifier , Whitespace ] , DataType , Whitespace , DestructuringVariableList , Whitespace , "from" , Whitespace , Identifier , Whitespace , ";" ;
-
-DestructuringVariableList =
-    Identifier { "," , Whitespace , Identifier } ;
-
-ExactInstructionSequenceStatement = // MODIFIED architectureMachineCodeBlock -> archCodeBlock
-    "exactInstructionSequenceStatement" , Whitespace , [ TypeAttributeList , Whitespace ] , "{" , { InstructionRepresentation } , Whitespace , "}" , Whitespace ; // MODIFIED architectureMachineCodeBlock -> archCodeBlock
-
-InstructionRepresentation =
-    "instruction" , Whitespace , ( StringLiteral | Identifier ) , Whitespace , [ OperandList ] , Whitespace , ";" ;
-
-OperandList =
-    Operand { "," , Whitespace , Operand } ;
-
-Operand =
-    RegisterName
-  | ImmediateValue
-  | MemoryOperand
-  | ResultConstructor // ADDED ResultConstructor for Result Type Usage in Operand context (Conceptual - May need adjustments)
-
-ResultConstructor = // ADDED ResultConstructor (Conceptual - May need adjustments)
-    "Result" , Whitespace , "." , Whitespace , ( "Ok" | "Err" ) , Whitespace , "(" , Whitespace , Expression , Whitespace , ")" ; // ADDED ResultConstructor (Conceptual - May need adjustments)
-
-
-ParallelBlockStatement =
-    "parallel" , Whitespace , "{" , { Statement , Whitespace } , "}" , Whitespace ;
-
-ThreadStatement =
-    "thread" , Whitespace , Identifier , Whitespace , FunctionCall , [ Whitespace , "stackSize" , Whitespace , ":" , Whitespace , IntegerLiteral ] , Whitespace , ";" ;
-
-LockStatement =
-    "lock" , Whitespace , "(" , Whitespace , Identifier , Whitespace , ")" , Whitespace , ";" ;
-
-UnlockStatement =
-    "unlock" , Whitespace , "(" , Whitespace , Identifier , Whitespace , ")" , Whitespace , ";" ;
-
-WaitStatement =
-    "wait" , Whitespace , "(" , Whitespace , Identifier , Whitespace , ")" , Whitespace , ";" ;
-
-SignalStatement =
-    "signal" , Whitespace , "(" , Whitespace , Identifier , Whitespace , ")" , Whitespace , ";" ;
-
-YieldStatement =
-    "yield" , Whitespace , [ AwaitableType ] , Whitespace , ";" ;
-
-AwaitStatement =
-    "await" , Whitespace , Expression , Whitespace , ";" ;
-
-ExpressionStatement =
-    [ Expression ] , Whitespace , ";" ;
-
-CompoundStatement =
-    Block ;
-
-Block =
-    "{" , { Statement , Whitespace } , "}" ;
-
-SelectionStatement =
-    IfStatement
-  | SwitchStatement ;
-
-IfStatement =
-    "if" , Whitespace , "(" , Whitespace , Expression , Whitespace , ")" , Whitespace , Statement , [ Whitespace , "else" , Whitespace , Statement ] ;
-
-SwitchStatement =
-    "switch" , Whitespace , "(" , Whitespace , Expression , Whitespace , ")" , Whitespace , "{" , { Whitespace , CaseStatement } , [ Whitespace , DefaultCaseStatement ] , Whitespace , "}" ;
-
-CaseStatement =
-    "case" , Whitespace , ConstantExpression , Whitespace , ":" , Whitespace , Statement , Whitespace , "break" , Whitespace , ";" ;
-
-DefaultCaseStatement =
-    "default" , Whitespace , ":" , Whitespace , Statement , Whitespace , "break" , Whitespace , ";" ;
-
-IterationStatement =
-    WhileLoopStatement
-  | DoWhileLoopStatement
-  | ForLoopStatement
-  | RangeBasedForLoopStatement
+iterationStatement =
+    whileLoopStatement
+  | doWhileLoopStatement
+  | forLoopStatement
+  | rangeBasedForLoopStatement
   ;
 
-RangeBasedForLoopStatement =
-    "for" , Whitespace , "(" , Whitespace , Identifier , Whitespace , "in" , Whitespace , RangeExpression , Whitespace , ")" , Whitespace , Statement ;
+rangeBasedForLoopStatement =
+    "for" , "(" , identifier , ":" , rangeExpression , ")" , statement ;
 
-RangeExpression =
-    Expression , Whitespace , ".." , Whitespace , Expression ;
+rangeExpression =
+    expression , ".." , expression ;
 
-WhileLoopStatement =
-    "while" , Whitespace , "(" , Whitespace , Expression , Whitespace , ")" , Whitespace , Statement ;
+whileLoopStatement =
+    "while" , "(" , expression , ")" , statement ;
 
-DoWhileLoopStatement =
-    "do" , Whitespace , Statement , Whitespace , "while" , Whitespace , "(" , Whitespace , Expression , Whitespace , ")" , Whitespace , ";" ;
+doWhileLoopStatement =
+    "do" , statement , "while" , "(" , expression , ")" , ";" ;
 
-ForLoopStatement =
-    "for" , Whitespace , "(" , Whitespace , ForInitializer , Whitespace , ForCondition , Whitespace , ForUpdater , Whitespace , ")" , Whitespace , Statement ;
+forLoopStatement =
+    "for" , "(" , forInitializer , forCondition , forUpdater , ")" , statement ;
 
-ForInitializer =
-    [ VariableDeclaration | Expression ] ;
+forInitializer =
+    [ variableDeclaration | expression ] ;
 
-ForCondition =
-    [ Expression ] , Whitespace , ";" ;
+forCondition =
+    [ expression ] , ";" ;
 
-ForUpdater =
-    [ Expression ] ;
+forUpdater =
+    [ expression ] ;
 
-JumpStatement =
-    GotoStatement
-  | ContinueStatement
-  | BreakStatement
-  | ReturnStatement ;
+jumpStatement =
+    gotoStatement
+  | continueStatement
+  | breakStatement
+  | returnStatement ;
 
-GotoStatement =
-    "goto" , Whitespace , Identifier , Whitespace , ";" ;
+gotoStatement =
+    "goto" , identifier , ";" ;
 
-ContinueStatement =
-    "continue" , Whitespace , ";" ;
+continueStatement =
+    "continue" , ";" ;
 
-BreakStatement =
-    "break" , Whitespace , ";" ;
+breakStatement =
+    "break" , ";" ;
 
-ReturnStatement =
-    "return" , Whitespace , [ Expression | TupleLiteral ] , Whitespace , ";" ;
+returnStatement =
+   "return" , [ expression | tupleLiteral ] ,  [ expression | tupleLiteral ] ,  ";"
+  | [ expression | tupleLiteral ] , ";" ; //implicit return
 
-TupleLiteral =
-    "tuple" , Whitespace , "(" , [ ArgumentList ] , Whitespace , ")" ;
+tupleLiteral =
+    "(" , [ argumentList ] , ")" ;
 
+expression =
+    assignmentExpression ;
 
-Expression =
-    AssignmentExpression ;
+assignmentExpression =
+    conditionalExpression [ assignmentOperator assignmentExpression ] ;
 
-AssignmentExpression =
-    ConditionalExpression [ Whitespace AssignmentOperator Whitespace AssignmentExpression ] ;
+assignmentOperator =
+    "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>="
+    | "+^=" | "-^=";
 
-AssignmentOperator =
-    "=" | "+=" | "-=" | "*=" | "/=" | "%=" | "&=" | "|=" | "^=" | "<<=" | ">>=" ;
+conditionalExpression =
+    logicalOrExpression [ "?" , expression , ":" , conditionalExpression ] ;
 
-ConditionalExpression =
-    LogicalOrExpression [ Whitespace "?" Whitespace Expression Whitespace ":" Whitespace ConditionalExpression ] ;
+logicalOrExpression =
+    logicalAndExpression { "||" logicalAndExpression } ;
 
-LogicalOrExpression =
-    LogicalAndExpression { Whitespace "||" Whitespace LogicalAndExpression } ;
+logicalAndExpression =
+    bitwiseOrExpression { "&&" bitwiseOrExpression } ;
 
-LogicalAndExpression =
-    BitwiseOrExpression { Whitespace "^^" Whitespace BitwiseOrExpression } ;
+bitwiseOrExpression =
+    bitwiseXorExpression { "|" bitwiseXorExpression } ;
 
-BitwiseOrExpression =
-    BitwiseXorExpression { Whitespace "|" Whitespace BitwiseXorExpression } ;
+bitwiseXorExpression =
+    bitwiseAndExpression { "^" bitwiseAndExpression } ;
 
-BitwiseXorExpression =
-    BitwiseAndExpression { Whitespace "^" Whitespace BitwiseXorExpression } ;
+bitwiseAndExpression =
+    equalityExpression { "&" equalityExpression } ;
 
-BitwiseAndExpression =
-    EqualityExpression { Whitespace "&" Whitespace EqualityExpression } ;
+equalityExpression =
+    relationalExpression { ( "==" | "!=" ) relationalExpression } ;
 
-EqualityExpression =
-    RelationalExpression { Whitespace ( "==" | "!=" ) Whitespace RelationalExpression } ;
+relationalExpression =
+    shiftExpression { ( "<" | ">" | "<=" | ">=" ) shiftExpression } ;
 
-RelationalExpression =
-    ShiftExpression { Whitespace ( "<" | ">" | "<=" | ">=" ) Whitespace ShiftExpression } ;
+shiftExpression =
+    additiveExpression { ( "<<" | ">>" ) additiveExpression } ;
 
-ShiftExpression =
-    AdditiveExpression { Whitespace ( "<<" | ">>" ) Whitespace AdditiveExpression } ;
+additiveExpression =
+    multiplicativeExpression { ( "+" | "-" ) multiplicativeExpression } ;
 
-AdditiveExpression =
-    MultiplicativeExpression { Whitespace ( "+" | "-" ) Whitespace MultiplicativeExpression } ;
+multiplicativeExpression =
+    castExpression { ( "*" | "/" | "%"  | "+^" | "-^") castExpression } ;
 
-MultiplicativeExpression =
-    CastExpression { Whitespace ( "*" | "/" | "%" ) Whitespace CastExpression } ;
+castExpression =
+    unaryExpression ;
 
-CastExpression =
-    UnaryExpression ;
+unaryExpression =
+    postfixExpression
+  | sizeofExpression
+  | unaryOperator , castExpression ;
 
-UnaryExpression =
-    PostfixExpression
-  | SizeofExpression
-  | UnaryOperator , Whitespace , CastExpression ;
+unaryOperator =
+    "+" | "-" | "!" | "~" | "^" | "&"  | "countLeadingZeros" | "countTrailingZeros" | "countSetBits" ;
 
-UnaryOperator =
-    "+" | "-" | "!" | "~" | "*" | "&" ;
+sizeofExpression =
+    "sizeof" , [ "(" , ( dataType | expression ) , ")" ] ;
 
-SizeofExpression =
-    "sizeof" , Whitespace , "(" , Whitespace , ( DataType | Expression ) , Whitespace , ")" ;
+postfixExpression =
+    primaryExpression { postfixOperator } ;
 
-PostfixExpression =
-    PrimaryExpressionWithLikelyUnlikely { Whitespace PostfixOperator } ;
-
-PostfixOperator =
-    ArrayAccessSuffix
-  | StructMemberAccessSuffix
-  | UnionMemberAccessSuffix
-  | MmrBlockMemberAccessSuffix
-  | FunctionCallSuffix
+postfixOperator =
+    arrayAccessSuffix
+  | structMemberAccessSuffix
+  | unionMemberAccessSuffix
+  | mmrBlockMemberAccessSuffix
+  | functionCallSuffix
   ;
 
-FunctionCallSuffix =
-    "(" , [ ArgumentList ] , ")" ;
-
-ArrayAccessSuffix =
-    "[" , Whitespace , Expression , Whitespace , "]" ;
-
-StructMemberAccessSuffix =
-    "." , Whitespace , Identifier ;
-
-UnionMemberAccessSuffix =
-    "." , Whitespace , Identifier ;
-
-MmrBlockMemberAccessSuffix =
-    "." , Whitespace , Identifier ;
-
-PrimaryExpression =
-    Identifier
-  | ConstantLiteral
-  | StringLiteral
-  | "(" , Whitespace , Expression , Whitespace , ")"
-  | FunctionCall
-  | ArrayAccess
-  | StructMemberAccess
-  | UnionMemberAccess
-  | MmrBlockAccess
-  | ConceptualRegisterAccess
-  | ResultConstructor // ADDED ResultConstructor for PrimaryExpression context (Conceptual - May need adjustments)
+functionCallSuffix =
+    "(" , [ argumentList ] , ")"
+    | [ argumentList ]
   ;
 
-PrimaryExpressionCore =
-    Identifier
-  | ConstantLiteral
-  | StringLiteral
-  | "(" , Whitespace , Expression , Whitespace , ")" ;
+arrayAccessSuffix =
+    "[" , expression , "]" ;
 
+structMemberAccessSuffix =
+    "." , identifier ;
 
-PrimaryExpressionWithPath =
-    PrimaryExpression
-  | ArrayAccess
-  | StructMemberAccess
-  | UnionMemberAccess
-  | MmrBlockAccess
-  | ConceptualRegisterAccess;
+unionMemberAccessSuffix =
+    "." , identifier ;
 
-PrimaryExpressionWithLikelyUnlikely =
-    PrimaryExpressionWithPath
-  | LikelyExpression
-  | UnlikelyExpression;
+mmrBlockMemberAccessSuffix =
+    "." , identifier ;
 
-LikelyExpression = "likely" , Whitespace , "(" , Whitespace , Expression , Whitespace , ")" ;
-UnlikelyExpression = "unlikely" , Whitespace , "(" , Whitespace , Expression , Whitespace , ")" ;
+primaryExpression =
+    identifier
+  | constantLiteral
+  | stringLiteral
+  | "(" , expression , ")"
+  | functionCall
+  | arrayAccess
+  | structMemberAccess
+  | unionMemberAccess
+  | mmrBlockAccess
+  | conceptualRegisterAccess
+  | resultConstructor
+  | bitfieldAccess
+  | adtConstructor
+  | tupleLiteral;
 
+functionCall =
+    identifier , [ genericFunctionInstantiation ] , "(" , [ argumentList ] , ")" ;
 
-FunctionCall =
-    Identifier , [ GenericFunctionInstantiation ] , Whitespace , "(" , [ ArgumentList ] , Whitespace , ")" ; // MODIFIED FunctionCall to include GenericFunctionInstantiation
+genericFunctionInstantiation =
+    "<" , concreteTypeList , ">" ;
 
-GenericFunctionInstantiation = // ADDED GenericFunctionInstantiation
-    "<" , Whitespace , ConcreteTypeList , Whitespace , ">" ; // ADDED GenericFunctionInstantiation
+argumentList =
+    expression { "," , expression } ;
 
-ArgumentList =
-    Expression { "," , Whitespace , Expression } ;
+arrayAccess =
+    primaryExpression , "[" , expression , "]" ;
 
-ArrayAccess =
-    PrimaryExpressionWithLikelyUnlikely , Whitespace , "[" , Whitespace , Expression , Whitespace , "]" ;
+structMemberAccess =
+    primaryExpression , "." , identifier ;
 
-StructMemberAccess =
-    PrimaryExpressionWithLikelyUnlikely , Whitespace , "." , Whitespace , Identifier ;
+unionMemberAccess =
+    primaryExpression , "." , identifier ;
 
-UnionMemberAccess =
-    PrimaryExpressionWithLikelyUnlikely , Whitespace , "." , Whitespace , Identifier ;
+mmrBlockAccess =
+    primaryExpression , "." , identifier ;
 
-MmrBlockAccess =
-    PrimaryExpressionWithLikelyUnlikely , Whitespace , "." , Whitespace , Identifier ;
+conceptualRegisterAccess =
+    conceptualRegisterIdentifier ;
 
-ConceptualRegisterAccess =
-    ConceptualRegisterIdentifier ;
+bitfieldAccess =
+    primaryExpression , "=" , "{" , { bitfieldAssignment }, "}"
+     | primaryExpression, "[" , expression , ".." , expression , "]" ,  "=" , expression
+  | identifier , ":=" , expression ;
 
-CastOperator =
-    "(" , Whitespace , DataType , Whitespace , ")" ;
+bitfieldAssignment =
+    identifier , "=" ,  expression , "," ;
 
-ConstantExpression =
-    ConstantLiteral
-  | ConstantIdentifier
-  | ConstantUnaryExpression
-  | ConstantBinaryExpression
-  | ConstantParenthesizedExpression ;
+castOperator =
+    "(" , dataType , ")" ;
 
-ConstantParenthesizedExpression =
-    "(" , Whitespace , ConstantExpression , Whitespace , ")" ;
+constantExpression =
+    constantLiteral
+  | constantIdentifier
+  | constantUnaryExpression
+  | constantBinaryExpression
+  | constantParenthesizedExpression ;
 
-ConstantUnaryExpression =
-    ( "+" | "-" | "!" | "~" ) , Whitespace , ConstantExpression ;
+constantParenthesizedExpression =
+    "(" , constantExpression , ")" ;
 
-ConstantBinaryExpression =
-    ConstantExpression , Whitespace , BinaryOperator , Whitespace , ConstantExpression ;
+constantUnaryExpression =
+    ( "+" | "-" | "!" | "~" ) , constantExpression ;
 
-BinaryOperator =
+constantBinaryExpression =
+    constantExpression , binaryOperator , constantExpression ;
+
+binaryOperator =
     "+" | "-" | "*" | "/" | "%" | "==" | "!=" | "<" | ">" | "<=" | ">=" | "&&" | "||" | "&" | "|" | "^" | "<<" | ">>" ;
 
-ConstantLiteral =
-    IntegerLiteral
-  | FloatLiteral
-  | CharacterLiteral
-  | BooleanLiteral ;
+constantLiteral =
+   integerLiteral
+  | floatLiteral
+  | characterLiteral
+  | booleanLiteral ;
 
-IntegerLiteral =
-    DecimalLiteral
-  | HexadecimalLiteral
-  | BinaryLiteral
-  | BCDLiteral
-  | OctalLiteral ;
+integerLiteral =
+    [ prefix ], digit { digit } ;
 
-OctalLiteral =
-    "0o" , OctalDigit { OctalDigit } ;
+prefix =
+    "0x" | "0b" | "0o";
 
-OctalDigit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" ;
+digit =
+   "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" |
+    "a" | "b" | "c" | "d" | "e" | "f" | "A" | "B" | "C" | "D" | "E" | "F" ;
 
-DecimalLiteral =
-    Digit { Digit } ;
+floatLiteral =
+    decimalFloatLiteral
+  | exponentFloatLiteral ;
 
-HexadecimalLiteral =
-    "0x" , HexadecimalDigit { HexadecimalDigit } ;
+decimalFloatLiteral =
+    digit { digit } , "." , digit { digit } , [ floatSuffix ] ;
 
-BinaryLiteral =
-    "0b" , BinaryDigit { BinaryDigit } ;
+exponentFloatLiteral =
+    ( digit { digit } | decimalFloatLiteral ) , ( "e" | "E" ) , [ "+" | "-" ] , digit { digit } , [ floatSuffix ] ;
 
-BCDLiteral =
-    "%" , Digit { Digit } ;
-
-FloatLiteral =
-    DecimalFloatLiteral
-  | ExponentFloatLiteral ;
-
-DecimalFloatLiteral =
-    Digit { Digit } , "." , Digit { Digit } , [ FloatSuffix ] ;
-
-ExponentFloatLiteral =
-    ( Digit { Digit } | DecimalFloatLiteral ) , ( "e" | "E" ) , [ "+" | "-" ] , Digit { Digit } , [ FloatSuffix ] ;
-
-FloatSuffix =
+floatSuffix =
     "f" | "F" | "d" | "D" ;
 
-CharacterLiteral =
-    ''' , ( SourceCharacter | EscapeSequence ) , '''
-  | "L" , ''' , ( SourceCharacter | EscapeSequence ) , '''
-  | "U" , ''' , ( SourceCharacter | EscapeSequence ) , ''' ;
+characterLiteral =
+    "'" , ( sourceCharacter | escapeSequence ) , "'"
+  | "L" , "'" , ( sourceCharacter | escapeSequence ) , "'"
+  | "U" , "'" , ( sourceCharacter | escapeSequence ) , "'" ;
 
-StringLiteral =
-    '"' , { SourceCharacter | EscapeSequence } , '"'
-  | "L" , '"' , { SourceCharacter | EscapeSequence } , '"'
-  | "U" , '"' , { SourceCharacter | EscapeSequence } , '"' ;
+stringLiteral =
+    '"' , { sourceCharacter | escapeSequence } , '"'
+  | "L" , '"' , { sourceCharacter | escapeSequence } , '"'
+  | "f" , '"' , { sourceCharacter | escapeSequence } , '"'
+  | "U" , '"' , { sourceCharacter | escapeSequence } , '"' ;
 
-BooleanLiteral =
+booleanLiteral =
     "true" | "false" ;
 
-IntegerTypeSpecifier =
-    SignedIntegerTypeSpecifier | UnsignedIntegerTypeSpecifier ;
+integerTypeSpecifier =
+    signedIntegerTypeSpecifier | unsignedIntegerTypeSpecifier ;
 
-SignedIntegerTypeSpecifier =
-    "int8" | "int16" | "int32" | "int64" | "int" | "longInt";
+signedIntegerTypeSpecifier =
+    "int8" | "int16" | "int32" | "int64" | "int";
 
-UnsignedIntegerTypeSpecifier =
-    "uint8" | "uint16" | "uint32" | "uint64";
+unsignedIntegerTypeSpecifier =
+    "uint8" | "uint16" | "uint32" | "uint64" | "uint";
 
-FloatTypeSpecifier =
+floatTypeSpecifier =
     "float32" | "float64" | "float";
 
-CharacterTypeSpecifier =
+characterTypeSpecifier =
     "char8" | "char16" | "char32" | "char";
 
-TypeQualifier =
+typeQualifier =
     "volatile"
   | "const"
   | "nonnull"
-  | "restrict"
-  | "device"
   | "readOnly"
   | "threadLocal"
-  | "bootConstant"
-  | "^readonly" // MODIFIED readOnlyPtr -> ^readonly
-  | "^writeonly" // MODIFIED writeOnlyPtr -> ^writeonly
-  | "^region"  // MODIFIED regionBoundPtr -> ^region
-  | "^nonnull"  // MODIFIED noNullPtr -> ^nonnull
-  | "stackOnly" // ADDED stackOnly TypeQualifier
-  | "^scoped" // MODIFIED scopedPtr -> ^scoped - Symbol for scopedPtr
-  | "^tracked"  ;  // MODIFIED trackedPtr -> ^tracked - Symbol for trackedPtr
+  | "" , "+"
+  | "" , "-"
+  | "" , "@" , identifier
+  | "" , "!"
+  | "stackOnly"
+  | "scoped"
+  | "tracked"
+  ;
 
-ConceptualRegisterIdentifierCore =
-    "%" , Identifier ;
+conceptualRegisterIdentifierCore =
+    "%" , identifier ;
 
-RegisterName =
-    ConceptualRegisterIdentifier ;
+registerName =
+    conceptualRegisterIdentifier ;
 
-ImmediateValue =
-    ConstantExpression ;
+immediateValue =
+    constantExpression ;
 
-Comment =
-    SingleLineComment | MultiLineComment ;
+comment =
+    singleLineComment | multiLineComment ;
 
-SingleLineComment =
-    "//" , { SourceCharacter } , LineTerminator ;
+singleLineComment =
+    "//" , { sourceCharacter } , lineTerminator ;
 
-MultiLineComment =
-    "/*" , { SourceCharacter } , "*/" ;
+multiLineComment =
+    "/*" , { sourceCharacter } , "*/" ;
 
-Whitespace =
-    { Space | Tab | LineTerminator } ;
+whiteSpace =
+    { " " | "\t" | lineTerminator } ;
 
-EmptyStatement =
+lineTerminator =  ? unicode line terminator character (lf, cr, crlf, etc.) ? ;
+
+emptyStatement =
     ";" ;
 
-Identifier =
-    Letter { Letter | Digit | "_" } ;
+identifier =
+    letter { letter | digit | "_" } ;
 
+(* lexical terminals (unicode categories) *)
+letter =  ? unicode letter character ? ;
+digit =  ? unicode digit character ? ;
+sourceCharacter =  ? any unicode character ? ;
+escapeSequence =  "\\" , ( "n" | "r" | "t" | "\\" | "'" | '"' | "0" ) ;
 
-(* Lexical Terminals (Unicode categories) *)
-Letter = ? Unicode letter character ? ;
-Digit = ? Unicode digit character ? ;
-HexadecimalDigit = Digit | "a" | "b" | "c" | "d" | "e" | "f" | "A" | "B" | "C" | "D" | "E" | "F" ;
-BinaryDigit = "0" | "1" ;
-OctalDigit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" ;
-SourceCharacter = ? any Unicode character ? ;
-EscapeSequence =  "\\" , ( "n" | "r" | "t" | "\\" | "'" | '"' | "\0" ) ;
-Space = ? Unicode space character ? ;
-Tab = ? Unicode tab character ? ;
-LineTerminator = ? Unicode line terminator character (LF, CR, CRLF, etc.) ? ;
+configParameterAssignment =
+    identifier , "=" , constantExpression , ";" ;
 
+concreteTypeList =
+    dataType { "," , dataType} ;
 
-(* Keywords - List of BML Keywords for Lexical Analysis (Updated - Removed Capability Pointer Keywords, Streamlined - **ABSOLUTELY COMPLETE & FINAL Keyword List - Version 1.5 - Streamlined & Updated**) *)
-Keywords = { (* ABSOLUTELY COMPLETE & FINAL Keyword List - Version 1.5 - Streamlined & Updated*)
-    "module", "declarations", "statements", "export", "functions", "types", "constants", "conceptualRegisters", "mmrBlocks",
-    "@arc", "function", "@boot", "inline", "noinline", "pure", "type", "struct", "union", "mmrBlock", "config", "when", "is", "elseWhen", "elif", "archCodeBlock", "interrupt", "@stackOnly", "@layout", "packed", "aligned", "row_major", "column_major", "structure_of_arrays", "array_of_structures", "capabilities", "capability_derive", "where", "range", "in", "interface", "intrinsic", "override", "elseWhen", "elif", "noinline", "pure",
-    "dataRegion", "bssRegion", "rodataRegion", "stackRegion", "peripheralRegion", "moduleDataRegion", "bootRegions", "bootCodeRegion", "bootDataRegion", "interruptVectorRegion",
-    "enum", "typeAlias", "volatile", "const", "nonnull", "restrict", "device", "readOnly", "threadLocal", "bootConstant",
-    "int8", "uint8", "int16", "uint16", "int32", "uint32", "int64", "uint64", "int", "longInt",
-    "float32", "float64", "float", "char8", "char16", "char32", "char", "address", "codeAddress", "dataAddress", "genericAddress", "bootAddress", "boolean", "raw", "byte",
-    "safeArray", "scopedPtr", "trackedPtr", "threadHandle", "mutex", "semaphore", "awaitable", "arraySlice", "tuple", "Result", // ADDED "Result" keyword for Result Type - Version 1.4
-    "if", "else", "switch", "case", "default", "while", "doWhile", "for", "goto", "break", "continue", "return", "in",
-    "thread", "parallel", "lock", "unlock", "wait", "signal", "yield", "await",
-    "true", "false", "mutable", "immutable", "override",
-    "register", "offset", "with", "config", "extends", "is", "then", "elseWhen", "elif", "noinline", "pure",
-    "instruction", "exactInstructionSequenceStatement", "operationGroup", "operation", "memoryBarrier", "fullFence", "readFence", "writeFence",
-    "sizeof", "likely", "unlikely", "nonnull", "restrict", "device", "readOnly", "threadLocal", "bootConstant", "bootCodeRegion", "bootDataRegion", "interruptVectorRegion",
-    "volatile", "register", "offset", "bitfield", "in", "bits", "tuple", "arraySlice", "awaitable", "threadHandle", "mutex", "semaphore",  "in", "0x", "0b", "%", "0o", "generic", "stackOnly", "layout", "packed", "aligned", "row_major", "column_major", "structure_of_arrays", "array_of_structures", "capabilities", "capability_derive", "where", "range",
-    "compileTimeFunction", "TypeKind", "Integer", "Float", "Struct", "Enum", "Pointer", "Array", "Tuple", "Result", "Refinement", "LayoutAttributeKind", "Packed", "Aligned", "RowMajor", "ColumnMajor", "StructureOfArrays", "ArrayOfStructures", // ADDED Keywords for Version 1.5 features - Compile-Time Reflection, Compile-Time Functions, Data-Driven Code Generation
-    "compileTimeFunctionResult", "hasDataLayoutAttribute", "isType", "runtime", "compileTime", "auto", "off" // ADDED new keywords/identifiers related to Version 1.5 features
+parallelBlockStatement =
+    "parallel" , "{" , { statement } , "}" ;
+
+threadStatement =
+    "threadHandle" , identifier , "=" , "startThread" , "(" , identifier , ")" , ";" ;
+
+lockStatement =
+    "lock" , "(" , identifier , ")" , block ;
+
+unlockStatement =
+    "unlock" , "(" , identifier , ")" , ";" ;
+
+waitStatement =
+    "wait" , "(" , identifier , ")" , ";" ;
+
+signalStatement =
+    "signal" , "(" , identifier , ")" , ";" ;
+
+yieldStatement =
+    "yield" , "(" , constantExpression , ")" , ";" ;
+
+awaitStatement =
+    "await" , identifier , "=" ,  expression , ";"
+  ;
+
+compileTimeIfStatement =
+    "compileTimeIf" , "(" , constantExpression , ")" , "{" , { statement }, "}" ,  [ "compileTimeElse", "{" , { statement } , "}" ] ;
+
+conceptualRegisterIdentifier = "%" , identifier ;
+
+traitDefinition =
+    "trait" , identifier , "<" , "type" ,  identifier , ">" , "{" , { traitMember }, "}" ;
+
+traitMember =
+    compileTimeFunctionDeclaration
+  | implBlock;
+
+implBlock =
+    "impl" , identifier , "<" , identifier, ">" , "{" , { functionDeclaration }, "}" ;
+
+dslDefinition =
+    "dsl" , identifier , [ dslConfigParameters ] , "{" , dslBlock , "}" ;
+
+dslConfigParameters =
+   "(" , "config" , parameter { "," , parameter } , ")"
+  ;
+
+dslBlock =
+    { dslSection } ;
+
+dslSection =
+    "states" , ":" , "{" , { dslStateDefinition } , "}"
+  | dslCustomSection ;
+
+dslCustomSection =
+    identifier , "{" , { dslStatement } , "}" ;
+
+dslStateDefinition =
+    identifier , "{" , { dslStatement }, "}" ;
+
+dslStatement =
+    identifier , "(" , [ dslArgumentList ], ")" , [ "->" , identifier ], ";"
+  | emptyStatement;
+
+dslArgumentList =
+    constantExpression { "," , constantExpression };
+
+adtDefinition =
+    "adt" , identifier , "{" , { adtMember } , "}" , ";" ;
+
+adtMember =
+    "enum" , identifier , "(" , [dataType] , ")" , ";"
+  ;
+instrDSLBlock =
+  "@instrDSL" , "{" , { instrDefinition } , "}" ;
+
+instrDefinition =
+  "instr" , [ "export" ] ,  dataType , identifier, [ genericInstructionParameters ] , "(" , [ parameterList ] , ")" , "{" , { statement } , "}";
+
+genericInstructionParameters=
+   "<" , concreteTypeList , ">"
+  ;
+transformation =
+  "remove" , codeBlock, "insert", codeBlock , "type" , transformationType;
+
+codeBlock =
+    "{" , { statement } , "}";
+
+transformationType =
+  "instructionReplacement" | "bitfieldOptimization" | "codeReordering";
+  rule =
+   "rule" , identifier ,  matchOperation , "->" , transformationOperation ,  ";";
+   matchOperation =
+     "match", "(" , identifier, expression, ")" ;
+  transformationOperation =
+    "replace" , "(" , expression, expression, ")" ;
 }
-```
-
-### 13. Appendix: Error Handling in Boot Code
-
-**(Appendix: Error Handling in Boot Code)**
-
-Robust error handling is critical in boot code. Since boot code runs early in system startup, traditional error handling mechanisms may be unavailable. Best practices for error handling in BML boot code:
-
-*   **Explicit Error Checks and Conditional Jumps:**  Boot code should rely on explicit error checks after each initialization step (e.g., checking status registers after clock or memory initialization). Use conditional jump `#operation jumpIf` instructions within `archCodeBlock` or `goto` statements within `@boot` functions to branch to error handlers on error detection. **Example:**
-
-    ```baremetal
-    @boot function bool initializeClock() -> boolean {
-        #operation initializeClockHardware;
-        if (!Clock.StatusRegister.isClockStable()) { // Explicit error check - check clock status register
-            uartSendString("Clock initialization failed!\n");
-            return false; // Indicate failure
-        }
-        return true; // Indicate success
-    }
-
-    @boot function void bootLoader() {
-        if (!initializeClock()) { // Call initialization function and check status
-            #operation setLedError;
-            goto bootErrorHandlerLabel; // Conditional jump to error handler on failure
-        }
-        // ... continue initialization ...
-    bootErrorHandlerLabel:
-        // ... error handling code ...
-    }
-    ```
-
-*   **Status Return Values from `@boot` Functions:** Design `@boot` functions that perform initialization tasks to return boolean or enum status codes indicating success or failure. This allows the `bootLoader` function to check the status of each initialization step and take appropriate action. **Example:**  The `initializeClock()` function in the example above returns a `boolean` value (`true` for success, `false` for failure), allowing the `bootLoader()` function to check the return value and branch to the error handler if clock initialization fails.  Consider using enums for more detailed error status reporting, if needed (e.g., `enum BootStatus { Ok, ClockError, MemoryError, ... };`).
-
-*   **Error Handler Labels and Routines:** Define dedicated error handler labels (within `archCodeBlock`) or error handler functions (`@boot` functions) to which boot code can jump or call upon detecting errors. Error handlers should perform minimal, reliable actions in the constrained boot environment. **Example:** The `bootErrorHandlerLabel:` in the `bootLoader()` function example is a dedicated error handler label. The code under this label should contain error handling logic, such as disabling interrupts, setting error LEDs, and halting the system. Error handlers should be kept simple and robust, avoiding complex logic or function calls that might introduce further points of failure in the boot process.
-
-*   **Minimal Error Reporting Mechanisms:** In the early boot stage, standard output or logging mechanisms might not be available. Implement minimal error reporting using hardware indicators like LEDs or simple GPIO-based signaling. `#operation setLedError` (as a conceptual custom operation) in the example boot code demonstrates toggling an LED to indicate an unrecoverable boot error. **Example:** Use GPIO pins connected to LEDs to signal different error conditions (e.g., red LED for critical error, yellow LED for warning). Alternatively, if a minimal UART or serial port initialization is possible early in boot code, use `uartSendString()` to output basic text-based error messages to a serial console, which can be helpful for debugging during development.
-
-*   **Safe System Halt or Reset:** In case of critical unrecoverable boot errors, the error handler should safely halt the system or initiate a controlled system reset.  An infinite loop (`while (true) {};`) in the error handler can halt the system, preventing further unpredictable behavior.  Alternatively, a hardware reset sequence could be initiated if a more sophisticated recovery mechanism is desired. **Example:** The `bootErrorHandlerLabel:` in the `bootLoader()` example includes a `while (true) {};` infinite loop, which halts the processor execution in case of a boot error, preventing the system from proceeding in an inconsistent or potentially corrupted state.  For more advanced error recovery, consider implementing a controlled system reset sequence within the error handler, which could attempt to re-initialize the hardware or restart the boot process from the beginning.
-
-*   **Example Error Handling Structure:**
-
-    ```baremetal
-    bootRegions {
-        bootCodeRegion {
-            @boot function bool initializeClock() -> boolean {
-                #operation initializeClockHardware;
-                if (!Clock.StatusRegister.isClockStable()) {
-                    return false; // Indicate clock initialization failure
-                }
-                return true;
-            }
-
-            @boot function void bootLoader() {
-                if (!initializeClock()) {
-                    #operation setLedError;
-                    goto bootErrorHandlerLabel; // Jump to error handler in boot code
-                }
-                // ... rest of initialization ...
-
-            bootErrorHandlerLabel: // Error handler label
-                #operation disableInterrupts;
-                #operation setLedError; // Indicate error via LED
-                while (true) {}; // Infinite loop - Halt system
-            }
-
-            archCodeBlock bootEntry @arc arm {
-                statements {
-                    #operation jump bootLoader; // Jump to bootLoader function
-                }
-            }
-        }
-    }
-    ```
-
-*   **Avoid Complex Error Handling in Boot Code:** Keep error handling in boot code as simple and reliable as possible. Avoid complex exception handling, dynamic memory allocation, or dependencies on external libraries in boot error handlers, as these can introduce further points of failure in the early boot environment.  Error handling in boot code should be focused on detecting critical initialization failures and taking minimal, reliable actions to prevent further system damage or unpredictable behavior.  Complex error recovery or logging should be deferred to later stages of the boot process or to the main application/OS code, once the system environment is more fully initialized and robust error handling mechanisms are available.
-
-*   **Thorough Testing of Boot Error Paths:**  Thoroughly test boot code error paths by simulating or inducing hardware failures during testing to ensure that error handling routines are correctly triggered.  Testing boot code error handling is crucial to ensure that the system behaves predictably and safely even in failure scenarios during startup.  Use hardware simulators, emulators, or fault injection techniques to test various error conditions, such as clock initialization failures, memory initialization errors, or peripheral initialization failures, and verify that the boot code correctly detects and handles these errors, entering the appropriate error handling routines and preventing system crashes or hangs.
-
-**Robust error handling in boot code is paramount for system reliability. By incorporating explicit error checks, using status return values, implementing minimal error reporting, and ensuring safe system halt or reset in error conditions, developers can create more dependable and resilient bare metal systems using BML.**
-
-**Error Handling Mechanisms (Runtime Errors):**  For runtime errors that occur outside of boot code (e.g., `safeArray` bounds checks, `DataType ^tracked` safety violations, division by zero, null pointer dereferences if not caught by static analysis), BML's error handling behavior depends on the execution environment:
-
-*   **Bare Metal Environments (No OS):** In true bare metal deployments without an underlying operating system, the behavior upon runtime errors is platform-dependent and may be less predictable.  Typically, a runtime error will lead to program termination, potentially a processor fault (e.g., hard fault on ARM Cortex-M), or undefined behavior.  **Robust error handling in critical sections and boot code is especially important in bare metal scenarios to prevent system crashes or unpredictable states.**  For non-critical sections in bare metal, developers should strive to anticipate potential runtime errors and implement explicit error checks (e.g., checking for null pointers before dereferencing, validating array indices before access) to prevent unexpected program termination.  CAMs or external libraries *may* provide more sophisticated error handling mechanisms for bare metal environments if needed, but the core BML language itself does not enforce or provide a standard runtime exception handling system in bare metal contexts to maintain minimal overhead.  In typical bare metal scenarios, runtime errors are often unrecoverable, and the best approach is to prevent them through careful programming, static analysis, and runtime checks (like `safeArray` bounds checks) whenever feasible.
-
-*   **Environments with Runtime Support (e.g., Emulators, Simulators, OS-based Execution):** In environments where a minimal BML runtime environment or a host operating system is present (e.g., when running BML code in an emulator, simulator, or as a hosted application on a desktop OS for testing purposes), runtime errors will typically trigger a runtime error or exception.  This might result in:
-    *   **Program Termination with Error Message:** The program may terminate execution and print an error message to the console or debugging output, indicating the type of runtime error and the location in the BML source code where it occurred.  This provides basic error reporting for debugging and development purposes. The error message typically includes information about the type of error (e.g., "safeArray bounds violation", "null pointer dereference"), the source file name, and the line number where the error occurred, helping developers to quickly identify and fix the issue.
-    *   **Exception Handling (If Supported by Runtime Environment):**  In more advanced runtime environments, a more structured exception handling mechanism *might* be provided (potentially via CAM extensions). This could allow developers to catch and handle runtime errors programmatically, preventing program termination and enabling error recovery or graceful degradation. However, **core BML Version 1.x (and Version 1.5) does not include built-in exception handling keywords or syntax beyond the `Result` type for explicit error propagation.**  Exception handling, if needed beyond `Result` types, is intended to be provided through CAMs or external libraries in environments where a suitable runtime environment exists.  If exception handling is supported by the runtime environment (via CAMs or external libraries), developers can use `try-catch` blocks or similar constructs (provided by the runtime environment) to trap runtime errors, implement error recovery logic, or perform cleanup actions before program termination. However, it's important to note that exception handling mechanisms can introduce runtime overhead and might not be suitable for all bare metal scenarios, especially in performance-critical or resource-constrained systems.
-
-**In summary, BML's error handling philosophy prioritizes compile-time error prevention through static typing and memory safety features. For runtime error handling, BML relies on structured error checks, minimal runtime error reporting in bare metal, the new `Result` type for explicit error propagation (Version 1.4), and potential runtime exceptions in environments with runtime support.  Robust error handling strategies in BML focus on preventing errors proactively and ensuring predictable and safe behavior even in error scenarios, particularly in critical boot code and bare metal deployments.**
-
-### 13. Appendix: BML Compiler (`bmlc`) Development and Assembly Syntax Translation
-
-**(Appendix: BML Compiler (`bmlc`) Development and Assembly Syntax Translation)**
-
-This section provides a conceptual overview of the development of the BML compiler (`bmlc`) and explains how `bmlc` translates assembly-like syntax within Composable Architecture Modules (CAMs) and `archCodeBlock` into machine code without relying on an external assembler program.  Understanding the BML compiler's internal workings can be helpful for advanced BML developers who want to optimize code for performance, understand compiler behavior, or potentially contribute to the BML compiler development effort in the future.
-
-**1. BML Compiler (`bmlc`) Development Overview:**
-
-Developing the BML compiler (`bmlc`) involves a multi-stage process, following standard compiler construction principles, tailored to the specific requirements of BML and its bare metal, zero-overhead design goals.  The `bmlc` compiler architecture can be conceptually divided into these stages:
-
-*   **Front-End (Lexical Analysis, Parsing, Semantic Analysis):**
-    *   **Lexical Analysis (Lexer/Scanner):**
-        *   **Input:** BML Source Code (`.bml` files).
-        *   **Process:** The lexer reads the BML source code character by character and groups them into meaningful units called *tokens*. Tokens represent keywords (`module`, `function`, `if`, etc.), identifiers (variables names, function names), operators (`+`, `-`, `=`, `==`, etc.), literals (integer literals, string literals), and punctuation. The lexer's primary task is to break down the raw BML source code into a stream of tokens that can be processed by the parser. The lexer also handles tasks like whitespace removal, comment stripping, and identifying different types of tokens (e.g., keywords, identifiers, literals).
-        *   **Output:** A stream of tokens.
-        *   **Example:**  The line `uint32 counter = 10;` might be tokenized into: `[KEYWORD: uint32] [IDENTIFIER: counter] [OPERATOR: =] [INTEGER_LITERAL: 10] [PUNCTUATION: ;]`.  The lexer outputs a sequence of tokens that represent the basic building blocks of the BML source code, preparing the input for the next stage of compilation - parsing.
-
-    *   **Parsing (Parser):**
-        *   **Input:** Token stream from the Lexer.
-        *   **Process:** The parser takes the token stream and analyzes its grammatical structure according to the BML language grammar (defined in the EBNF). It verifies if the token sequence forms a valid BML program.  The parser constructs an **Abstract Syntax Tree (AST)**, which is a hierarchical tree-like representation of the program's syntactic structure. The AST represents the program's code in a structured and abstract form, suitable for further processing. The parser uses parsing algorithms (e.g., recursive descent parsing, LR parsing) to process the token stream and build the AST based on the BML grammar rules. If the parser encounters any syntax errors (e.g., unexpected tokens, missing punctuation, invalid grammar constructs), it reports syntax error messages, indicating the location and nature of the syntax violation in the BML source code.
-        *   **Output:** Abstract Syntax Tree (AST).
-        *   **Example (Simplified AST Node for Variable Declaration):**  An AST node for `uint32 counter = 10;` would represent: `DeclarationNode (type: uint32, identifier: counter, initializer: IntegerLiteralNode(value: 10))`. The AST represents the hierarchical structure of the code, showing the relationships between different code elements (e.g., declarations, statements, expressions).
-
-    *   **Semantic Analysis (Semantic Analyzer):**
-        *   **Input:** Abstract Syntax Tree (AST).
-        *   **Process:** The semantic analyzer traverses the AST, performing several crucial tasks to ensure the semantic correctness and type safety of the BML program:
-            *   **Symbol Table Construction:** Creates and manages symbol tables to store information about declared identifiers (variables, functions, types, modules, CAMs). Symbol tables act as a central repository of information about all named entities in the BML program, tracking their names, types, scopes, and other relevant attributes. The symbol table is used to resolve identifier references and ensure that each identifier is properly declared and used within its scope.
-            *   **Type Checking:**  Enforces BML's static typing rules. It verifies that operations are type-correct, type conversions are valid, and type constraints are satisfied. Type errors are detected and reported at this stage.  This includes checking capability-based pointer types, refinement type constraints, and generic type instantiations.  Type checking is a crucial step for ensuring memory safety and preventing runtime type errors in BML programs. The semantic analyzer verifies that all expressions and statements are type-consistent according to BML's strong static typing rules.
-            *   **Scope Resolution:** Resolves identifier references to their declarations based on BML's lexical scoping rules. The semantic analyzer determines the scope of each identifier and ensures that identifier references are resolved to the correct declaration within the appropriate scope. Scope resolution prevents naming conflicts and ensures that identifiers are used according to BML's scoping rules.
-            *   **CAM Integration:** Processes `#use module` directives, resolves CAM module names, loads CAM metadata from `.manifest` files, and integrates CAM declarations and functionalities into the compilation process. This includes resolving interface intrinsic functions, handling CAM configurations, and managing generic CAM instantiations. The semantic analyzer handles the integration of Composable Architecture Modules (CAMs) into the BML compilation process, allowing the compiler to leverage CAMs for hardware abstraction, optimization, and code generation.
-            *   **Compile-Time Reflection Processing:**  Evaluates `sizeof()` and `isType()` intrinsics for compile-time reflection, resolving type information and performing compile-time computations.  The semantic analyzer handles compile-time reflection features, allowing CAMs and BML code to inspect type information and perform computations based on type properties *during compilation*.
-            *   **Compile-Time Function Execution:** Executes `compileTimeFunction` blocks during compilation, performing compile-time computations and code generation actions defined within CAMs. The semantic analyzer executes `compileTimeFunction` blocks, allowing CAMs to perform arbitrary computations and generate specialized code or data structures *at compile time*, enabling powerful metaprogramming and data-driven code generation capabilities.
-            *   **Data Layout Attribute Handling:**  Analyzes Data Layout Attributes applied to data structures and variables, storing layout information in the symbol table and AST for later use in code generation and optimization. The semantic analyzer extracts data layout information from Data Layout Attributes (e.g., `packed`, `aligned`, `row_major`) and stores this information for use in the back-end code generation stage, enabling data layout optimizations for improved cache performance and memory access efficiency.
-            *   **Memory Safety Analysis (Abstract Interpretation - Optional):** If enabled (e.g., via `-enable_ai` flag), performs abstract interpretation-based static analysis to prove memory safety properties, detect potential null pointer dereferences, and identify opportunities for runtime check elimination.  The semantic analyzer can optionally perform abstract interpretation, a powerful static analysis technique, to formally verify memory safety properties of BML code *at compile time*.  Abstract interpretation can help prove the absence of certain runtime errors (e.g., buffer overflows, null pointer dereferences) and enable the compiler to eliminate redundant runtime checks in proven-safe code sections, achieving zero-overhead safety.
-        *   **Output:** Annotated AST (AST with type information, symbol table references, and semantic analysis results). Semantic error and warning messages. The semantic analyzer outputs a semantically enriched AST, which includes type information, resolved symbol references, and annotations from static analysis. It also generates semantic error and warning messages, reporting any type errors, scope violations, or potential memory safety issues detected during semantic analysis.
-
-**2. Intermediate Representation (IR) Generation:**
-
-*   **AST to IR Conversion:**
-    *   **Input:** Annotated AST from Semantic Analysis.
-    *   **Process:**  The compiler translates the semantically analyzed AST into BML's custom-designed Intermediate Representation (IR).  The IR is a low-level, platform-independent representation of the BML program, designed for efficient code generation and optimization for bare metal targets.  The IR captures the program's operations, data flow, memory accesses, and control flow in a form suitable for back-end processing.  Region information, capability qualifiers, refinement type constraints, data layout attributes, and other BML-specific features are faithfully represented in the IR.  The AST-to-IR conversion process transforms the high-level BML code represented in the AST into a lower-level, more machine-oriented representation in the IR, bridging the gap between the source language and the target machine architecture.
-    *   **Output:** BML Intermediate Representation (IR). The BML IR is specifically designed to be efficient for bare metal code generation, enabling fine-grained control over hardware resources and minimizing runtime overhead.
-
-*   **Optimization Passes (IR-Level Optimizations):**
-    *   **Input:** BML Intermediate Representation (IR).
-    *   **Process:**  The compiler applies a series of optimization passes to the IR to improve code performance, reduce code size, and enhance memory safety (where applicable).  These optimization passes are performed on the IR, which is a platform-independent representation, allowing for optimizations that are not tied to any specific target architecture. Optimization passes include:
-        *   **Constant Propagation and Folding:**  Replacing constant expressions with their computed values at compile time.  **Example:**  `x = 5 + 3 * 2;` in BML might be optimized in IR to `x = 11;` by evaluating the constant expression `5 + 3 * 2` at compile time.
-        *   **Dead Code Elimination:**  Removing code that is never executed or whose results are never used. **Example:** If a variable is declared but never used in the program, the compiler's dead code elimination pass will remove the variable declaration and any associated code, reducing code size and improving performance.
-        *   **Inline Expansion (Function Inlining):**  Replacing function calls with the function's code body to reduce function call overhead (for `inline` functions). **Example:** If a function `inline uint32 square(uint32 x) { return x * x; }` is called as `y = square(z);`, the compiler might inline the `square()` function, replacing the function call with the actual multiplication operation `y = z * z;`, eliminating the overhead of a function call and potentially enabling further optimizations.
-        *   **Loop Optimizations:**  Loop unrolling, loop invariant code motion, and other loop transformations to improve loop performance. **Example:** Loop unrolling can reduce loop overhead by replicating the loop body multiple times, reducing the number of loop iterations and branch instructions. Loop invariant code motion moves code that does not change within the loop outside of the loop, reducing redundant computations within the loop body.
-        *   **Register Allocation Hints:**  Providing hints to the register allocator based on conceptual register usage and data flow analysis.  The optimization passes can analyze the IR code to identify opportunities for efficient register allocation and provide hints to the back-end register allocator to guide its register assignment decisions, improving code performance by maximizing register usage and minimizing memory accesses.
-        *   **CAM-Driven Optimizations:** Injecting optimization passes provided by CAMs into the compiler pipeline. These CAM-specific optimizations can perform domain-specific transformations, hardware-aware optimizations, and algorithm-specific tuning based on the CAM's knowledge of the target domain or hardware. **Example:** A DSP CAM might inject an optimization pass that recognizes FIR filter patterns in the IR and replaces them with optimized, vectorized FIR filter implementations for the target architecture.
-        *   **Data Layout Optimizations:**  Rearranging data structures in the IR based on Data Layout Attributes to improve cache locality and memory access patterns. The compiler uses Data Layout Attributes (e.g., `packed`, `aligned`, `row_major`) to guide data structure layout in memory, optimizing data access patterns for better cache utilization and reduced memory latency.
-        *   **Runtime Check Elimination (Abstract Interpretation Driven):** Based on the results of abstract interpretation, eliminating runtime bounds checks for `safeArray` accesses or other safety checks when the compiler can statically prove safety. If abstract interpretation proves that array accesses are always within bounds, the compiler can safely remove the runtime bounds checks for `safeArray` accesses, achieving zero-overhead bounds safety in proven-safe code sections.
-    *   **Output:** Optimized BML Intermediate Representation (IR). The optimization passes transform the IR code to improve its performance characteristics, resulting in a more efficient and optimized intermediate representation of the BML program.
-
-**3. Back-End - Code Generation and Linking:**
-
-*   **Target Architecture Selection:**
-    *   **Input:** Optimized BML Intermediate Representation (IR) and Target Architecture Specification (from `-target` flag).
-    *   **Process:** The compiler back-end selects the appropriate code generation and optimization strategies based on the specified target architecture (e.g., ARM Cortex-M4, RISC-V 64g, x86_64). The `-target` compiler flag determines the target architecture for which the compiler will generate machine code. The back-end uses this target architecture specification to select the correct instruction set, register set, calling conventions, and architecture-specific optimization techniques for code generation.
-
-*   **Code Generation:**
-    *   **Input:** Optimized BML Intermediate Representation (IR) and Target Architecture Specification.
-    *   **Process:** The code generator translates the optimized IR into machine code for the target architecture. This is the final stage of compilation where the platform-independent IR code is transformed into executable machine instructions for the specific target processor. This involves:
-        *   **Instruction Selection:** Choosing the appropriate machine instructions from the target architecture's ISA to implement the IR operations.  Instruction selection is the process of mapping IR instructions to equivalent sequences of machine instructions in the target architecture's instruction set. The code generator selects the most efficient and appropriate machine instructions based on the IR operations and the target architecture's capabilities.
-        *   **Register Allocation:** Assigning physical registers of the target CPU to variables and intermediate values represented in the IR.  This is a critical step for performance, as efficient register allocation minimizes memory accesses. The register allocator considers register allocation hints from CAMs and data flow analysis. Register allocation is the process of assigning variables and intermediate values to physical registers in the target CPU. Efficient register allocation is crucial for performance because accessing data from registers is significantly faster than accessing data from memory. The BML compiler uses sophisticated register allocation algorithms (e.g., graph coloring register allocation) to maximize register usage and minimize register spills (moving data between registers and memory).
-        *   **Instruction Scheduling:**  Ordering machine instructions to optimize instruction pipeline utilization and minimize pipeline stalls, especially on pipelined processors. Instruction scheduling is the process of reordering machine instructions to improve instruction-level parallelism and minimize pipeline stalls on modern pipelined processors. The code generator analyzes data dependencies between instructions and reorders them to maximize CPU pipeline throughput and instruction execution efficiency.
-        *   **Data Layout Implementation:** Generating machine code that respects the specified Data Layout Attributes, ensuring proper data alignment, packing, and array layouts in memory. The code generator uses Data Layout Attributes (e.g., `packed`, `aligned`, `row_major`) to control the physical memory layout of data structures and variables. This ensures that data is arranged in memory according to developer-specified layout preferences, optimizing for cache performance, memory access patterns, and hardware-specific alignment requirements.
-        *   **Hardware Bounds Checking Integration:** If hardware-assisted bounds checking is enabled, generating machine code that utilizes memory tagging instructions or other hardware mechanisms to enforce bounds checks at runtime with minimal overhead. If the `-mte` (or equivalent) compiler flag is used to enable hardware-assisted bounds checking, the code generator will generate machine code that leverages hardware memory tagging instructions (e.g., ARM MTE instructions) to implement runtime bounds checks for `safeArray` and `trackedPtr` types. This allows for near-zero overhead runtime bounds safety by offloading bounds checking operations to dedicated hardware units in the processor.
-        *   **CAM-Driven Code Generation:**  CAMs guide the code generation process by providing implementations for interface intrinsic functions. When the compiler encounters a call to an interface intrinsic function, it retrieves the architecture-specific implementation from the relevant CAM's `@arc` block and integrates that machine code sequence into the generated output. CAMs can also provide code generation templates or code snippets for specific domain functionalities, which are inserted into the generated machine code by the compiler.  CAMs act as "code generation plugins," allowing them to customize and extend the code generation process for specific hardware architectures or application domains.
-        *   **Data-Driven Code Generation:** Leveraging Data Layout Attributes and Compile-Time Functions, the compiler performs data-driven code generation, automatically specializing and optimizing code sequences based on data layout characteristics and compile-time computations performed by CAMs. The compiler can analyze Data Layout Attributes and use Compile-Time Functions to generate different code paths or optimized instruction sequences depending on the data layout specified by the developer. This enables automatic performance tuning and code specialization based on data organization and compile-time configuration.
-        *   **Direct Machine Code Emission:** The code generator directly emits binary machine code bytes into object files, without relying on an external assembler. The BML compiler's back-end includes a built-in "assembler" that directly translates instruction representations into their binary machine code encodings, avoiding the overhead and dependency on external assembler tools.
-    *   **Output:** Object files (`.o` files) containing machine code and symbol information. The code generation stage produces object files that contain the machine code for each compilation unit (e.g., BML source file or CAM module). These object files are then passed to the linker to create the final executable binary.
-
-*   **Linking (Internal Linker):**
-    *   **Input:** Object files (`.o` files) generated by the code generator, and potentially external libraries (if specified).
-    *   **Process:**  `bmlc` includes an integrated linker that performs the linking process internally. The linker combines the object files into a single executable binary, resolving symbol references and performing necessary address relocations. The linker performs the following tasks:
-        *   **Symbol Resolution:** Resolves symbol references between object files and libraries.  Symbol resolution is the process of matching symbol references (e.g., function calls, variable accesses) in one object file with their corresponding symbol definitions (e.g., function implementations, variable declarations) in other object files or libraries. The linker ensures that all symbol references are resolved correctly, linking together different parts of the program into a cohesive whole.
-        *   **Relocation:**  Adjusts memory addresses in the machine code to their final locations in the executable image. Relocation is necessary because the compiler typically generates position-independent code, where memory addresses are relative or placeholders. The linker performs relocation to assign absolute memory addresses to code and data sections in the final executable image, ensuring that the code can execute correctly at its designated memory locations.
-        *   **Library Linking:**  Links in any necessary runtime library code (minimal BML runtime library) and external libraries specified by the user. The linker includes the BML runtime library, which provides essential runtime support functions for BML programs (e.g., thread management, synchronization primitives, basic data type support). The linker also links in any external libraries (e.g., C libraries, math libraries, device driver libraries) that are specified by the developer during compilation, allowing BML programs to interface with existing codebases and leverage external functionalities.
-        *   **Executable File Format Generation:** Creates the final executable binary file in a suitable format for the target platform (e.g., ELF format for embedded systems, or platform-specific executable formats for desktop targets). The linker generates the final executable binary file in a format that is compatible with the target platform's operating system or bootloader. Common executable file formats for embedded systems include ELF (Executable and Linkable Format) and raw binary files (.bin). The linker arranges the code and data sections in the executable binary according to the target platform's memory map and executable format specifications.
-    *   **Output:** Executable binary file (`.elf`, `.bin`, etc.). The linker produces the final executable binary file, which is ready to be loaded and executed on the target hardware or in a suitable execution environment. The executable binary typically contains machine code, data, symbol tables, and other metadata required for program execution on the target platform.
-
-**4. Output - Executable Binary:**
-
-*   **Executable File:** The final output of the `bmlc` compiler is an executable binary file. This file contains the machine code for the BML program, ready to be loaded and executed on the target bare metal hardware or in a suitable execution environment (emulator, simulator).  The executable binary is self-contained and does not require any external runtime libraries beyond the minimal BML runtime support that might be linked in by `bmlc`. The executable binary file is the culmination of the entire BML compilation process, representing the final, deployable output that can be executed on the target embedded system.
-
-**Simplified Data Flow through `bmlc`:**
-
-```
-BML Source Code (.bml) --> Lexer --> Token Stream --> Parser --> Abstract Syntax Tree (AST) --> Semantic Analyzer --> Annotated AST --> Intermediate Representation (IR) --> Optimization Passes --> Optimized IR --> Code Generator --> Object Files (.o) --> Linker (Internal to bmlc) --> Executable Binary (.elf, .bin, etc.)
-```
-
-This detailed overview provides a conceptual understanding of the major stages and processes within the `bmlc` compiler. The key takeaway is that `bmlc` is designed as a self-contained, highly optimized, and extensible compiler tailored specifically for bare metal BML development, handling the entire compilation and linking workflow internally, and leveraging CAMs for domain specialization and performance enhancement.  The BML compiler is a complex piece of software that embodies the core principles of the BML language, striving to provide a powerful, efficient, and reliable toolchain for bare metal embedded systems programming.
-
-**(End of Complete Documentation - Version 1.5 Production Ready)**
 ```
