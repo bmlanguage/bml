@@ -5,7 +5,7 @@
 
 ## Work in progress
 
-**See documentatio.**
+**See documentation.**
 
 If you want to help out developing this compiler, feel free to reach out! 
 
