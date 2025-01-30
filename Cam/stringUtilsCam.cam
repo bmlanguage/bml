@@ -1,6 +1,9 @@
 
+Okay, I've updated the `StringUtilsCam` to reflect the latest BML grammar. Here's the revised code with explanations of the changes:
+
+```baremetal
 module StringUtilsCam {
-    description "Provides **Highly Optimized** string utility functions for BML, engineered for **near-zero overhead** and **maximum performance** in bare metal environments.  This Composable Architecture Module (CAM) offers a comprehensive suite of string operations inspired by C's string.h, with a focus on **ruthless efficiency** for ASCII and UTF-8 workloads.  Core functionalities like string length, comparison, copying, concatenation, substring extraction, character access, case conversion, trimming, and advanced search algorithms are implemented with **assembly-centric design** and **aggressive SIMD vectorization** in architecture-specific blocks (@arc).  Leverages **hand-tuned assembly** for ARM Cortex-M4, RISC-V RV32I, and x86-64 architectures to achieve **peak CPU utilization** and **minimal runtime overhead**. Designed for performance-critical embedded applications where string operations are frequent and efficiency is paramount. **Version 1.1.0 - Optimized Core String Utilities.**  **Note:** `safeArray<char8, 256>` has a fixed size. String operations like `stringCopy`, `stringConcatenate`, and `stringSubstring` will truncate strings to fit within this buffer to prevent overflows.  Please ensure input strings are within the buffer limits or handle potential truncation in your application logic.";
+    description "Provides **Highly Optimized** string utility functions for BML, engineered for **near-zero overhead** and **maximum performance** in bare metal environments. This Composable Architecture Module (CAM) offers a comprehensive suite of string operations inspired by C's string.h, with a focus on **ruthless efficiency** for ASCII and UTF-8 workloads. Core functionalities like string length, comparison, copying, concatenation, substring extraction, character access, case conversion, trimming, and advanced search algorithms are implemented with **assembly-centric design** and **aggressive SIMD vectorization** in architecture-specific blocks (@arc). Leverages **hand-tuned assembly** for ARM Cortex-M4, RISC-V RV32I, and x86-64 architectures to achieve **peak CPU utilization** and **minimal runtime overhead**. Designed for performance-critical embedded applications where string operations are frequent and efficiency is paramount. **Version 1.1.0 - Optimized Core String Utilities.** **Note:** `safeArray<char8, 256>` has a fixed size. String operations like `stringCopy`, `stringConcatenate`, and `stringSubstring` will truncate strings to fit within this buffer to prevent overflows. Please ensure input strings are within the buffer limits or handle potential truncation in your application logic.";
     const StringLiteral CAM_VERSION = "1.1.0"; // CAM Version Constant
 
     export {
@@ -21,7 +24,7 @@ module StringUtilsCam {
         destArray[destIndex] = 0; return destArray; }
     function safeArray<char8> stringSubstring(StringLiteral str, uint32 startIndex, uint32 length) -> safeArray<char8> { // Truncates if substring exceeds buffer size.
         uint32 strLen = stringLength(str); if (startIndex >= strLen) return safeArray<char8, 1>(); uint32 actualLength = length; if (startIndex + length > strLen) actualLength = strLen - startIndex; uint32 subLen = (actualLength < 255) ? actualLength : 255;
-        safeArray<char8, 256> subArray; for (uint32 i = 0; i < subLen; i++) subArray[i] = stringGetChar(str, startIndex + i); subArray[subLen] = 0; return subArray; }
+        safeArray<char8, 256> subArray; for (uint32 i : 0..subLen) subArray[i] = stringGetChar(str, startIndex + i); subArray[subLen] = 0; return subArray; }
     function char8 stringGetChar(StringLiteral str, uint32 index) -> char8 { return str[index]; }
     function char32 stringGetUnicodeChar(StringLiteral str, uint32 index) -> char32 { // Keeping scalar for Unicode - complex UTF-8 handling is often scalar-dominant
         char8 byte1 = stringGetChar(str, index); if ((byte1 & 0x80) == 0x00) return char32(byte1);
@@ -31,7 +34,7 @@ module StringUtilsCam {
     function int32 stringToInteger(StringLiteral str) -> int32 { // Scalar integer conversion - often sufficient and avoids FP overhead
         int32 result = 0; boolean isNegative = false; uint32 startIndex = 0, strLen = stringLength(str);
         if (strLen > 0 && stringGetChar(str, 0) == '-') { isNegative = true; startIndex = 1; }
-        for (uint32 i = startIndex; i < strLen; i++) { char8 currentChar = stringGetChar(str, i); if (currentChar >= '0' && currentChar <= '9') result = result * 10 + (currentChar - '0'); else break; }
+        for (uint32 i : startIndex..strLen) { char8 currentChar = stringGetChar(str, i); if (currentChar >= '0' && currentChar <= '9') result = result * 10 + (currentChar - '0'); else break; }
         return isNegative ? -result : result; }
     function safeArray<char8> integerToString(int32 value) -> safeArray<char8> { // Scalar integer to string - keeping it lean and mean
         safeArray<char8, 256> strArray; boolean isNegative = false; uint32 index = 0;
@@ -95,7 +98,7 @@ module StringUtilsCam {
          } } }
 
         // stringToUpperPlatform - (ARM NEON - Cortex-M4F) - **(NO CHANGE - Already Vectorized - ILLUSTRATIVE - Needs Refinement if higher priority)**
-        intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8> upperStr { safeArray<char8, 256> upperStr_neon; uint32 len = stringLength(str); uint32 vecLen = (len / 16) * 16; for (uint32 i = 0; i < vecLen; i += 16) { #operation instruction sequence {
+        intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8> upperStr { safeArray<char8, 256> upperStr_neon; uint32 len = stringLength(str); uint32 vecLen = (len / 16) * 16; for (uint32 i : 0..vecLen : 16) { #operation instruction sequence {
             "vld1.u8 {d0}, [%[src]]!"
             "vmovn.u16 d2, q0"
             "vsub.u8  q1, q0, #32"
@@ -104,10 +107,10 @@ module StringUtilsCam {
             "vorr   q2, q2, q3"
             "vbic   q0, q1, q2"
             "vst1.u8 {d0}, [%[dst]]!"
-         } with inputs { [src] : inout register address(str.dataPtr() + i), [dst] : inout register address(upperStr_neon.dataPtr() + i) } } for (uint32 i = vecLen; i < len; i++) { char8 currentChar = stringGetChar(str, i); if (currentChar >= 'a' && currentChar <= 'z') currentChar -= 32; upperStr_neon[i] = currentChar; } upperStr_neon[len] = 0; return upperStr_neon; }
+         } with inputs { [src] : inout register address(str.dataPtr() + i), [dst] : inout register address(upperStr_neon.dataPtr() + i) } } for (uint32 i : vecLen..len) { char8 currentChar = stringGetChar(str, i); if (currentChar >= 'a' && currentChar <= 'z') currentChar -= 32; upperStr_neon[i] = currentChar; } upperStr_neon[len] = 0; return upperStr_neon; }
 
         // stringToLowerPlatform - (ARM NEON - Cortex-M4F) - **(NO CHANGE - Already Vectorized - ILLUSTRATIVE - Needs Refinement if higher priority)**
-        intrinsic safeArray<char8> stringToLowerPlatform(StringLiteral str) -> safeArray<char8> lowerStr { safeArray<char8, 256> lowerStr_neon; uint32 len = stringLength(str); uint32 vecLen = (len / 16) * 16; for (uint32 i = 0; i < vecLen; i += 16) { #operation instruction sequence {
+        intrinsic safeArray<char8> stringToLowerPlatform(StringLiteral str) -> safeArray<char8> lowerStr { safeArray<char8, 256> lowerStr_neon; uint32 len = stringLength(str); uint32 vecLen = (len / 16) * 16; for (uint32 i : 0..vecLen : 16) { #operation instruction sequence {
              // Vector load 16 bytes from string to q0
             "vld1.u8 {d0}, [%[src]]!"
             "vmovn.u16 d2, q0"
@@ -117,7 +120,7 @@ module StringUtilsCam {
             "vorr   q2, q2, q3"
             "vbic   q0, q1, q2"
             "vst1.u8 {d0}, [%[dst]]!"
-         } with inputs { [src] : inout register address(str.dataPtr() + i), [dst] : inout register address(lowerStr_neon.dataPtr() + i) } } for (uint32 i = vecLen; i < len; i++) { char8 currentChar = stringGetChar(str, i); if (currentChar >= 'A' && currentChar <= 'Z') currentChar += 32; lowerStr_neon[i] = currentChar; } lowerStr_neon[len] = 0; return lowerStr_neon; }
+         } with inputs { [src] : inout register address(str.dataPtr() + i), [dst] : inout register address(lowerStr_neon.dataPtr() + i) } } for (uint32 i : vecLen..len) { char8 currentChar = stringGetChar(str, i); if (currentChar >= 'A' && currentChar <= 'Z') currentChar += 32; lowerStr_neon[i] = currentChar; } lowerStr_neon[len] = 0; return lowerStr_neon; }
 
 
         // stringIntrinsicCompare - (ARM - Cortex-M4) - **(NO CHANGE - Already Optimized)**
@@ -218,7 +221,7 @@ module StringUtilsCam {
                 uint32 vecLen = ((end - start) / 16) * 16;
                 if (vecLen == 0) break; // Scalar fallback if less than 16 bytes
                 uint32 trimmedStartOffset = 0;
-                for (uint32 i = 0; i < vecLen; i += 16) { #operation instruction sequence {
+                for (uint32 i : 0..vecLen : 16) { #operation instruction sequence {
                     "vld1.u8 {d0}, [%[str]]!"      // Load 16 bytes from string to d0
                     "vld1.u8 {d1}, [%[space]]"     // Load 16 bytes of whitespace to d1
                     "vceq.u8 d2, d0, d1"          // Compare for equality (whitespace) - d2 = mask
@@ -239,7 +242,7 @@ module StringUtilsCam {
             while (end > start && stringGetChar(str, end - 1) <= ' ') end--;
 
             uint32 trimLen = end - start; safeArray<char8, 256> trimmedStr_local; uint32 copyLen = (trimLen < trimmedStr_local.size() - 1) ? trimLen : trimmedStr_local.size() - 1;
-            for (uint32 i = 0; i < copyLen; i++) trimmedStr_local[i] = stringGetChar(str, start + i); trimmedStr_local[copyLen] = 0; return trimmedStr_local;
+            for (uint32 i : 0..copyLen) trimmedStr_local[i] = stringGetChar(str, start + i); trimmedStr_local[copyLen] = 0; return trimmedStr_local;
         }
 
 
@@ -397,7 +400,7 @@ module StringUtilsCam {
          } } }
 
         // stringToUpperPlatform - (RISC-V RVV - RV64GV) - **(NO CHANGE - Already Vectorized - ILLUSTRATIVE)**
-        intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8> upperStr { safeArray<char8, 256> upperStr_rvv; uint32 len = stringLength(str); uint32 vecLen = (len / 32) * 32; for (uint32 i = 0; i < vecLen; i += 32) { #operation instruction sequence {
+        intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8> upperStr { safeArray<char8, 256> upperStr_rvv; uint32 len = stringLength(str); uint32 vecLen = (len / 32) * 32; for (uint32 i : 0..vecLen : 32) { #operation instruction sequence {
             "vsetvli x0, tp, e8, mf8, ta, ma"
             "vle8.v v0, (%[src])+"
             "addi %[src], %[src], 32"
@@ -409,10 +412,10 @@ module StringUtilsCam {
             "vmv.v.v v0, v1, !v4"
             "vse8.v v0, (%[dst])+"
             "addi %[dst], %[dst], 32"
-         } with inputs { [src] : inout register address(str.dataPtr() + i), [dst] : inout register address(upperStr_rvv.dataPtr() + i), tp : in register uint32(32) } } for (uint32 i = vecLen; i < len; i++) { char8 currentChar = stringGetChar(str, i); if (currentChar >= 'a' && currentChar <= 'z') currentChar -= 32; upperStr_rvv[i] = currentChar; } upperStr_rvv[len] = 0; return upperStr_rvv; }
+         } with inputs { [src] : inout register address(str.dataPtr() + i), [dst] : inout register address(upperStr_rvv.dataPtr() + i), tp : in register uint32(32) } } for (uint32 i : vecLen..len) { char8 currentChar = stringGetChar(str, i); if (currentChar >= 'a' && currentChar <= 'z') currentChar -= 32; upperStr_rvv[i] = currentChar; } upperStr_rvv[len] = 0; return upperStr_rvv; }
 
         // stringToLowerPlatform - (RISC-V RVV - RV64GV) - **(NO CHANGE - Already Vectorized - ILLUSTRATIVE)**
-        intrinsic safeArray<char8> stringToLowerPlatform(StringLiteral str) -> safeArray<char8> lowerStr { safeArray<char8, 256> lowerStr_rvv; uint32 len = stringLength(str); uint32 vecLen = (len / 32) * 32; for (uint32 i = 0; i < vecLen; i += 32) { #operation instruction sequence {
+        intrinsic safeArray<char8> stringToLowerPlatform(StringLiteral str) -> safeArray<char8> lowerStr { safeArray<char8, 256> lowerStr_rvv; uint32 len = stringLength(str); uint32 vecLen = (len / 32) * 32; for (uint32 i : 0..vecLen : 32) { #operation instruction sequence {
             "vsetvli x0, tp, e8, mf8, ta, ma"
             "vle8.v v0, (%[src])+"
             "addi %[src], %[src], 32"
@@ -424,7 +427,7 @@ module StringUtilsCam {
             "vmv.v.v v0, v1, !v4"
             "vse8.v v0, (%[dst])+"
             "addi %[dst], %[dst], 32"
-         } with inputs { [src] : inout register address(str.dataPtr() + i), [dst] : inout register address(lowerStr_rvv.dataPtr() + i), tp : in register uint32(32) } } for (uint32 i = vecLen; i < len; i++) { char8 currentChar = stringGetChar(str, i); if (currentChar >= 'A' && currentChar <= 'Z') currentChar += 32; lowerStr_rvv[i] = currentChar; } lowerStr_rvv[len] = 0; return lowerStr_rvv; }
+         } with inputs { [src] : inout register address(str.dataPtr() + i), [dst] : inout register address(lowerStr_rvv.dataPtr() + i), tp : in register uint32(32) } } for (uint32 i : vecLen..len) { char8 currentChar = stringGetChar(str, i); if (currentChar >= 'A' && currentChar <= 'Z') currentChar += 32; lowerStr_rvv[i] = currentChar; } lowerStr_rvv[len] = 0; return lowerStr_rvv; }
 
 
         // stringIntrinsicCompare - (RISC-V - RV32I) - **(NO CHANGE - Already Optimized)**
@@ -517,7 +520,7 @@ module StringUtilsCam {
                 uint32 vecLen = ((end - start) / 32) * 32;
                 if (vecLen == 0) break;
                 uint32 trimmedStartOffset = 0;
-                for (uint32 i = 0; i < vecLen; i += 32) { #operation instruction sequence {
+                for (uint32 i : 0..vecLen : 32) { #operation instruction sequence {
                     "vsetvli x0, tp, e8, mf8, ta, ma"
                     "vle8.v v0, (%[str])+"
                     "addi %[str], %[str], 32"
@@ -537,7 +540,7 @@ module StringUtilsCam {
             // Scalar Trailing Whitespace Trim - Simpler scalar trim for trailing whitespace (as before)
             while (end > start && stringGetChar(str, end - 1) <= ' ') end--;
             uint32 trimLen = end - start; safeArray<char8, 256> trimmedStr_local; uint32 copyLen = (trimLen < trimmedStr_local.size() - 1) ? trimLen : trimmedStr_local.size() - 1;
-            for (uint32 i = 0; i < copyLen; i++) trimmedStr_local[i] = stringGetChar(str, start + i); trimmedStr_local[copyLen] = 0; return trimmedStr_local;
+            for (uint32 i : 0..copyLen) trimmedStr_local[i] = stringGetChar(str, start + i); trimmedStr_local[copyLen] = 0; return trimmedStr_local;
         }
 
 
@@ -636,7 +639,7 @@ module StringUtilsCam {
 
 
     @arc x86 { statements { intrinsic function uint32 stringIntrinsicLength(StringLiteral str) -> uint32; intrinsic function void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes);
-        intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8> upperStr; intrinsic safeArray<char8> stringToLowerPlatform(StringLiteral str) -> safeArray<char8> lowerStr;
+        intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8>; intrinsic safeArray<char8> stringToLowerPlatform(StringLiteral str) -> safeArray<char8> lowerStr;
         intrinsic function boolean stringIntrinsicStartsWith(StringLiteral str, StringLiteral prefix) -> boolean; intrinsic function boolean stringIntrinsicEndsWith(StringLiteral str, StringLiteral suffix) -> boolean;
         intrinsic safeArray<char8> stringIntrinsicTrim(StringLiteral str) -> safeArray<char8> stringIntrinsicTrim; intrinsic function int32 stringIntrinsicCompare(StringLiteral str1, StringLiteral str2) -> int32;
         intrinsic function int32 stringIntrinsicFindChar(StringLiteral str, char8 charToFind) -> int32; intrinsic function int32 stringIntrinsicFindLastChar(StringLiteral str, char8 charToFind) -> int32;
@@ -698,7 +701,7 @@ module StringUtilsCam {
          } } }
 
         // stringToUpperPlatform - (x86-64 SSE) - **NEW - Vectorized - SSE Optimized ASCII Uppercase Conversion**
-        intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8> upperStr { safeArray<char8, 256> upperStr_sse; uint32 len = stringLength(str); uint32 vecLen = (len / 16) * 16; for (uint32 i = 0; i < vecLen; i += 16) { #operation instruction sequence {
+        intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8> upperStr { safeArray<char8, 256> upperStr_sse; uint32 len = stringLength(str); uint32 vecLen = (len / 16) * 16; for (uint32 i : 0..vecLen : 16) { #operation instruction sequence {
             "movdqu (%[src]), %%xmm0"       // Load 16 bytes from source to xmm0
             "movdqa %%xmm0, %%xmm1"       // Copy to xmm1 (working copy for comparison)
 
@@ -723,10 +726,10 @@ module StringUtilsCam {
             "psubb diff_case_sse, %%xmm0"    // Subtract 32 from xmm0 (convert to uppercase) - WRONG! Needs to be masked subtraction.
             "movdqu %%xmm0, (%[dst])"       // Store result to destination - WRONG! Needs to apply mask.
 
-        } with inputs { [src] : inout register address(str.dataPtr() + i), [dst] : inout register address(upperStr_sse.dataPtr() + i) } } for (uint32 i = vecLen; i < len; i++) { char8 currentChar = stringGetChar(str, i); if (currentChar >= 'a' && currentChar <= 'z') currentChar -= 32; upperStr_sse[i] = currentChar; } upperStr_sse[len] = 0; return upperStr_sse; }
+        } with inputs { [src] : inout register address(str.dataPtr() + i), [dst] : inout register address(upperStr_sse.dataPtr() + i) } } for (uint32 i : vecLen..len) { char8 currentChar = stringGetChar(str, i); if (currentChar >= 'a' && currentChar <= 'z') currentChar -= 32; upperStr_sse[i] = currentChar; } upperStr_sse[len] = 0; return upperStr_sse; }
 
         // stringToLowerPlatform - (x86-64 AVX2) - **NEW - Vectorized - AVX2 Optimized ASCII Lowercase Conversion**
-        intrinsic safeArray<char8> stringToLowerPlatform(StringLiteral str) -> safeArray<char8> lowerStr { safeArray<char8, 256> lowerStr_avx; uint32 len = stringLength(str); uint32 vecLen = (len / 32) * 32; for (uint32 i = 0; i < vecLen; i += 32) { #operation instruction sequence {
+        intrinsic safeArray<char8> stringToLowerPlatform(StringLiteral str) -> safeArray<char8> lowerStr { safeArray<char8, 256> lowerStr_avx; uint32 len = stringLength(str); uint32 vecLen = (len / 32) * 32; for (uint32 i : 0..vecLen : 32) { #operation instruction sequence {
             "vmovdqu (%[src]), %%ymm0" // Load 32 bytes from source to ymm0 (AVX2)
             "vmovdqa %%ymm0, %%ymm1"     // Copy to ymm1 (working copy)
             "vmovdqa %%ymm0, %%ymm2"     // Copy to ymm2 (for lowercase result)
@@ -748,7 +751,7 @@ module StringUtilsCam {
             "vmovdqu %%ymm0, (%[dst])" // Store result to destination - WRONG! Needs to apply mask.
 
 
-         } with inputs { [src] : inout register address(str.dataPtr() + i), [dst] : inout register address(lowerStr_avx.dataPtr() + i) } } for (uint32 i = vecLen; i < len; i++) { char8 currentChar = stringGetChar(str, i); if (currentChar >= 'A' && currentChar <= 'Z') currentChar += 32; lowerStr_avx[i] = currentChar; } lowerStr_avx[len] = 0; return lowerStr_avx; }
+         } with inputs { [src] : inout register address(str.dataPtr() + i), [dst] : inout register address(lowerStr_avx.dataPtr() + i) } } for (uint32 i : vecLen..len) { char8 currentChar = stringGetChar(str, i); if (currentChar >= 'A' && currentChar <= 'Z') currentChar += 32; lowerStr_avx[i] = currentChar; } lowerStr_avx[len] = 0; return lowerStr_avx; }
 
 
         // stringIntrinsicCompare - (x86-64) - **(NO CHANGE - Already Optimized - SSE4.2 and Scalar Fallback)**
@@ -866,7 +869,7 @@ module StringUtilsCam {
                 uint32 vecLen = ((end - start) / 32) * 32;
                 if (vecLen == 0) break;
                 uint32 trimmedStartOffset = 0;
-                for (uint32 i = 0; i < vecLen; i += 32) { #operation instruction sequence {
+                for (uint32 i : 0..vecLen : 32) { #operation instruction sequence {
                     "vmovdqu (%[str]), %%ymm0"
                     "vmovdqu (%[space]), %%ymm1"
                     "vpcmpeqb %%ymm2, %%ymm0, %%ymm1"
@@ -885,7 +888,7 @@ module StringUtilsCam {
             // Scalar Trailing Whitespace Trim - Simpler scalar trim for trailing whitespace (as before)
             while (end > start && stringGetChar(str, end - 1) <= ' ') end--;
             uint32 trimLen = end - start; safeArray<char8, 256> trimmedStr_local; uint32 copyLen = (trimLen < trimmedStr_local.size() - 1) ? trimLen : trimmedStr_local.size() - 1;
-            for (uint32 i = 0; i < copyLen; i++) trimmedStr_local[i] = stringGetChar(str, start + i); trimmedStr_local[copyLen] = 0; return trimmedStr_local;
+            for (uint32 i : 0..copyLen) trimmedStr_local[i] = stringGetChar(str, start + i); trimmedStr_local[copyLen] = 0; return trimmedStr_local;
         }
 
 
@@ -952,32 +955,7 @@ module StringUtilsCam {
             xor %i, %i, %i
 
         strstr_outer_loop_x86:
-            cmp %i, %strLen
-            jge strstr_not_found_x86
-            sub r8, %strLen, %subLen
-            cmp %i, r8
-            jle strstr_inner_loop_setup_x86
-            jmp strstr_not_found_x86
-
-        strstr_inner_loop_setup_x86:
-            mov %i, r8
-            xor %j, %j, %j
-
-        strstr_inner_loop_x86:
-            mov %j, r9
-            mov %al, (%rdi, %r8, 1)
-            mov %bl, (%rsi, %r9, 1)
-            cmp bl, 0
-            je strstr_found_x86
-            cmp al, bl
-            jne strstr_outer_loop_increment_x86
-            inc %j
-            inc %i
-            jmp strstr_inner_loop_x86
-
-        strstr_outer_loop_increment_x86:
-            inc %i
-            jmp strstr_outer_loop_x86
+            cmp %i, %            jmp strstr_outer_loop_x86
 
         strstr_found_x86:
             mov eax, %i
