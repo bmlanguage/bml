@@ -1,9 +1,8 @@
-
 **BML Language Specification - Version 2.0**
 
 **1. Introduction**
 
-Bare Metal Language (BML) is a statically-typed programming language meticulously designed for bare metal and embedded systems development. BML is a *compiled language* offering a productive, maintainable, and memory-safe alternative to assembly language. BML is *not* a direct assembly replacement for instruction-level programming. Instead, BML abstracts instruction encoding at the user level while delivering *comparable performance* to assembly through its unique Composable Architecture Module (CAM) system. This system allows for fine-grained hardware control and platform-specific optimizations where and when needed.
+Bare Metal Language (BML) is a statically-typed, compiled programming language designed for bare metal and embedded systems development. BML offers a productive, maintainable, and memory-safe alternative to assembly language. BML does not replace assembly for instruction-level programming; instead, it abstracts instruction encoding at the user level while providing comparable performance through its Composable Architecture Module (CAM) system, enabling fine-grained hardware control and platform-specific optimizations.
 
 **Key Differentiators of BML:**
 
@@ -52,7 +51,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
 *   **Implicit Type Conversions with `as`:** Type conversions between related data types (integers of the same sign or to floats) using `as` keyword enhance readability while enforcing type safety. Signed to unsigned integer conversions are not implicit.
 *   **Inline Conditional Assignments:** Compact syntax using `if(condition) value1 else value2` for conditional assignments.
 *   **Short Lambda functions:** Short lambda functions using `parameter => expression` simplify function declarations.
-*    **Implicit Register Declarations:** CAMs can omit register type when defining conceptual registers.
+*   **Implicit Register Declarations:** CAMs can omit register type when defining conceptual registers.
 *   **Concise Region Definition:** Single-field data regions can be defined as `dataRegion MyData dataType myVariable;`.
 *   **Compile-Time String Processing:** Intrinsic functions like `stringLength()`, `stringReverse()`, `stringSub()`, `stringEquals()`, `stringConcat()`, and `stringToInt()` are supported at compile time.
 *    **Compile-Time String Formatting:** The function `formatString(StringLiteral format, arguments...)` can be used to create new formatted string literals at compile time.
@@ -63,8 +62,9 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
 *   **First Class Code Blocks:** Code blocks can be passed as function parameters for improved code composability.
 *   **Implicit Return Type for Single Expression Functions:** Single-expression functions can omit return type, inferred from the expression.
 *   **Type attributes:** Type attributes can be defined using `#` as a prefix.
-*  **Implicit scoped pointers:** If the compiler can determine that a pointer variable cannot escape the lexical scope, the `scoped` attribute can be omitted.
+*   **Implicit scoped pointers:** If the compiler can determine that a pointer variable cannot escape the lexical scope, the `scoped` attribute can be omitted.
 *  **Implicit `this` Parameter:** The `this` parameter is automatically added to struct and union method declarations.
+*  **Explicit Member Access:** Members of structs or unions can be explicitly accessed using the `@` operator if there is a name collision.
 *   **Explicit Control and Developer Responsibility:** BML puts control in the hands of the developer. While providing high-level abstraction, BML gives explicit control over low-level aspects. The programmer is responsible for correct feature usage, optimal performance, and safety. Users are responsible for selecting correct CAMs and error handling. The compiler and CAMs attempt to report errors whenever possible.
 
 **BML is *not* intended to be:**
@@ -85,9 +85,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
 
 *   **Data Types:**
     *   **Integer Types:** `int8`, `uint8`, `int16`, `uint16`, `int32`, `uint32`, `int64`, `uint64`, `int`, `uint`.
-        *   Signed integers (`int` prefix) represent both positive and negative values. `int` is architecture-dependent and defaults to `int32`.
-        *   Unsigned integers (`uint` prefix) represent only non-negative values. `uint` is architecture-dependent and defaults to `uint32`.
-        *   The number after the prefix indicates the size in bits (e.g., `int32` is a 32-bit signed integer).
+        *   Signed integers (`int` prefix) represent positive and negative values, while unsigned integers (`uint` prefix) represent only non-negative values. `int` and `uint` are architecture-dependent and default to `int32` and `uint32` respectively. The numeric suffix specifies the size in bits (e.g., `int32` is a 32-bit signed integer).
         *   **Default value**: The default value for all integer types is `0`.
         *   Example: `uint32 counter = 10;`, `int16 sensorValue = -20;`, `uint32 myCounter = 10;` (explicit type declaration).
     *   **Floating-Point Types:** `float32`, `float64`, `float`.
@@ -103,7 +101,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         *   `genericAddress` is a general-purpose address that does not imply a specific memory region and can be used as a generic memory address.
         *   `bootAddress` specifically represents the boot address, the initial address where execution begins after reset.
             *   **Explicit Address Assignment:**
-             Variables, structs, and arrays can be placed at specific addresses using the `#address(expression)` attribute. The `expression` must be a compile-time constant or a symbol, resolved by the linker.
+             The `#address(expression)` attribute can place variables, structs, and arrays at specific addresses. The `expression` must be a compile-time constant or a symbol resolved by the linker.
               ```baremetal
                 uint32 myVariable #address(0x20001000);
                struct MyStruct #address(0x20002000) { uint32 a; uint32 b; };
@@ -120,7 +118,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
             dataRegion MyDataRegion { uint32 data; };
             uint32 myOtherData  @MyDataRegion;
           ```
-        *   **Memory Access Control:** Type qualifiers provide control over memory access behavior using `#noncached`, `#cached`, `#stronglyOrdered`, and `#volatile`.
+        *   **Memory Access Control:** The type qualifiers `#noncached`, `#cached`, `#stronglyOrdered`, and `#volatile` provide control over memory access behavior.
            ```baremetal
             uint32 #noncached myPeripheralRegister @MyPeripheralRegion;
              volatile uint32 myData #address(0x1000) #stronglyOrdered;
@@ -159,7 +157,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         *   Example: `rawbyte registerValue = 0xAF;`, `rawbyte^ buffer;`, `uint32 convertedValue = toUint32(registerValue);`, `uint32 otherConvertedValue = cast(uint32) registerValue;`
     *   **Safe Array Type:** `DataType safe [Size]` (runtime bounds checks).
         *   A fixed-size array where elements of type `DataType` are allocated contiguously in memory.
-        *   Bounds are checked at runtime for every access. If an access is out-of-bounds, a runtime exception will occur (implementation-defined behavior, possibly an abort or an error handler invocation).
+        *   Runtime bounds checks are performed on every access. Out-of-bounds access results in a runtime exception (implementation-defined behavior).
         *   `Size` must be a compile-time constant or an identifier with a `linearAccessGuaranteed` attribute.
         *   **Default value**: The default value for all elements in the array is the default value of the `DataType`.
         *   Example: `uint16 safe [100] sensorReadings;`, `float32 safe [MAX_COEFFICIENTS] coefficients #linearAccessGuaranteed(25);`
@@ -186,22 +184,18 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
     *   **General Pointer:** `DataType^` (unchecked pointer, use with caution).
         *   Provides direct access to memory using a raw address.
         *   **Use Cases:**
-            *   `DataType^` should be used only when specific memory manipulation is required and there are no safer alternatives.
-            *   When interfacing with hardware that requires explicit memory addresses or when working with existing low-level data structures.
-            *   When it is required to circumvent the compiler safety mechanisms and handle low-level memory accesses, such as when accessing hardware directly.
-            *   It is recommended to use other pointer qualifiers when possible.
-            *   When interfacing with legacy code that is already using raw pointers.
+            *   `DataType^` should be used only when specific low-level memory manipulation is required, when interfacing with hardware or low-level data structures, or when interfacing with legacy code. Safer pointer types should be preferred when possible.
         *   **Caution:** There are no automatic runtime bounds checks or type checks. It is not implicitly convertible to other pointer types. The type signature must match. The user should explicitly convert a `DataType^` pointer to `genericAddress`, `dataAddress` or `codeAddress` if needed, using the `cast` operator.
         *   Pointer arithmetic is allowed, but it's unsafe; the developer is responsible for not overstepping boundaries, otherwise, undefined behavior will occur.
         *   General pointers can be null; if a null pointer is dereferenced, the behavior is undefined. It is highly recommended to use `!`, `@`, or `+` capability qualifiers whenever a pointer can never be null. The compiler will provide warnings about a potential null dereference if the user attempts to access the pointer without checking for null.
         *   **Default Value:** The default value for general pointers is null.
         *   Example: `uint32^ rawPointer;`, `char8^ buffer;`, `uint32+ ptr = &myValue;`
         *   **Capability-Based Pointer Types:** `DataType +`, `DataType -`, `DataType @regionName`, `DataType !`, `DataType scoped`, `DataType tracked`.
-            *   `+`: A pointer that cannot be null and it can read/write to the memory location unless region restrictions apply, the equivalent to `DataType^ nonnull`. The compiler guarantees that a pointer with a `+` type qualifier will never be null. If you assign a null value to a pointer with a + qualifier, a compilation error will be generated.
+            *   `+`: A non-null pointer that can read/write to the memory location unless region restrictions apply, equivalent to `DataType^ nonnull`. The compiler guarantees that a pointer with a `+` type qualifier will never be null; assigning a null value to such a pointer results in a compile-time error.
             *   `-`: A pointer that can be null, and it can read/write to the memory location unless region restrictions apply, the equivalent to `DataType^`. If this pointer is dereferenced without checking if the pointer is null, the compiler may generate a warning.
             *   `@regionName`: A pointer associated with a specific data region, enabling region-based memory management and access controls enforced at compile-time. Accessing memory outside the specified region will result in a compile-time error. The `regionName` must be defined as a `dataRegion` (or `rodataRegion`, or `stackRegion`, or `peripheralRegion`, or `moduleDataRegion`). Pointers with the `@region` modifier can only access the specified memory region. The compiler may generate a compile-time error if the pointer attempts to access memory outside of the region where it is defined. `dataRegion` declarations do not directly grant access to the data to other memory regions. To transfer data across regions, a CAM will have to explicitly read from one region and write to another region, using memory copy functions or by transferring using memory mapped peripherals. CAMs can also define their own memory regions using the `CAMDataRegion` specifier. This data region has the same scope as the CAM, and can be used to perform calculations, store intermediate results, or implement other internal logic within a given CAM. CAM data regions can also be used to store CAM configurations, parameters or other persistent state for that CAM.
             *   `!`: A pointer that cannot be null and can only read from the memory location; write operations are not allowed. If a write operation is performed, it will result in a compile-time error. The compiler guarantees that the pointer will never be null and that no write operation will be performed using this pointer. The memory that it points to can change if the underlying memory region is mapped to a volatile or external device.
-           *  `scoped`: A pointer that's valid only within its lexical scope. The compiler prevents the pointer from escaping the scope ensuring that it cannot be dangling. This mechanism is mostly implemented at compile time. The compiler will generate errors if the pointer escapes the lexical scope. The runtime behavior depends on the compiler flags. For increased runtime safety the compiler can generate code to trap or invoke a runtime error handler if a scoped pointer is accessed after its scope has finished (e.g. by using guard pages or similar techniques). Scoped pointers cannot be null.
+           *  `scoped`: A pointer that's valid only within its lexical scope. The compiler prevents the pointer from escaping the scope ensuring that it cannot be dangling. This mechanism is mostly implemented at compile time but may include optional runtime checks based on compiler flags. The `scoped` keyword is optional for local variables when the compiler can statically infer their scope. Scoped pointers cannot be null.
             *   `tracked`: A pointer that is tracked by the compiler during runtime. Every access to the tracked pointer incurs a runtime check to prevent dangling pointers. The implementation is target-specific but can be done by using metadata to store the scope of the tracked pointer and checking for that metadata in every access. If the `boundsCheckRefinement` is enabled, the runtime check may be optimized by using refinement types with more specific constraints. Tracked pointers are initialized with a default null address value. The runtime checks will catch dangling pointers. The metadata associated with `tracked` pointers is stored in a separate memory region and is managed by the runtime environment, often using a hashmap to store the information of a tracked pointer, which can be implemented using software or a hardware accelerator if available. Every access to a tracked pointer will incur an overhead as the runtime must perform the validity checks. When a tracked pointer is used, the runtime performs the following checks: Check if the pointer is valid (not null and allocated) and if the memory access is within the boundaries of the valid region. These checks may be optimized by using specific hardware support, but there is always some overhead when using tracked pointers. When `boundsCheckRefinement` is enabled, the compiler can use refinement types to specify extra constraints that limit the range of a tracked pointer and if the compiler can statically prove the pointer access is valid, the runtime checks can be skipped. The runtime checks for tracked pointers do not include any protection against data races. The user is responsible for protecting the data using the concurrency primitives.
             *   Example: `uint32+ sensorDataPtr = &mySensorData;`, `rawbyte- transmitBuffer;` , `uint32@MyRegion regionPtr;`, `uint32! configPtr = &myConfig;` , `uint8 localPtr = &someArray;` (implicit scope), `uint16 tracked sensorDataPtr = &someValue;`
     *   **Tuple Types:** `tuple<DataType1, DataType2, ...>`.
@@ -254,7 +248,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         *   Example: `struct Point { int32 x; int32 y; };`, `union Packet { uint32 rawData; struct { uint8 highByte; uint8 lowByte; } bytes; };`
         *   **Memory Mapped Structs:** `struct #mapped` (members are volatile by default, unless specified `nonvolatile`).
             *   `#mapped` structs define a memory-mapped region, with an implicit volatility status based on the struct's qualifier unless specified otherwise on a member-by-member basis using `volatile` or `nonvolatile`.
-            *   The members are implicitly treated as `volatile` unless the `nonvolatile` qualifier is used. The compiler will not attempt to optimize accesses to `volatile` variables.
+            *The members are implicitly treated as `volatile` unless the `nonvolatile` qualifier is used. The compiler will not attempt to optimize accesses to `volatile` variables.
             *   If the structure is `volatile`, members are `volatile` unless declared `nonvolatile`.
             *   If the structure is `nonvolatile`, members are `nonvolatile` unless declared `volatile`.
             *   If there is no attribute on the struct, members are volatile unless declared `nonvolatile`.
@@ -294,6 +288,11 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
             ```
         *   **Memory Mapped Registers**: Specific registers can be defined using the following syntax:
         *   `DataType #register("regionName", "stringLiteral") registerName;` This syntax defines a memory-mapped register located in a specific peripheral region. The `stringLiteral` is CAM specific and is intended to provide additional information to CAM implementations. The type must be a base type and cannot be a struct or a union. This attribute can only be used with `register` declarations. The compiler will perform checks to guarantee that the data type of the declared register matches the register's underlying size. If there is a mismatch a compile-time error will be generated. The register name can be accessed and modified as if it was a regular variable. The compiler will emit code that directly reads/writes to that memory location. Example: `uint32 #register("MyAiCore", "control_reg") myMatrixAControl;`
+           * Registers can be defined with access modifiers, using the following syntax:
+             * `register identifier #register("regionName", "stringLiteral") : dataType #readOnly` This specifies a register that can only be read from.
+             * `register identifier #register("regionName", "stringLiteral") : dataType #writeOnce` This specifies that a register can only be written once. If written more than once, the behavior is undefined. The compiler will not check or generate a warning if the `#writeOnce` attribute is violated.
+             * `register identifier #register("regionName", "stringLiteral") : dataType #threadLocal` This indicates that the register is thread-local, implying that each thread has its own copy, initialized to the default value of the data type. If no default value is defined, the default value will be zero.
+             * Multiple access modifiers can be combined: `register identifier #register("regionName", "stringLiteral") : dataType #readOnly #writeOnce #threadLocal`
     *   **Enum Types:** `enum` (named constants).
         *   A way to define named constants improving the readability of the code. If the enum is declared with a simple comma-separated list of values curly braces can be removed: `enum ErrorCode Ok, NotFound, AccessDenied;`
          * Enums can be initialized with specific values using a `struct`-like syntax:
@@ -553,10 +552,8 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         *   The compiler must verify that the size of the buffer is a power of 2, otherwise it is a compile-time error.
         *   Example: `uint32 safe [1024] myBuffer #circularBuffer;`
     *   **Read and Write Once Attributes:** `#readOnce`, `#writeOnce`
-        *   The `#readOnce` attribute guarantees that a given variable or memory region will be read only once. The compiler may perform optimizations or generate specialized code for that.
-        *   If the variable or memory region is read more than once, the behavior is undefined. No guarantees about the order of the access are provided. The compiler will not check or generate a warning if the `#readOnce` attribute is violated.
-        *   The `#writeOnce` attribute guarantees that a given variable or memory region will be written only once. The compiler may perform optimizations or generate specialized code for that.
-        *   If the variable or memory region is written more than once, the behavior is undefined. No guarantees about the order of the access are provided. The compiler will not check or generate a warning if the `#writeOnce` attribute is violated.
+        *   The `#readOnce` attribute guarantees that a given variable or memory region will be read only once. The compiler may perform optimizations or generate specialized code for that. If the variable or memory region is read more than once, the behavior is undefined. No guarantees about the order of the access are provided. The compiler will not check or generate a warning if the `#readOnce` attribute is violated.
+        *   The `#writeOnce` attribute guarantees that a given variable or memory region will be written only once. The compiler may perform optimizations or generate specialized code for that. If the variable or memory region is written more than once, the behavior is undefined. No guarantees about the order of the access are provided. The compiler will not check or generate a warning if the `#writeOnce` attribute is violated.
         *   Example: `uint32 counter #readOnce;`, `uint8 safe [10] buffer #writeOnce;`
     *   **Cache Line Aligned Attribute:** `#cacheLineAligned`
         *   Guarantees that the data will be aligned to the size of the processor cache line which enables better cache utilization and access performance, preventing issues related to false sharing.
@@ -675,6 +672,11 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         *   This attribute is used to specify a mapping to a memory mapped register. The stringLiteral is CAM specific and is intended to provide additional information for code generation. This attribute can only be used with `register` declarations.
         *  This attribute does not change the code behaviour; it is used by CAMs for code generation and analysis.
         *   Example: `uint32 #register("MyAiCore", "control_reg") myMatrixAControl;`
+           * Registers can be defined with access modifiers, using the following syntax:
+             * `register identifier #register("regionName", "stringLiteral") : dataType #readOnly`
+              * `register identifier #register("regionName", "stringLiteral") : dataType #writeOnce`
+              * `register identifier #register("regionName", "stringLiteral") : dataType #threadLocal`
+             * Multiple access modifiers can be combined: `register identifier #register("regionName", "stringLiteral") : dataType #readOnly #writeOnce`
     *   **Hardware Description Attribute:** `#hardwareDescription(stringLiteral)`.
         *   This attribute allows associating a specific hardware description to a given interface intrinsic function. This attribute is used when CAMs are automatically generated from hardware descriptions. The `stringLiteral` is CAM specific.
         *   This attribute does not change the code behavior; it is used by CAMs for code generation and analysis.
@@ -689,7 +691,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         *   BML does **not** allow implicit type conversions between different data types, except for integer types of the same signedness. Conversions from smaller to larger integers are implicitly allowed. E.g., `uint8` is implicitly convertible to `uint16`, `uint32`, and `uint64` but not to `int8`, `int16`, `int32`, `int64`, or `float32` and not to other types such as `char` or `boolean`.
             *   Implicit type conversion from signed to unsigned integers is not allowed and requires an explicit cast.
         *   The `as` operator is used to perform an explicit type conversion for the following types:
-            *   Any integer type to a larger integer type of *the same signedness*. (e.g., `uint8 as uint32`, `int16 as int64`.)
+            *   Any integer type to a larger integer type of *the same signedness*. (e.g., `uint8 as uint32`, `int16 as int64`).
             *   Any integer type (signed or unsigned) to a floating point type (e.g., `uint32 as float32`, `int16 as float64`).
             *   Floating-point types to other floating-point types of different precision (e.g., `float32 as float64`).
             *   `DataType^` to `genericAddress`, `dataAddress` or `codeAddress` and vice versa.
@@ -698,7 +700,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         *   Implicit conversions are also performed if a function has a formal parameter of the same type or a type compatible for implicit conversion and when returning from functions if the return type is compatible for implicit conversion.
         *   No other implicit type conversions are allowed. Conversions must be explicit by using the `cast` operator or by calling conversion functions from the standard library or provided by the CAMs.
     *   **Implicit Type Inference:** Type inference is used in the following cases:
-        *   When the return type of a function is not explicitly specified the compiler will infer the return type by analyzing the `return` statements or by using `void` as default if there is no return statement.
+        *   When the return type of a function is not explicitly specified, the compiler will infer the return type by analyzing the `return` statements or generate a compile-time error if no return statement is present and the return type cannot be inferred.
         *   When declaring an array literal the compiler infers the array type from the literal values.
         *   When a variable is assigned an integer literal and the type can be inferred from the context if not an architecture-dependent integer (usually 32 bits) is used by default. When a variable is assigned a float literal the default type is `float32`.
        *   **When a tuple variable is declared without an explicit type.** The compiler will infer the type from the values in the tuple literal.
@@ -708,6 +710,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         *   BML uses lexical scoping, defining variable visibility and mutability according to the block it is declared.
         *   Mutability is block-scoped; Variables are immutable by default in the block where they are declared. Mutable variables must be declared with the `~` mutability modifier.
         *   **Nested functions:** Functions can be nested within other functions. Inner functions have access to variables in their enclosing function's scope (closure).
+         *   Nested functions can only be defined within `@arc` blocks. They are not allowed in the `@arc common` block.
         *   **Shadowing:** Inner scopes can declare variables with the same name as variables in outer scopes. The inner declaration shadows the outer one. The compiler will issue a warning in such cases.
         *   **Global Scope:** Variables declared at the top level of an `@arc` block are considered global for that architecture.
     *   **Instruction Type:**
@@ -755,7 +758,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
                      function private myPrivateExportedFunction() { ... } // this function can only be used by other modules that are using `MyModule`.
                 }
                ```
-        *   **Architecture-Specific Code (`@arc` blocks):** All code within a module *must* be enclosed within an `@arc` block, targeting a specific architecture. Each module can have multiple `@arc` blocks to support different architectures. **Code outside of an `@arc` block is not permitted within a module and will result in a compile-time error (E0012).**
+        *   **Architecture-Specific Code (`@arc` blocks):** All code within a module must be enclosed within an `@arc` block targeting a specific architecture. Each module can have multiple `@arc` blocks for different architectures. Code outside an `@arc` block within a module is a compile-time error (E0012).
             *   Example:
                 ```baremetal
                 module MyModule {
@@ -793,7 +796,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         * Specific versions of the modules can be imported using an `@` syntax. Example: `#use "MyModule@1.2.0";`
         *   `with config { ... }`: Configures parameters for the module.
             *   Example: `#use "MyModule" with config { baudRate = 115200 };`
-            *   The `with config` clause is used to customize the CAMs behavior. The `config` parameters are merged, and if there are conflicts, the parent CAM configuration overrides the imported CAM configurations. When a module is imported with `config` parameters, the compiler will create a new copy of the imported module, parameterized by the values provided by the `config` section. If the imported module uses other modules with config parameters, those modules will also be duplicated using the values defined for that specific instance of the parent module. If an imported module has the same `config` variable defined in the parent module, the `config` of the parent module will override the `config` of the imported module.
+            *   When importing a module with `config` parameters, the compiler creates a new copy parameterized by those values. If the imported module uses other modules with config parameters, those are also duplicated, respecting the parent's parameters. The parent module's `config` parameters override any conflicting parameters in the imported module.
             * Example:
             ```baremetal
                 module MyModule {
@@ -830,7 +833,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
     *   **It is defined in a separate `.bml` file (typically `main.bml`).**
     *   **The main file does *not* use the `module` keyword.**
     *   **It does *not* contain a `main` function.**
-    *   **Instead, each `@arc` block in the main file acts as the entry point for that specific architecture.** The code within the `@arc` block's `statements` block is executed sequentially when the program starts on that architecture.
+    *   **Instead, the `statements` block within each `@arc` block acts as the entry point for that specific architecture.**
      *  **It must have an explicit `@arc common` block to contain architecture-independent code.** Code outside of any `@arc` block is not allowed in the `main.bml` file.
      *  The `@arc common` block is a global scope for all the `@arc` blocks in the `main.bml` file, and code within the `@arc common` block is treated as architecture-independent, meaning that it will be compiled for all target architectures. Direct access to hardware is not allowed in the `@arc common` block. Nested functions are not allowed inside the `@arc common` block, and all function calls are limited to only be able to call other functions inside the `@arc common` block.
     *   **It uses the `#use` directive to import modules.**
@@ -1099,7 +1102,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
                 *   **`hasDataLayoutAttribute(DataType, "packed")`**: Checks if a given data type has a specific layout attribute.
                 *   **`compilerError(StringLiteral message)`:** Generates a custom compiler error message, allowing for more specific error reporting.
                 *    **`registerInterfaceFunction(StringLiteral name, StringLiteral functionSignature, FunctionPtr implementation)`:** Adds a new interface intrinsic function dynamically.
-*   The `functionSignature` is a string that includes the function parameters and return type. Example: `function(uint32, uint32) -> uint32`
+                     *   The `functionSignature` is a string that includes the function parameters and return type. Example: `function(uint32, uint32) -> uint32`
                     *  The implementation is a function pointer that must have the same signature as the `functionSignature` string.
                 *   **`newCAM(StringLiteral camName, interfaceDefinitions, implementation, hardwareSpecification)`:** Creates a new CAM with the given parameters. The `hardwareSpecification` is an optional parameter, which specifies the location of an hardware description language file, that is used to generate the CAM skeleton.
                      *  The `interfaceDefinitions` will be defined by a set of strings that define the interface intrinsic functions of the CAM.
@@ -1124,7 +1127,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
                     *   **`removeCode`**: The code that should be removed specified as a string.
                      *  **`insertCode`**: The code that should be inserted instead of the code that is being removed.
                     *   **`transformationType`**: The type of transformation that should be applied. Some possible types include: `instructionReplacement`, `bitfieldOptimization`, `codeReordering`.
-                    *   **`target`**: A `TargetData` structure with information about the target including the type of the data being transformed, the memory region, the volatility state, and other metadata about the access.
+                     *   **`target`**: A `TargetData` structure with information about the target including the type of the data being transformed, the memory region, the volatility state, and other metadata about the access.
                         *   **`TargetData`**: The TargetData structure provides information about the target, including:
                             *   `data`: The data type of the target.
                             *   `address`: The memory address of the target if it's a memory access operation.
@@ -1150,7 +1153,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
                         *   `immediate(identifier)`: Matches any immediate value and captures the identifier.
                        *   `instruction`: Matches any instruction.
                       *  `add(x, y)`: Matches an add instruction with two arguments.
-                        *   `functionCall(x)`: Matches a function call to the function named `x`.
+                        *   `functionCall(x)`: Matches a function call to the function named `print`.
                          * `*`: Matches anything (wildcard).
                         *  `()`: Creates a group for the match.
                     *    Example:
@@ -1188,6 +1191,16 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
                 *   `instructionBuilder.addImm(register dest, register src, uint32 imm)`: Creates an add instruction with an immediate value.
                 *    `instructionBuilder.customInstruction(StringLiteral instructionName, [register reg1, register reg2])`: Creates a target specific instruction.
                  *    `instructionBuilder.getParameters()`: Returns an associative array to access the parameters. For example, the parameter names can be used as a key to access the compile time value: `uint32 offset = builder.getParameters().offset;`.
+                 *   `instructionBuilder.atomicRead(address, dataType,  bitmask)`: Creates an atomic read instruction.
+                *  `instructionBuilder.atomicWrite(address, value, dataType, bitmask)`: Creates an atomic write instruction.
+                  *   `instructionBuilder.atomicTestAndSetBit(address, bitNumber)`: Creates an atomic test and set bit instruction.
+                   *   `instructionBuilder.atomicTestAndClearBit(address, bitNumber)`: Creates an atomic test and clear bit instruction.
+                *   `instructionBuilder.atomicSetBit(address, bitNumber)`: Creates an atomic set bit instruction.
+                 *   `instructionBuilder.atomicClearBit(address, bitNumber)`: Creates an atomic clear bit instruction.
+                 *  `instructionBuilder.atomicToggleBit(address, bitNumber)`: Creates an atomic toggle bit instruction.
+                *  `instructionBuilder.memoryBarrier(order)`: Creates a memory barrier instruction.
+                *  `instructionBuilder.instructionBarrier(sync)`: Creates an instruction barrier instruction.
+                 *  `instructionBuilder.rawInstruction(instructionPattern)`: Emits a raw instruction.
             *   Example of using the `instructionBuilder` in the `instrDSL` block:
                 ```baremetal
                  @arc arm {
@@ -1209,7 +1222,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
 *   **Dataflow Analysis and Optimization:** CAMs can analyze data flow and optimize code using the compiler API.
 *   **Type-Specific Optimizations and Specializations:** CAMs can generate code based on specific types.
 *   **Hardware-Specific Functionality via DSLs:** CAMs can use DSLs for hardware interaction.
-*   **Compiler Caching for Incremental Builds:** The compiler uses a cache to speed up compilation.
+*  **Compiler Caching for Incremental Builds:** The compiler uses a cache to speed up compilation.
 *   **CAM-Specific Memory Regions and Attributes:** CAMs can define their own memory regions and attributes.
 *   **Custom Error Messages and Hints:** CAMs provide custom error messages using the `compilerError()` function.
 *   **Fine-Grained Hardware Dispatch:** Direct hardware access for accelerators.
@@ -1235,9 +1248,9 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         *   Example: `#use "GenericVector<uint32>" as intVector;`
         *   `with config { ... }`: Configures parameters for the module.
             *   Example: `#use "MyModule" with config { baudRate = 115200 };`
-            *   The `with config` clause is used to customize the CAMs behavior. The `config` parameters are merged, and if there are conflicts, the parent CAM configuration overrides the imported CAM configurations. When a module is imported with `config` parameters, the compiler will create a new copy of the imported module, parameterized by the values provided by the `config` section. If the imported module uses other modules with config parameters, those modules will also be duplicated using the values defined for that specific instance of the parent module. If an imported module has the same `config` variable defined in the parent module, the `config` of the parent module will override the `config` of the imported module.
+            *   When importing a module with `config` parameters, the compiler creates a new copy parameterized by those values. If the imported module uses other modules with config parameters, those are also duplicated, respecting the parent's parameters. The parent module's `config` parameters override any conflicting parameters in the imported module.
      *    Specific module versions can be imported using the `@` syntax. Example: `#use "MyModule@1.2.0";`
-    *   `#use "camName" [ genericInstantiation ] [ "merge" , moduleName  { "," , moduleName } ] , [ "override" ,  (  "function" , identifier , "with" , "config" , "{" , { configParameterAssignment } , "}" ) | "function" , identifier ] ,  ";"`: CAM inclusion that makes the exported interface intrinsic functions of the CAM accessible, with support for `override` and customization.
+    *   `#use "camName" [ genericInstantiation ] [ "merge" , moduleName  { "," , moduleName } ] ,  [ "override" ,  (  "function" , identifier , "with" , "config" , "{" , { configParameterAssignment } , "}" ) | "function" , identifier ] ,  ";"`: CAM inclusion that makes the exported interface intrinsic functions of the CAM accessible, with support for `override` and customization.
         *   Example: `#use "MyUartCam";`, `#use "MyGenericCam<uint32>";` `#use "MyUartCam" with config { baudRate = 115200 };` `#use "UartCam" override function platformUartSendByte with config { enableDma = true };`
     *   `#cpuTarget cpuName`: Provides CPU optimization hints allowing the compiler to target specific features and improve the performance of the generated code.
         *   Example: `#cpuTarget armCortexM4`
@@ -1246,49 +1259,37 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
     *   `#template(sectionName) { ... }` : This directive allows for injection of a code template into a specific section. The `sectionName` is defined in a CAM.
 
 *   **Operation Directives:**
-    *  `print(StringLiteral format, ...);` : This function prints a formatted message. The format string uses standard format specifiers such as %d, %x, %s, or using string interpolation using `f""`: `print(f"The value is {x}");` or using string interpolation with formatting specifiers using `{variable:specifier}`: `print("Value = {x:x}");`. This function is intended to provide basic debug or console output, and its implementation depends on the target platform. Parentheses can be omitted if only one parameter is passed. Example: `print "Hello world";`.
-    *   `memoryStore(BootDataSize , BootAddress , BootOperand);`: Stores a value into memory, at a given address and data size. This function may or may not perform a memory barrier depending on the target platform.
-    *   `memoryLoad(BootDataSize , BootAddress , BootOperand);`: Loads a value from memory at a given address and data size.
+        *  `print(StringLiteral format, ...);` : This function prints a formatted message. The format string uses standard format specifiers such as %d, %x, %s, or using string interpolation using `f""`: `print(f"The value is {x}");` or using string interpolation with formatting specifiers using `{variable:specifier}`: `print("Value = {x:x}");`. This function is intended to provide basic debug or console output, and its implementation depends on the target platform. Parentheses can be omitted if only one parameter is passed. Example: `print "Hello world";`.
+        * `memoryStore(BootDataSize , BootAddress , BootOperand);`: Stores a value into memory, at a given address and data size. This function may or may not perform a memory barrier depending on the target platform.
+        * `memoryLoad(BootDataSize , BootAddress , BootOperand);`: Loads a value from memory at a given address and data size.
     *   `intrinsic operationName [argumentList] ;`: Provides a way to access hardware functionality through specific operations that are provided by CAMs. Parentheses can be omitted if only one argument is passed.
-    *   `atomicSetBit(register, bitNumber)`: Atomically sets a specific bit in a register.
+        *   `atomicSetBit(register, bitNumber)`: Atomically sets a specific bit in a register.
         *   `atomicClearBit(register, bitNumber)`: Atomically clears a specific bit in a register.
         *   `atomicToggleBit(register, bitNumber)`: Atomically toggles a specific bit in a register.
         *   `atomicTestAndSetBit(register, bitNumber)`: Atomically tests a bit and sets it if clear. Returns true if the bit was clear before the operation.
         *   `atomicTestAndClearBit(register, bitNumber)`: Atomically tests a bit and clears it if set. Returns true if the bit was set before the operation.
         *   `atomicReadRegister(register, bitmask)`: Atomically reads a value from a register using a specific bitmask.
         *   `atomicWriteRegister(register, value, bitmask)`: Atomically writes a value to a register, applying a given bitmask.
-    *   `memoryBarrier(order);`: Generates a hardware specific memory barrier. The `order` can be `read`, `write`, `readWrite`, or `all`. If no parameter is specified, it defaults to all.
+      * `memoryBarrier(order);`: Generates a hardware specific memory barrier. The `order` can be `read`, `write`, `readWrite`, or `all`. If no parameter is specified, it defaults to `all`.
       *   `instructionBarrier(sync);`: Generates a hardware specific instruction barrier. The `sync` can be `instructionFetch`, `dataFetch`, or `dataWrite`.
-      *   `rawInstr(instructionPattern);`: Embeds raw machine code into the generated output. The pattern is CAM specific.
-      *  `hardwareSymbolicCheck(expression, range) -> void;` : Performs a hardware assisted check if the expression satisfies the constraints given by the range. If no hardware support is present, the code will trap.
-    *   `hardware_clz(uint32 value) -> uint32;` : Counts the number of leading zeros in the specified value using a hardware-accelerated instruction if available.
-    *   `hardware_ctz(uint32 value) -> uint32;` : Counts the number of trailing zeros in the specified value using a hardware-accelerated instruction if available.
-    *   `hardware_barrier();` : Generates a hardware specific memory barrier.
-         *  `hardware_startTimer();` : Starts a hardware timer.
+       * `rawInstr(instructionPattern);`: Embeds raw machine code into the generated output. The `instructionPattern` is CAM specific.
+       *  `hardwareSymbolicCheck(expression, range) -> void;` : Performs a hardware-assisted check if the expression satisfies the constraints given by the range. If no hardware support is present, the code will trap.
+        *   `hardware_clz(uint32 value) -> uint32;` : Counts the number of leading zeros in the specified value using a hardware-accelerated instruction if available.
+        *   `hardware_ctz(uint32 value) -> uint32;` : Counts the number of trailing zeros in the specified value using a hardware-accelerated instruction if available.
+        *  `hardware_startTimer();` : Starts a hardware timer.
          * `hardware_endTimer();` : Reads the current value of the hardware timer.
          * `hardware_resetTimer();`: Resets the hardware timer.
-          * `hardware_setWatchpoint(address, type);`: Sets a hardware watchpoint that can be used for debugging purposes.
+          * `hardware_setWatchpoint(address, type);`: Sets a hardware watchpoint that can be used for debugging purposes. The type of the watchpoint can be `read`, `write`, or `readWrite`.
+          * `prefetch(address, size);`: Dispatches a hardware prefetch instruction for a given `address` with a specific `size`.
           * `hardware_trap();`: Generates a hardware trap for debugging purposes when a low level error is detected.
-          *  `prefetch(address, size);`: Dispatches a hardware prefetch instruction for a given `address` with a specific `size`.
-     *   **Boot Code Specific:**
-        *   `archCodeBlock [ @boot ] identifier @arc architectureName { ... }`: Architecture-specific raw code block for low-level initialization, bootloaders, and other specialized code. The `@boot` attribute specifies that this is the entry point for the boot code. Allows the developer to write low-level code using `goto`, `memoryStore`, `memoryLoad`, `raw`, `register`, and memory access, that can be target-specific. The `identifier` is the name of the code block, that can be referenced using `goto` inside the architecture block. The `@arc architectureName` specifies the target architecture. **Code inside `archCodeBlock` does not follow the normal rules of BML code and is treated specially by the compiler.** This block is only intended to be used to write low-level code that interacts directly with memory and registers. The `@boot` attribute specifies that this is the entry point for the boot code.
-            *  Example:
-                ```baremetal
-                    archCodeBlock @boot bootEntry @arc arm {
-                        register %stackPointer = 0x20001000;
-                        goto bootLoaderLabel;
-                        bootLoaderLabel:
-                        // ...
-                    }
-                 ```
-        *  `#interruptVector vectorNumber, functionName ;`: Defines interrupt vector table entries. Defines a mapping between a specific interrupt vector number and a corresponding interrupt service routine (ISR). The vector number is architecture specific. Example: `#interruptVector 0, resetHandler;`
-        * `#enableInterrupts ;`: Enables global interrupts, allowing the CPU to respond to external events.
-        * `#disableInterrupts ;`: Disables global interrupts, preventing the CPU from responding to external events.
-        * `#clearInterruptFlag identifier ;`: Clears an interrupt flag, acknowledging a pending interrupt, and allowing the CPU to handle the next interrupt. The interrupt flag identifier is target specific.
-        *   `bootRegion regionName identifier;`: Declares that a boot region should be populated using an identifier defined in the boot code region. If two boot regions are defined for the same address, a compile-time error will be generated. Example: `bootRegion bootData myBootData;`
+    *  **Atomic Operations:**
+        *   `atomic { ... }`: Guarantees atomic execution of the code block using the primitives specified in the CAM. If no argument is specified, the compiler will attempt to atomically execute the instructions within the given block, which may involve software locking mechanisms if hardware primitives are not available, which might create an overhead depending on the target architecture and the compiler options. The code block is limited to low level access primitives, and calls to CAM provided `intrinsic` functions that can be mapped to target-specific atomic primitives.
+        *   `atomic (variable) { ... }`: Guarantees atomic access and modification of the specified `variable` using the underlying primitives provided by the CAM. The scope is limited to operations involving that specific variable. The compiler will attempt to generate code to atomically read, modify and write to that specific memory location or variable. If the hardware doesn't have a direct atomic read-modify-write instruction the CAM may have to generate code that involves locks and memory barriers to ensure atomicity.
+        *  `atomic memoryStore(...)`: Performs an atomic memory store operation.
+         * `atomic register identifier = ...;`: Performs an atomic write to a given register using an atomic instruction when it is available.
     *   **Memory Mapped Registers:**
         *  `struct #mapped`: Defines a memory-mapped structure where the members are implicitly `volatile` unless marked `nonvolatile`. Allows for direct access to hardware registers. The `#mapped` specifier specifies that the struct is memory mapped. Members are accessed using the `.` operator, and bitfields can be accessed using the `=` or `:=` operator inside a `with` statement, or directly when assigning to a memory-mapped structure. Bit Ranges can be accessed with the syntax `myGpioRegisters.controlRegister[0..3] = 0b101;` or by using bitmasks: `myGpioRegisters.controlRegister[0b00001111] = 0b101;`, or a mix of the two. Bitfield updates should be performed using a `with` statement to minimize the overhead of reading and writing to memory mapped registers. The `with` statement groups multiple bitfield updates into a single operation. The compiler analyses the `with` block to check if a specific write or read operation to a memory mapped register can be avoided. If a register is read and not modified, the write operation can be skipped. This mechanism is automatically performed by the compiler and requires no additional effort from the user enabling zero-overhead high-performance bitfield access. When the `#initializerList` attribute is added to a `struct`, initialization can be done using a list of initializers: `type GpioRegisters = struct #mapped(0x40000000) #initializerList { uint32 dataRegister; uint32 controlRegister; };  GpioRegisters myGpio = { 10, 20 };`.
- * Example:
+         * Example:
                 ```baremetal
                 type GpioRegisters = struct #mapped { uint32 controlRegister; };
                 GpioRegisters myGpioRegisters = 0x40000000;
@@ -1304,7 +1305,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
                        uint32 status = readout; //no memory read here as the bitfield is not modified
                    }
                  myGpioRegisters.enable = 0; // single bitfield modification using implicit syntax.
-                 myGpioRegisters.baud = 115200; // single bitfield assignment using implicit bitfield assignment
+                 myGpioRegisters.baud = 115200; // single bitfield modification using implicit assignment.
                   myGpioRegisters.controlRegister = {enable=1, baud=115200}; //bitfield assignment using struct like syntax
             ```
         *  `.` accesses members. If the member is inside a memory-mapped struct, it will access the memory location directly.
@@ -1312,8 +1313,13 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         *   **Bit Ranges: `[start..end]` accesses a range of bits in a bitfield inside a memory-mapped struct.**
         *   **Bit Masks: `[binaryMask]` accesses the bits defined by a binary mask in a bitfield inside a memory-mapped struct.**
         *   **Combined Selectors: `[range, bit, mask, ...]` accesses multiple range of bits or individual bits inside a bitfield of a memory-mapped struct.**
-        *    Memory Mapped Registers: Specific registers can be defined using the following syntax:
+        *   Memory Mapped Registers: Specific registers can be defined using the following syntax:
             *   `DataType #register("regionName", "stringLiteral") registerName;` This syntax defines a memory-mapped register located in a specific peripheral region. The `stringLiteral` is CAM specific and is intended to provide additional information to CAM implementations. The type must be a base type and cannot be a struct or a union. This attribute can only be used with `register` declarations. The compiler will perform checks to guarantee that the data type of the declared register matches the register's underlying size. If there is a mismatch a compile-time error will be generated. The register name can be accessed and modified as if it was a regular variable. The compiler will emit code that directly reads/writes to that memory location. Example: `uint32 #register("MyAiCore", "control_reg") myMatrixAControl;`
+             * Registers can be defined with access modifiers, using the following syntax:
+               *  `register identifier #register("regionName", "stringLiteral") : dataType #readOnly` This specifies a register that can only be read from.
+               *  `register identifier #register("regionName", "stringLiteral") : dataType #writeOnce` This specifies that a register can only be written once. If written more than once, the behavior is undefined. The compiler will not check or generate a warning if the `#writeOnce` attribute is violated.
+               *  `register identifier #register("regionName", "stringLiteral") : dataType #threadLocal` This indicates that the register is thread-local, implying that each thread has its own copy, initialized to the default value of the data type. If no default value is defined, the default value will be zero.
+                * Multiple access modifiers can be combined: `register identifier #register("regionName", "stringLiteral") : dataType #readOnly #writeOnce #threadLocal`
     *   **Symbolic Execution:**
         *   `symbolic { ... }` block:
             * The `symbolic` block allows the developer to define a region of code where the compiler will perform symbolic execution. Inside the symbolic block, the compiler will generate symbolic expressions for the operations and variables, which allows to verify program properties and perform advanced code optimizations by using the `CompilerContext` API.
@@ -1324,7 +1330,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
 
 **7. Memory Safety in BML**
 
-*   `DataType scoped`: Zero-overhead dangling pointer prevention using lexical scope. Pointers are valid only within their lexical scope and the compiler ensures that the pointer cannot escape the scope. This is implemented mostly at compile time, but depending on compiler flags runtime checks can be added. The `scoped` keyword is optional for local variables and can be omitted if the compiler can infer this using static analysis.
+*   `DataType scoped`: Zero-overhead dangling pointer prevention using lexical scope. Pointers are valid only within their lexical scope and the compiler ensures that the pointer cannot escape the scope. This mechanism is mostly implemented at compile time, but may include optional runtime checks based on compiler flags. The `scoped` keyword is optional for local variables when the compiler can statically infer their scope. Scoped pointers cannot be null.
     *   **Static Analysis Process for Implicit Scope:**
         *   The compiler performs static analysis to determine if a pointer's lifetime is strictly confined to its lexical scope specifically its function body or a block inside the function.
         *  The compiler analyses the code flow to verify if the pointer is never passed as a parameter to a function or stored inside a struct that outlives the scope of the pointer, and if the pointer is never returned by a caller function. If all the conditions are satisfied the compiler infers that the pointer is scoped and the `scoped` qualifier can be omitted.
@@ -1347,7 +1353,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
     *   `!` pointers cannot be null and can only read from memory. This pointer will prevent writing into a specific memory location guaranteeing read-only access. The memory that it points to can change if the underlying memory region is mapped to a volatile or external device for example.
      *   `scoped` pointers are limited to their scope guaranteeing safety in a more localized and restrictive way.
     *   `tracked` pointers have runtime checks to ensure the pointer is not dangling. The tracked pointers have a small overhead that is associated to the metadata required to perform the runtime checks. The runtime checks can be implemented using different mechanisms, such as metadata, guard pages, or specific hardware support. When a `tracked` pointer is copied, a new `tracked` pointer is created with its own metadata and its own runtime checks. Concurrent access to the same memory location using different tracked pointers may result in data races if no additional synchronization mechanism is used.
-    *   Example: `uint32! myReadPtr;`, `rawbyte- myWritePtr;`, `uint32@MySecureRegion myRegionPtr;`, `uint32+ myNonNullPtr = &myValue;`, `uint8 localPtr = &myStackValue;` (implicit scope), `uint16 tracked myTrackedPtr = &someValue;`
+    *   Example: `uint32! myReadPtr;`, `rawbyte- myWritePtr;`, `uint32@MySecureRegion regionPtr;`, `uint32+ myNonNullPtr = &myValue;`, `uint8 localPtr = &myStackValue;` (implicit scope), `uint16 tracked myTrackedPtr = &someValue;`
 *   **Static Typing:** Enforces type rules at compile time preventing type-related errors, which makes the code safer and easier to reason about. Type checking is performed by the compiler during the type resolution phase of the compilation process.
 *   `DataType safe [Size]`: Runtime bounds checking to prevent buffer overflows and out-of-bounds accesses, improving the security of the code. Every access to a `safe` array will be checked at runtime.
     *   Example: `uint16 safe[100] sensorValues; sensorValues[10] = 5;`
@@ -1369,7 +1375,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
 *   **Runtime Checks Tradeoffs:** While BML aims for minimal overhead, runtime checks are still present for certain features (e.g., `safe` arrays, `tracked` pointers). These checks help prevent memory errors, but they may have a performance impact. These checks can be disabled by using compiler flags or pragmas. Disabling the runtime checks should be done with caution as it can introduce potential safety issues.
 *  **Runtime Checks are Optional:** The runtime checks are optional and may be disabled by using compiler flags or pragmas, such as `boundsCheck=off` or specific pragmas such as `#pragma disable_bounds_check;`. This gives the user more control by explicitly disabling the runtime checks, but it also means that the user can create an unsafe program that can crash due to buffer overflows or dangling pointer accesses.
 *   **Cutting-Edge Solution (High-Performance Bitfield Access):** To minimize overhead and maximize performance in bitfield manipulation, especially within memory-mapped registers, BML provides a "with" statement which allows grouping bitfield updates, avoiding multiple read-modify-write operations when there are multiple bitfield updates for the same register. This is a cutting-edge feature designed to provide low overhead and high performance. The compiler can optimize the code by using specialized hardware instructions where available, or by using bitwise operations where specialized instructions are not available. Bitfield members can be accessed with the `=` operator and initialized by using an initializer list, without the `with` statement: `myGpioRegisters.controlRegister = { enableBit = 1, dataBit = someValue };`. Bit Ranges can be accessed with the syntax `myGpioRegisters.controlRegister[0..3] = 0b101;` or by using a bit mask: `myGpioRegisters.controlRegister[0b00001111] = 0b101;`.
-    *   **"with" statement optimization:** The compiler analyzes the `with` block to check if a specific write or read operation to a memory-mapped register can be avoided. If a register is read and not modified, the write operation can be skipped.
+    *   **"with" statement optimization:** The compiler analyzes the `with` block, and skips read/write operations to memory-mapped registers when they are not modified. This optimization is performed automatically with no additional user effort.
         *   This mechanism is automatically performed by the compiler and requires no additional effort from the user enabling zero-overhead high-performance bitfield access.
     *   **Example:**
         ```baremetal
@@ -1418,7 +1424,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
     *   Example: `#cpuTarget armCortexM4`
 *   **Multiple `@arc` Blocks:** A single BML file (including the main file) can contain multiple `@arc` blocks, one for each supported architecture. The compiler selects the appropriate block based on the `-target` flag during compilation.
 *    **Explicit `@arc common` Block:** Code outside of any `@arc` block is not allowed and it's a compile-time error. Architecture-independent code should be placed inside an `@arc common` block.
-    *    **Restrictions:** The compiler enforces restrictions on code in the `@arc common` block to ensure portability. These restrictions include disallowing direct hardware access, limiting the use of certain intrinsics, and potentially restricting data types to a common subset.
+    *   **Restrictions:** The compiler enforces restrictions on code in the `@arc common` block to ensure portability. These restrictions include disallowing direct hardware access, limiting the use of certain intrinsics, and potentially restricting data types to a common subset.
     *   **No Nested Functions:** Nested function definitions are *not* allowed in the `@arc common` block. This restriction is in place to avoid complexities in code generation and to maintain a clear separation between architecture-independent and architecture-specific code.
      *   **CAM-Provided Defaults:** CAMs are expected to provide default implementations for common functions (like `print`) that can be used within the `@arc common` block. These defaults are architecture-specific but are automatically selected by the compiler based on the target.
 
@@ -1455,7 +1461,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         *   BML uses sequential consistency as its default memory model which means that by default memory operations appear to execute in the order specified by the program.
         *   When interacting with shared memory volatile variables or peripheral devices the compiler may not preserve the order of the memory accesses due to optimizations or memory hierarchies.
         *   Memory barriers are used to enforce a specific order on memory access operations. When a memory barrier is executed, the CPU guarantees that all previous memory operations are completed before any subsequent operation starts.
-         * The `memoryBarrier();` operation will generate a target-specific instruction that will act as a memory barrier. It is usually not required unless you have a specific memory ordering that the compiler cannot enforce.
+         * The `memoryBarrier(order);` operation will generate a target-specific instruction that will act as a memory barrier. It is usually not required unless you have a specific memory ordering that the compiler cannot enforce. The order can be `read`, `write`, `readWrite`, or `all`, and defaults to `all` if the argument is missing.
         *  Memory barriers should be used when you have multiple threads that access the same memory regions or when you are interacting with memory-mapped devices that have dependencies on the order of the memory operations.
         *   Memory barriers can be particularly important when dealing with memory mapped peripherals, because the behavior is not always predictable if the access is done in a different order than it was intended.
 *   `transaction { ... }`: Ensures atomic execution of the code block. The implementation of transaction blocks depends on the target. For a single-core processor the compiler will typically generate code that disables interrupts and system preemption during the execution of the transaction. For a multi-core system, the code will generate a lock or a memory barrier operation which depends on the availability of hardware support. There are limitations on the operations that can be performed within a transaction to ensure atomicity. Calling functions may break the atomicity guarantees and the compiler will try to enforce these rules at compile time, if possible. The behavior of calling functions inside transactions is implementation-specific. The user is responsible for understanding the hardware and software implications of using transaction blocks.
@@ -1477,8 +1483,8 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
    function void init() = print("initializing"); // single expression void function
 ```
 *   **`declarations` Block (Optional):** You can optionally use a `declarations` block at the beginning of a function body to declare local variables. This block does not create a new scope.
-*   **Lexical Scoping:** Variables declared within a function are local to that function. Nested functions have access to variables in their enclosing function's scope.
-*   **Return Type:** The `returnType` specifies the type of value returned by the function. Use `void` if the function does not return a value. If the function consists of a single expression, the return type can be omitted, and the compiler will infer it from the expression.
+*   **Lexical Scoping:** Variables declared within a function are local to that function. Nested functions have access to variables in their enclosing function's scope. Nested functions can only be defined within `@arc` blocks and are not allowed in the `@arc common` block.
+*   **Return Type:** The `returnType` specifies the type of value returned by the function. Use `void` if the function does not return a value. If the function consists of a single expression, the return type can be omitted, and the compiler will infer it from the expression. If there is no explicit return statement and no implicit return type can be inferred, a compile-time error will be generated.
 *   **Parameter List:** The `parameterList` is a comma-separated list of parameter declarations.
 *   **Function Parameters:**
     *   Parameters can have default values: `function myFunc(uint32 param1 = 10, boolean flag = false) { ... }`. Default parameters must follow non-default parameters when defining a function.
@@ -1487,7 +1493,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         *   Example: `function myFunc(uint32 x #in, uint32 y #out) { y = x * 2; }`
     *   **Implicit "this" Parameter:** The `this` parameter is automatically added to struct or union method declarations:
         *   The `this` parameter is available inside the function, allowing access to the members of the struct or union.
-        *   The `this` parameter is implicit for struct and union methods and can be omitted when there is no name collision.
+        * The `this` parameter is implicit for struct and union methods and can be omitted when there is no name collision.
         *    When a name collision occurs with a local variable or a function parameter, the explicit `this` keyword or the `@` operator should be used to access the member of a structure or union.
         *   The `this` parameter is implicitly provided and it is not needed to explicitly specify it as a parameter of the function:
             ```baremetal
@@ -1500,10 +1506,6 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
               this.value = 10; // Explicit member access using the this keyword.
            }
            ```
-*   **Nested Functions:**
-    *   BML supports nested function definitions (functions defined inside other functions).
-    *  Nested functions can only be defined within `@arc` blocks. They are not allowed in the `@arc common` block.
-    *   Nested functions have access to the variables and parameters of their enclosing function's scope (closures).
 
 **11. Error Handling and Diagnostics**
 
@@ -1512,7 +1514,7 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
     *   The following error codes are defined, and a conforming compiler must use them where applicable:
         *   **E0001:** Syntax error.
         *   **E0002:** Type mismatch.
-        *   **E0003:** Undeclared identifier.
+        *   **E0003:** Undeclared identifier. (This error is used when a member is accessed without using `this` in a shadowed scope).
         *   **E0004:** Invalid use of `const`.
         *   **E0005:** Invalid use of `volatile`.
         *   **E0006:** Invalid type conversion.
@@ -1531,16 +1533,16 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
         *   **E0019:** Invalid use of `generic` type.
         *   **E0020:** Missing `return` statement.
         *   **E0021:** Unreachable code.
-        *   **E0022:** Invalid memory access.
+        *   **E0022:** Invalid memory access. (used when memory addresses are not valid or are misaligned or when performing invalid memory accesses with atomic instructions).
         *   **E0023:** Refinement type constraint violation.
         *   **E0024:** Invalid symbolic expression.
         *   **E0025:** Thread creation error
         *   **E0026:** Asynchronous operation error.
-        *  **E0027:** Memory Region Access Violation
-        *   **E0028:** Invalid Hardware Access
+        *   **E0027:** Memory Region Access Violation
+        *   **E0028:** Invalid Hardware Access (Used when using hardware intrinsics or accessing registers incorrectly)
         *   **E0029:** Unsupported Operation
         *   **E0030:** Invalid Region Capability
-        *  **E0031:** Region Conflict
+        *   **E0031:** Region Conflict
         *   **E0032:** Use of Uninitialized Variable
         *   **E0033:** Violation of `readOnce` Attribute
         *   **E0034:** Violation of `writeOnce` Attribute
@@ -1580,6 +1582,9 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
           *  **E0068:** Invalid use of custom suffix
         *  **E0069:** Hardware Error
           * **E0070:** Invalid attribute for memory mapped struct, or register definition
+          * **E0071**: Invalid access modifier to register declaration, if readOnly, writeOnce or threadLocal are not used on a `register` declaration.
+        *  **E0072**: Attempt to use a register declared in a CAM outside the scope of the CAM.
+        * **E0073**: Invalid atomic block declaration.
     *   **Note:** This list is not exhaustive but provides a starting point for consistent error reporting. The compiler may define additional error codes as needed. CAMs can also define their own custom error codes.
 *  **11.2 Warnings**
     *   The BML compiler may also issue warnings for conditions that are not strictly errors but may indicate potential problems in the code.
@@ -1604,6 +1609,9 @@ Bare Metal Language (BML) is a statically-typed programming language meticulousl
          *   **W0016**: Refinement type check may be computationally expensive.
          *  **W0017**: Unused module
           * **W0018:** Variable declared in a scoped region not being used.
+          * **W0019**: Variable used outside of atomic block.
+        *   **W0020:** Invalid use of registers.
+         *  **W0021:** Implicit conversion may lead to data loss due to atomic operations.
 
 **12. Operator Precedence and Associativity**
 
@@ -1768,6 +1776,7 @@ declaration =
 registerDeclaration =
     dataType , [ regionSpecifier ] , identifier, typeAttributeList, ";"
     | "register" ,  conceptualRegisterIdentifier,  "=" , bootOperand , ";"
+     |  "register" , identifier, typeAttributeList, ":" , dataType , typeAttributeList, ";"
     ;
 
 camDataRegionDefinition =
@@ -1893,7 +1902,7 @@ attributedStructMemberDeclaration =
     typeAttributeList , structMemberDeclarationCore ;
 
 structMemberDeclarationCore =
-    [ "nonvolatile" ] , [ "volatile" ] , dataType , identifier , [ typeAttribute ] , ";" ;
+    [ "nonvolatile" ] , [ "volatile" ] , dataType , identifier , [ typeAttribute ] ,";" ;
 
 unionDefinition =
     "union" , identifier , "{" ,
@@ -2263,7 +2272,7 @@ layoutAttribute =
   | "vector" , "(" , integerLiteral , ")"
   | "vectorAligned"
    | "#endian" , "(" ,  endianness  , ")"
-  ;
+   ;
 endianness =
     "big" | "little";
 
@@ -2310,7 +2319,9 @@ otherAttribute =
   | "#dmaDestination", [ "(" , dmaConfigParameters, ")" ]
   | "bitOffset", "(" , integerLiteral , ")"
    | "byteOrder", "(" , endianness , ")"
-    ;
+     | "readOnly"
+  | "threadLocal"
+  | "writeOnce";
 dmaConfigParameters =
   dmaConfigParameter { "," , dmaConfigParameter } ;
 dmaConfigParameter =
@@ -2493,13 +2504,14 @@ statement =
     | bootCodeStatement
     | symbolicBlock
      | templateStatement
-        | hardwareTrapStatement
-   | hardwarePrefetchStatement
-     | hardwareMemoryBarrierStatement
+      | hardwareTrapStatement
+     | hardwarePrefetchStatement
+       | hardwareMemoryBarrierStatement
      | hardwareInstructionBarrierStatement
      | hardwareWatchpointStatement
         | rawInstructionStatement
         | atomicRegisterOperationStatement
+        | atomicBlockStatement
    ;
 hardwareTrapStatement =
    "hardware_trap" , ";" ;
@@ -2964,7 +2976,7 @@ dslBlock =
     { dslSection } ;
 
 dslSection =
-    "states" , ":" , "{" , { dslStateDefinition } , "}"
+    "states" , ":" , "{" , { dslStateDefinition} , "}"
   | dslCustomSection ;
 
 dslCustomSection =
@@ -3041,4 +3053,48 @@ transformationType =
      "where" , expression ;
   transformationOperation =
     "replace" , "(" , expression, expression, ")" ;
+ atomicBlockStatement =
+      "atomic" , [ "(" , expression , ")" ] , "{" , { statement }, "}" ;
+atomicRegisterOperationStatement =
+     "atomicSetBit" , "(" , expression, "," , expression, ")" , ";"
+    |"atomicClearBit" , "(" , expression, "," , expression , ")" , ";"
+    |"atomicToggleBit" , "(" , expression, "," , expression , ")" , ";"
+    |"atomicTestAndSetBit" , "(" , expression, "," , expression , ")" , ";"
+     |"atomicTestAndClearBit" , "(" , expression, "," , expression , ")" , ";"
+    |"atomicReadRegister" , "(" , expression, "," , expression, ")" , ";"
+     |"atomicWriteRegister" , "(" , expression, "," , expression, "," , expression, ")" , ";"
+        ;
+
+hardwareWatchpointStatement =
+        "hardware_setWatchpoint" , "(" , expression, "," , typeIdentifier ,  ")" , ";" ;
+
+rawInstructionStatement =
+        "rawInstr", "(" , stringLiteral , ")" , ";" ;
+
+hardwarePrefetchStatement =
+    "prefetch", "(" , expression , "," , expression , ")" , ";" ;
+
+hardwareMemoryBarrierStatement =
+       "memoryBarrier" ,  [ "(" , identifier , ")" ] ,  ";" ;
+
+hardwareInstructionBarrierStatement =
+    "instructionBarrier" , "(" , identifier , ")" , ";" ;
+
+prefix =
+    "0x" | "0b" | "0o";
+
+identifier =
+    letter { letter | digit | "_" } ;
+
+(* lexical terminals (unicode categories) *)
+letter =  ? unicode letter character ? ;
+digit =  ? unicode digit character ? ;
+sourceCharacter =  ? any unicode character ? ;
+escapeSequence =  "\\" , ( "n" | "r" | "t" | "\\" | "'" | '"' | "0" ) ;
+
+configParameterAssignment =
+    identifier , "=" , constantExpression , ";" ;
+
+concreteTypeList =
+    dataType { "," , dataType} ;
 ```
