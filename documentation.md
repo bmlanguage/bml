@@ -1,20 +1,28 @@
-**BML Language Specification - Version 2.0**
+
+**BML Language Specification - Version 2.1**
 
 **1. Introduction**
 
-Bare Metal Language (BML) is a statically-typed, compiled programming language designed for bare metal and embedded systems development. BML offers a productive, maintainable, and memory-safe alternative to assembly language. BML does not replace assembly for instruction-level programming; instead, it abstracts instruction encoding at the user level while providing comparable performance through its Composable Architecture Module (CAM) system, enabling fine-grained hardware control and platform-specific optimizations.
+Bare Metal Language (BML) is a statically-typed, compiled programming language designed for bare metal and embedded systems development. BML aims to provide a productive, maintainable, and memory-safe alternative to assembly language. BML does not intend to be a direct, instruction-for-instruction assembly replacement at the user level, but it provides mechanisms to achieve a level of control that is comparable to assembly by using low level DSLs. Instead, it abstracts instruction encoding at the user level while providing comparable performance through its Composable Architecture Module (CAM) system, enabling fine-grained hardware control and platform-specific optimizations.
 
 **Key Differentiators of BML:**
 
 *   **High-Level Abstraction with Low-Level Control:** BML offers high-level constructs for improved code organization and readability, while CAMs provide mechanisms to interact directly with hardware peripherals, registers, and memory locations at a level close to assembly but using type-safe and maintainable code.
 *   **Explicit Memory Safety Features:** BML integrates multiple layers of memory safety: static typing, refinement types for value constraints, region-based memory management with capabilities, safe arrays with optional runtime bounds checks, and tracked pointers to mitigate dangling pointer issues. Runtime checks are optional and can be selectively disabled for performance-critical sections, placing responsibility for safety on the developer when disabled.
-*   **Composable Architecture Modules (CAMs):** CAMs are compiler extensions written in BML itself. They are the cornerstone of BML's architecture versatility and performance. CAMs encapsulate architecture-specific code generation logic, instruction selection, and hardware interaction details, using a rule-based system, explicit hardware intrinsics, and integration with hardware description languages. Developers use BML modules and code, while CAM developers create platform-specific implementations, ensuring separation of concerns.
+*   **Composable Architecture Modules (CAMs):** CAMs are compiler extensions written in BML itself. They are the cornerstone of BML's architecture versatility and performance. CAMs encapsulate architecture-specific code generation logic, instruction selection, and hardware interaction details, using a rule-based system, explicit hardware intrinsics, and integration with hardware description languages. Developers use BML modules and code, while CAM developers create platform-specific implementations, ensuring separation of concerns. CAMs can be composed and customized.
 *   **Near-Zero Overhead Design:** BML strives for near-zero runtime overhead, avoiding hidden allocations, dynamic dispatch (unless explicitly requested), and garbage collection. Performance is intended to be comparable to hand-crafted assembly for equivalent functionality when using appropriate CAMs. However, runtime checks, even if optional, do introduce overhead. Developer responsibility for safety is paramount, especially when disabling runtime checks or using raw pointers.
+*   **Direct Microcode and ABI Control:** BML introduces `callDSL` and `instrDSL` to provide direct control over function calling conventions, stack management, microcode instructions, ABI specification, enabling fine-grained control over low-level execution details.
+*   **Explicit Control Over Implicit Operations:** BML uses rule-based transformations in `instrDSL` to provide the means to customize implicit operations like function calls, memory accesses, and type conversions.
+*   **Ultra-Low Level Code Generation:** By allowing direct access to the compiler IR and using low-level intrinsics, it is possible to generate very fine-tuned code that is comparable to hand-written assembly.
+*    **Cycle Accurate Code Generation:** Using specific attributes and low-level intrinsics, developers can have precise control over the timing of code execution.
+*   **Compile-Time Customization:** BML allows compile-time flags and pragmas to provide a very granular level of control for code generation and optimization.
+*  **Idiomatic Error Propagation**: The `?` operator enables concise error propagation, streamlining error-handling code.
+*  **First-Class Code Blocks**: BML now supports first-class code blocks (also known as lambdas), allowing code to be passed as function parameters for enhanced code composability.
 
 **Core Principles:**
 
 *   **Zero Overhead:** BML is designed with a zero-overhead philosophy, prioritizing minimal runtime costs and striving for performance comparable to hand-crafted assembly code where applicable and with the correct CAM usage. No hidden allocations, dynamic dispatch (unless explicitly requested), or garbage collection. Compile-time checks and optimizations, hardware capabilities, and CAMs enable this. Runtime checks are optional and can be disabled. Disabling runtime checks is the user's responsibility. The compiler will generate warnings when a `Result` value is ignored, a null pointer is dereferenced, or if a `scoped` pointer escapes its scope if the required flags are enabled.
-*   **Low-Level Control:** BML provides mechanisms for direct hardware interaction, precise memory manipulation, and bit-level control via CAMs. Abstracting away direct instruction encoding at the user level, BML, through CAMs, allows for highly optimized code generation close to hand-written assembly. CAMs provide specialized APIs for hardware peripherals, registers, and memory locations. Direct hardware access at the user level is not allowed. Hardware access is done using memory-mapped registers and hardware intrinsics which are controlled directly by the developer.
+*   **Low-Level Control:** BML provides mechanisms for direct hardware interaction, precise memory manipulation, and bit-level control via CAMs. Abstracting away direct instruction encoding at the user level, BML, through CAMs, allows for highly optimized code generation close to hand-written assembly. CAMs provide specialized APIs for hardware peripherals, registers, and memory locations. Direct hardware access at the user level is not allowed, unless explicit low-level access primitives are used with the `raw` keyword. Hardware access is done using memory-mapped registers and hardware intrinsics which are controlled directly by the developer.
 *   **Memory Safety Mitigation:** BML incorporates features to mitigate memory errors at compile time. Static analysis, type constraints, region-based memory management, and hardware-assisted bounds checking provide layered memory safety. Runtime checks are optional, giving user control over the safety-performance tradeoff. Tracked pointers and safe arrays perform runtime checks that may impact performance if hardware-assisted bounds checking is disabled or static safety cannot be proven. Users must be aware of safety-performance trade-offs.
 *   **Multi-Target Versatility:** BML supports compilation for diverse architectures through flexible CAM configurations. CAMs abstract architecture-specific details, promoting code reuse. Users must select the correct target architecture and CAMs. Code transformations and code optimizations are done using a rule-based system that is fully controlled by the developer.
 *   **Modularity through CAMs:** BML enables system construction from reusable, optimized, and type-safe modules using CAMs, facilitating code reuse, platform-specific optimizations, and low-level hardware interaction. Code generation is done by CAMs by parsing a hardware description or by using code transformations defined in a rule-based domain-specific language.
@@ -35,7 +43,7 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
 *   **More Flexible Struct and Union Initialization:** Initializer lists with `@initializerList` attribute allow flexible and concise struct/union initialization (positional, by name, or mixed).
 *   **Simplified Tuple Declaration:** Implicit tuple declaration reduces verbosity.
 *   **Expressive Pattern Matching:** More complex pattern matching improves the readability of complex code.
-*   **Idiomatic Error Propagation:** `?` operator for concise error propagation: `value = my_function()?;`.
+*   **Idiomatic Error Propagation:** `?` operator for concise error propagation: `value = my_function()?;`. If a function returns `Result<Ok, Err>`, the `?` operator will propagate an `Err` value or return the `Ok` value if the function returns without errors.
 *   **CAM Composition:** `merge` keyword allows composing CAMs for building complex reusable components.
 *   **CAM Customization:** CAM customization via `config` sections and attributes, including `@enable()` and `@disable()`, provides flexible CAM adaptation to user needs.
 *   **Static Analysis Optimization:** The compiler analyzes the whole program's context for code optimizations using data flow analysis and code transformation rules defined in the CAM.
@@ -46,6 +54,7 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
 *   **Low-Level Control through CAMs and DSLs:** Low-level code generation is possible using CAMs and their DSLs. Users must use CAMs to interact with hardware.
 *   **Symbolic Execution:** Compiler performs symbolic execution using the `symbolic` keyword, enabling advanced code transformations and formal verification.
 *   **Algorithmic Code Generation:** Compiler uses algorithmic code generators when `@algorithm()` attribute is used for optimized code in specific scenarios.
+*  **Cycle-Accurate Code Generation:** The compiler can generate cycle-accurate code using specialized attributes and primitives using a target-specific approach defined by CAMs.
 *   **CAM-based Rule Systems:** CAMs can define code transformation rules using `instrDSL` and `match`, `capture`, and `apply` statements.
 *   **Configurable DSL Adaptation:** DSLs can be adapted based on user parameters using a `config` block in the DSL definition.
 *   **Implicit Type Conversions with `as`:** Type conversions between related data types (integers of the same sign or to floats) using `as` keyword enhance readability while enforcing type safety. Signed to unsigned integer conversions are not implicit.
@@ -54,27 +63,35 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
 *   **Implicit Register Declarations:** CAMs can omit register type when defining conceptual registers.
 *   **Concise Region Definition:** Single-field data regions can be defined as `dataRegion MyData dataType myVariable;`.
 *   **Compile-Time String Processing:** Intrinsic functions like `stringLength()`, `stringReverse()`, `stringSub()`, `stringEquals()`, `stringConcat()`, and `stringToInt()` are supported at compile time.
-*    **Compile-Time String Formatting:** The function `formatString(StringLiteral format, arguments...)` can be used to create new formatted string literals at compile time.
-*    **Compile-Time Bitfield Operations:** Functions like `bitExtract`, and `bitInsert` allow manipulating bitfields of an integer at compile time.
+*   **Compile-Time String Formatting:** The function `formatString(StringLiteral format, arguments...)` can be used to create new formatted string literals at compile time.
+*   **Compile-Time Bitfield Operations:** Functions like `bitExtract`, and `bitInsert` allow manipulating bitfields of an integer at compile time.
 *   **Compile-Time Bitmasks:** Constant bit masks can be defined using the `bitmask` keyword and compile-time expressions.
 *   **Customizable Literals:** CAMs can register custom literal suffixes to parse and use them in a specific way (e.g., `10_us`).
 *   **Compile-Time Enum Literals:** Enums are evaluated at compile time when used in a compile-time context.
-*   **First Class Code Blocks:** Code blocks can be passed as function parameters for improved code composability.
+*   **First-Class Code Blocks:** Code blocks can be passed as function parameters for improved code composability. Code blocks are defined by a `block` type, which specifies the parameters and return type of a code block that can be created using lambda expressions `(parameters) => expression` or `(parameters) => { ... code ... return expression; }`.
 *   **Implicit Return Type for Single Expression Functions:** Single-expression functions can omit return type, inferred from the expression.
 *   **Type attributes:** Type attributes can be defined using `#` as a prefix.
 *   **Implicit scoped pointers:** If the compiler can determine that a pointer variable cannot escape the lexical scope, the `scoped` attribute can be omitted.
-*  **Implicit `this` Parameter:** The `this` parameter is automatically added to struct and union method declarations.
-*  **Explicit Member Access:** Members of structs or unions can be explicitly accessed using the `@` operator if there is a name collision.
+*   **Implicit `this` Parameter:** The `this` parameter is automatically added to struct and union method declarations.
+*   **Explicit Member Access:** Members of structs or unions can be explicitly accessed using the `@` operator if there is a name collision.
 *   **Explicit Control and Developer Responsibility:** BML puts control in the hands of the developer. While providing high-level abstraction, BML gives explicit control over low-level aspects. The programmer is responsible for correct feature usage, optimal performance, and safety. Users are responsible for selecting correct CAMs and error handling. The compiler and CAMs attempt to report errors whenever possible.
+*   **Micro-Level Execution Control:** BML allows the developer to fully control the microcode of a given instruction using the `microcode` block inside the `hardwareInstructionDSL`, combined with `instrDSL` transformations, to obtain low-level control on the execution flow of the program.
+*  **Explicit Memory Access and Control**: BML provides fine-grained control over memory access and cache management, allowing the developer to fine-tune memory access behavior.
+*  **ABI Customization**: BML, via the `callDSL`, allows fine-grained customization of calling conventions and the ABI of a given target, giving similar control to assembly.
+*  **Performance Annotation**: BML allows to add performance hints to code regions to guide the compiler on the code optimization process.
+*   **Instruction-Level Control:** Using the `instrDSL` block to create customized instructions, and using the `#target` attribute on a given `instr`, and the `#instruction` attribute at function declaration.
+*   **Fine-Grained Memory Control:** Using memory attributes and new intrinsics for cache management and memory alignment, and explicit memory regions.
+*   **Direct Hardware Access:** Direct register bit manipulation using the `bit[]` syntax, MMIO using DSL definitions, instruction-level dispatch using `#target` and `#dispatch` attributes, custom peripherals using DSLs, unchecked intrinsics using the `raw` keyword.
+*   **Advanced Concurrency and Real-Time Control:** Using `#affinity`, `#priority` attributes for thread control, using hardware atomic operations and adding `#deadline`, `#period`, `#executionTime`, `#cycleAccurate` to functions, DMA transfers using a specific statement and attributes, interrupt control attributes and hardware timer access through intrinsic functions.
 
 **BML is *not* intended to be:**
 
-*   A direct instruction-for-instruction assembly replacement at the user level.
+*   A direct instruction-for-instruction assembly replacement *at the user level* unless using specific low-level DSLs, a raw instruction, and custom CAMs.
 *   A language for novice programmers unfamiliar with embedded concepts.
 
 **Limitations:**
 
-*   **No Direct Instruction Encoding (User-Level):** BML does *not* allow direct instruction encoding or manual opcode/operand/addressing mode specification at the user level. CAMs and DSLs generate optimized instruction sequences. Developers relinquish direct control over code generation for a higher-level, maintainable approach. BML is not a direct assembly replacement at the user level. Reliance on CAMs for hardware interaction is mandatory.
+*   **No Direct Instruction Encoding (User-Level):** BML does *not* allow direct instruction encoding or manual opcode/operand/addressing mode specification at the user level unless using an `instrDSL` specification, a `hardwareInstructionDSL` specification, or an `intrinsic raw` instruction definition. CAMs and DSLs generate optimized instruction sequences. Developers relinquish direct control over code generation for a higher-level, maintainable approach. BML is not a direct assembly replacement at the user level, unless the user is an experienced CAM developer. Reliance on CAMs for hardware interaction is mandatory unless raw instructions are used.
 *   **Hardware Access Limitations:** BML does not provide direct access to *all* low-level hardware features available in assembly. Developers rely on CAMs for hardware interaction. If a CAM does not expose a feature, it cannot be accessed directly from BML code. BML features are limited by CAM capabilities. Users must use CAMs to interact with specific hardware features. If a feature is not available via the CAM API, users must write or extend a CAM.
 *   **Runtime Checks are Optional:** Runtime checks are present and have a performance impact but are optional and can be disabled via compiler flags or pragmas. Disabling runtime checks provides more control but increases the risk of unsafe programs. Tracked pointers and safe arrays perform runtime checks that may impact performance if hardware-assisted bounds checking is disabled or static safety cannot be proven. Users must be aware of safety-performance trade-offs. Disabling runtime checks is the user's responsibility.
 *   **Debugging Complexity:** Source-level debugging is supported, but debugging low-level issues involving memory corruption and hardware interactions may be more difficult than assembly-level debugging. Advanced compiler debugging output and CAM debugging features are provided to assist users. Testing CAM implementations in isolation is recommended. Debugging memory-mapped peripherals may be more complex due to the abstraction level and reliance on CAMs for hardware operations.
@@ -650,7 +667,7 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
         *   This attribute allows transforming the data using target-specific transformations. The `stringLiteral` is CAM specific.
         *   This attribute does not change the code behavior; it is used by CAMs for code generation and analysis.
         *   Example: `function void applyTransform(uint32 data) #transform("myTransform") { ... };`
-    *    **Allocator and Unit Attributes**: `#allocator(stringLiteral)`, `#unit(stringLiteral)`
+    *   **Allocator and Unit Attributes**: `#allocator(stringLiteral)`, `#unit(stringLiteral)`
         *   `#allocator(stringLiteral)` is used to specify the allocator to be used for a specific memory allocation. The `stringLiteral` is CAM specific.
         *   This attribute does not change the code behavior; it is used by CAMs for code generation and analysis.
         *   `#unit(stringLiteral)` is used to mark a specific part of a CAM with a specific unit or component, which is used to group related functionalities and perform analysis on a unit basis. The `stringLiteral` is CAM specific.
@@ -676,7 +693,7 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
              * `register identifier #register("regionName", "stringLiteral") : dataType #readOnly`
               * `register identifier #register("regionName", "stringLiteral") : dataType #writeOnce`
               * `register identifier #register("regionName", "stringLiteral") : dataType #threadLocal`
-             * Multiple access modifiers can be combined: `register identifier #register("regionName", "stringLiteral") : dataType #readOnly #writeOnce`
+             * Multiple access modifiers can be combined: `register identifier #register("regionName", "stringLiteral") : dataType #readOnly #writeOnce #threadLocal`
     *   **Hardware Description Attribute:** `#hardwareDescription(stringLiteral)`.
         *   This attribute allows associating a specific hardware description to a given interface intrinsic function. This attribute is used when CAMs are automatically generated from hardware descriptions. The `stringLiteral` is CAM specific.
         *   This attribute does not change the code behavior; it is used by CAMs for code generation and analysis.
@@ -710,7 +727,7 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
         *   BML uses lexical scoping, defining variable visibility and mutability according to the block it is declared.
         *   Mutability is block-scoped; Variables are immutable by default in the block where they are declared. Mutable variables must be declared with the `~` mutability modifier.
         *   **Nested functions:** Functions can be nested within other functions. Inner functions have access to variables in their enclosing function's scope (closure).
-         *   Nested functions can only be defined within `@arc` blocks. They are not allowed in the `@arc common` block.
+         *   Nested functions can only be defined within `@arc` blocks and are not allowed in the `@arc common` block.
         *   **Shadowing:** Inner scopes can declare variables with the same name as variables in outer scopes. The inner declaration shadows the outer one. The compiler will issue a warning in such cases.
         *   **Global Scope:** Variables declared at the top level of an `@arc` block are considered global for that architecture.
     *   **Instruction Type:**
@@ -718,189 +735,42 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
         *   The `instructionName` should match a previously defined instruction using the `hardwareInstructionDSL`.
         *   The `parameters` are a list of compile-time expressions that can be used to specify the operands of the instruction or any other parameter specific to the instruction.
         *   The `instruction` type is a base type, similarly to the integer, float and rawbyte types, and can be used as the type of a given variable, a function parameter, or a return type of a function.
+    *   **Code Block Type:** `block (parameterList) -> returnType;`.
+        * A type that defines a function signature for a code block.
+        *  **Default value**: The default value of a code block is `null`.
+        * Example: `block (uint32, uint32) -> uint32 MathOperationType;`
+       * Code blocks can be captured using lambda expressions: `myCodeBlock = (a,b) => a+b;`.
     *    **Bitmask Type:** A constant expression that is used to describe a bitfield using an integer value. Example: `const bitmask ENABLE_BIT = 0x01;`
 
-**3. Modules and the Main File: Structure and Organization**
+**3. Modules and the Main File: Structure and Organization (Updated)**
 
-*   **Modules:** Self-contained code units that encapsulate data and functionality, promoting code reusability and organization.
-    *   `module moduleName { ... }`: Declares a module, creating a namespace.
-        *   `description "String";`: (Optional) Provides a module description that is used for documentation purposes.
-            *   Example: `description "A simple example module";`
-        *   `declarations { ... }`: Module-private declarations. Module declarations are private by default.
-        *   `statements { ... }`: Module initialization code (optional). This code is executed when the module is first loaded and before the execution of the entry point. Module initialization code can also include `use module` statements.
-            *   Example: `statements { print("Module initialized"); #use "MyConfigModule"; }`
-        *   `export { ... }`: Defines exported items by declaring them inline (implicitly or explicitly) using the `export` keyword or by listing them inside the block: `functions`, `types`, `constants`, `conceptualRegisters`. This is used to make specific module components visible outside of the module.
-            *   Example:
-                ```baremetal
-                module MyModule {
-                    export {
-                        functions { myExportedFunction }
-                        types { MyExportedType }
-                        constants { myExportedConstant }
-                    }
-                    statements {
-                      const MAX_VALUE = 100; // implicitly exported
-                      function  myExportedFunction() { ... }; //implicitly exported
-                    }
+...(No changes in this section)...
 
-                    type export MyExportedType = struct { uint32 a; };
-                    const export uint32 myExportedConstant = 10; //explicitly exported
-                }
-                ```
-          * **Module Visibility:** The keyword `private` can be used to limit visibility of exported data, functions or constants to other modules that are also using this module using the `#use` directive:
-                ```baremetal
-                module MyModule {
-                    export {
-                        private functions { myPrivateExportedFunction } //not available to the main module, unless the main module also uses `MyModule`.
-                        types { MyExportedType }
-                        constants { myExportedConstant }
-                    }
-                     function private myPrivateExportedFunction() { ... } // this function can only be used by other modules that are using `MyModule`.
-                }
-               ```
-        *   **Architecture-Specific Code (`@arc` blocks):** All code within a module must be enclosed within an `@arc` block targeting a specific architecture. Each module can have multiple `@arc` blocks for different architectures. Code outside an `@arc` block within a module is a compile-time error (E0012).
-            *   Example:
-                ```baremetal
-                module MyModule {
-                    @arc arm {
-                        declarations {
-                           // ARM-specific declarations
-                        }
-
-                        statements {
-                            // ARM-specific initialization code
-                           function void myFunction() {
-                             // ARM-specific code
-                           }
-                        }
-                    }
-                    @arc riscv {
-                        declarations {
-                            // RISC-V specific declarations
-                         }
-                         statements {
-                            // RISC-V specific initialization code
-                            function void myRiscVFunction() {
-                              // RISC-V specific code
-                            }
-                         }
-                    }
-                }
-                ```
-
-*   **Module Usage:**
-    *   `#use "moduleName";`: Includes exported items from the module in the current scope making the exported components of the module visible in the current scope. When using the `#use` directive you can list the specific items that you want to import by using the keyword `only`: `#use "MyModule" only { functions {myFunction}, constants {myConstant} };`, or to exclude some items using `exclude` keyword: `#use "MyModule" exclude { functions {myOtherFunction} };`. The `exclude` or `only` keywords can be used only when a list of items is specified.
-        *   Generic modules: `#use "genericModuleName<Type>" as alias;`
-        *   Example: `#use "GenericVector<uint32>" as intVector;`
-       *  Module aliases:  Modules can be imported using an alias to avoid namespace conflicts, or when the module name is too long `#use "MyLongModuleName" as MyModule`.
-        * Specific versions of the modules can be imported using an `@` syntax. Example: `#use "MyModule@1.2.0";`
-        *   `with config { ... }`: Configures parameters for the module.
-            *   Example: `#use "MyModule" with config { baudRate = 115200 };`
-            *   When importing a module with `config` parameters, the compiler creates a new copy parameterized by those values. If the imported module uses other modules with config parameters, those are also duplicated, respecting the parent's parameters. The parent module's `config` parameters override any conflicting parameters in the imported module.
-            * Example:
-            ```baremetal
-                module MyModule {
-                    config {
-                       config dataSize : uint32 = 16;
-                  }
-                  statements {
-                      function void myFunction(uint32 data) {
-                        print("Data size:", config.dataSize);
-                      }
-                   }
-                }
-                 module MyOtherModule {
-                 statements {
-                      #use "MyModule" with config { dataSize = 32 };
-                       function void myOtherFunction() {
-                          myFunction(10);
-                       }
-                   }
-               }
-            ```
-            *   In the example above, the function `myFunction` will use the dataSize of `32` which overrides the default `dataSize` value.
-         *   **Module Configuration Files:** Modules can load configuration data by specifying a `StringLiteral` that specifies a configuration file, which is loaded and parsed at compile time. The compiler uses the parser that is specified by the type annotation in the configuration section.
-          ```baremetal
-            module MyModule {
-                config {
-                  config myConfig : MyConfig =  parseConfigFile("config.txt");
-                }
-            }
-          ```
-
-*   **Main File:**
-    *   **The main file is the entry point of the BML application.**
-    *   **It is defined in a separate `.bml` file (typically `main.bml`).**
-    *   **The main file does *not* use the `module` keyword.**
-    *   **It does *not* contain a `main` function.**
-    *   **Instead, the `statements` block within each `@arc` block acts as the entry point for that specific architecture.**
-     *  **It must have an explicit `@arc common` block to contain architecture-independent code.** Code outside of any `@arc` block is not allowed in the `main.bml` file.
-     *  The `@arc common` block is a global scope for all the `@arc` blocks in the `main.bml` file, and code within the `@arc common` block is treated as architecture-independent, meaning that it will be compiled for all target architectures. Direct access to hardware is not allowed in the `@arc common` block. Nested functions are not allowed inside the `@arc common` block, and all function calls are limited to only be able to call other functions inside the `@arc common` block.
-    *   **It uses the `#use` directive to import modules.**
-    *   The main file can also contain `@arc` blocks for architecture-specific code.
-    *   Example (`main.bml`):
-        ```baremetal
-        #use "MyModule";
-         #use "MyGenericCam<uint32>" as GenericUint32Cam;
-
-         @arc common {
-            declarations {
-                 uint32 commonVar = 5;
-            }
-            statements {
-                 function void commonFunction() {
-                  // This function is available to all architectures
-                  print("Common function called");
-              }
-            }
-        }
-
-
-        @arc arm {
-            declarations {
-                // ... ARM-specific declarations ...
-            }
-            statements {
-                // ... ARM-specific initialization ...
-                 commonFunction(); // Can call functions from common section
-                myFunction(); // Call a function from MyModule
-                // ... More ARM-specific code ...
-            }
-        }
-
-        @arc riscv {
-            declarations {
-                // ... RISC-V specific declarations ...
-            }
-            statements {
-                // ... RISC-V specific initialization ...
-                commonFunction(); // Can call functions from common section
-                myFunction(); // Call a function from MyModule
-                // ... More RISC-V specific code ...
-            }
-        }
-        ```
-
-**4. Composable Architecture Modules (CAMs)**
+**4. Composable Architecture Modules (CAMs) (Updated)**
 
 *   CAMs are compiler extensions that act as "code generation engines." They allow extending the compiler and generating platform-specific code in a type-safe and modular fashion, using a rule-based system, explicit hardware intrinsics, and integration with hardware description languages.
 *   **Structure:**
     *   `module camName { ... }`: Declares a CAM. (CAMs are modules)
-        *   `description "CAM Description String";`: (Optional) A description of the CAM which is used by documentation generation tools.
-            *   Example: `description "Provides a UART Driver";`
-        *   `config { ... }`: Configurable parameters used to customize the behavior of the CAM, based on the user's needs. CAMs can load external data from a file by specifying the location in the `config` section and using a parsing function. The `config` parameters can be customized using command line arguments or by using a `with config { ... }` section when the CAM is imported using the `#use` directive. CAM options can be enabled or disabled using the `#enable("optionName")` or `#disable("optionName")` attributes. If the user does not specify a default value for a configuration parameter, it is assumed that the default value will be used, unless another value is specified by the user using command line flags.
-            *   Example: `config { config baudRate: uint32 = 115200;  config hardwareDescription : StringLiteral; config enableDma : boolean #enable("dma") = false; config myOption : CAMOption = {true, 100};}`.
-             *  The `config` section can also load a file by specifying the filename in a `StringLiteral` and then processing the file by using a compile-time function that is able to parse the data.
-                 * Example: `config { config hardwareDescriptionFile : StringLiteral; config registers : RegisterConfig =  parseRegisterData(hardwareDescriptionFile) ; };` In this example `parseRegisterData` must be a `compileTimeFunction` and `RegisterConfig` a user defined data type.
-                *  The `#enable("optionName")` and `#disable("optionName")` attributes can be used to conditionally compile code. Example: `function void myFunction() #enable("myOption") { /*...*/ }` or `config { config enableOpt : boolean #enable("myOption") = true; }`. The `myOption` configuration parameter is defined as `config myOption : CAMOption = {true, 100};`.
-        *   `export { ... }`: Declares architecture-agnostic interface functions via `interface intrinsic function`, which is the main entry point for CAM-provided operations, making them callable from other BML code. It can also export conceptual registers that are used by the CAM code to generate target-specific instructions improving the abstraction of the hardware. The `instrDSL` block is used to declare a domain-specific language for defining low-level symbolic instructions. Symbolic instructions can have generic parameters, which can be used to specify the instruction behavior at compile time. Meta-CAMs are declared by using the `Meta` keyword before the `module` keyword. Meta-CAMs are executed at compile time. The `hardwareInstructionDSL` block is used to declare low level hardware instructions by specifying the encoding, side-effects and microcode using a DSL.
-            *   Example:
-                ```baremetal
+        *   ... (Existing `config`, `export`, `@arc` blocks) ...
+         *  The `instrDSL` block can be used to define a domain specific language that is used to define symbolic instructions which may have generic parameters that are evaluated at compile time. The `rule` keyword is used to define a declarative code transformation.
+           *  **`callDSL` Block**: Provides a mechanism to define the low-level implementation of the function calls.
+              *   **`callConvention` Block**: Defines the calling convention for a given architecture, by specifying how the stack is allocated, how the parameters are passed, the register usage, the prologue, the epilogue, and other information about the application binary interface.
+             *   **`parameterPassing`:** Specifies how the parameters are passed when calling a function. Parameters can be passed using specific registers or using the stack.
+             *  **`returnLocation`:** Specifies how the return value is passed to the caller function.
+             *  **`prologue`:** Specifies the code that is executed before a function starts, and usually includes the instructions to save the registers in the stack, and other setup instructions.
+             *  **`epilogue`:** Specifies the code that is executed before a function returns, and usually includes the instructions to restore the registers and pop the stack.
+             *   **`stackAllocation`:** Defines how the stack memory is allocated and deallocated for a function call.
+             *   **`abiName`:** Provides the name of the application binary interface that the compiler must implement when generating the code, which is used to guarantee compatibility with other libraries and code.
+            *    **`hardwareInstructionDSL`**: Provides a mechanism to specify the low-level implementation of a hardware instruction.
+        *  Meta-CAMs are declared by using the `Meta` keyword before the `module` keyword. Meta-CAMs are executed at compile time.
+
+             ```baremetal
                 module UartCam {
                      config {
                         config baseAddress: uint32 = 0x0;
                          config hardwareDescription : StringLiteral;
                         config enableDma : boolean #enable("dma") = false;
+                         config functionParameterRegister : StringLiteral #register("r0") = "r0";
                    }
                     export {
                        interface intrinsic function void platformUartInit(uint32 baudRate) -> void #hardwareDescription("uart.hdl");
@@ -912,6 +782,28 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
                           %byteToSend
                        }
                    }
+
+                    @callDSL {
+                     callConvention myCallConvention {
+                        parameterPassing {
+                           firstParameter  #register(config.functionParameterRegister), // the register will be read from the config section.
+                           otherParameters  stack
+                       }
+                      returnLocation r0,
+                       prologue {
+                          "push lr"
+                       }
+                      epilogue {
+                          "pop pc"
+                       }
+                       stackAllocation {
+                          allocateStack(frameSize);
+                           freeStack(frameSize);
+                       }
+                     abiName "arm_std_abi"
+                       }
+                     }
+
                     @hardwareInstructionDSL {
                      instruction add(rd, rn, imm) {
                         encoding: "0bxxxxxxx100010xxxyyyyzzzz";
@@ -973,7 +865,7 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
                             print("ARM: Uart Initialized");
 
                         }
-                       function void platformUartSendByte(uint8 data) {
+                       function void platformUartSendByte(uint8 data) #callConvention("myCallConvention"){
                          register %uartBaseAddress = config.baseAddress + 0x0; //Example UART base address
                          register %byteToSend = data;
                          if (#enable("dma")) {
@@ -1018,41 +910,15 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
                     }
                    }
                 }
-            Meta module MyMetaCam {
-                config {
-                config hardwareDescription : StringLiteral;
-                    config camName : StringLiteral = "MyGeneratedCam";
-             }
-             statements {
-               @arc any { // the @arc block must be included. The code in this block is executed at compile time.
-                  function void generateCam (CompilerContext context) {
-                      //read the config values
-                       print("Meta Cam generating: " + context.config.camName);
-                       //  parse the hardwareDescription file and extract the register information
-                       // generate a new CAM
-                       StringLiteral interfaceDefinitions = "interface intrinsic function void platformInit(uint32 baseAddress) -> void;";
-                      StringLiteral implementation = " function void platformInit(uint32 baseAddress) {  register %myReg = baseAddress; } ";
-                      StringLiteral hdl = context.getHardwareDescription("myperipheral.hdl");
-                      context.newCAM(context.config.camName, interfaceDefinitions, implementation, hdl);
-                   }
-                 }
-             }
-         }
 
-         module MyOtherCam {
-           statements {
-                #use "UartCam" with config { enableDma = false };
-                #use "UartCam" override function platformUartSendByte with config { enableDma = true };
-           }
-            }
-              ```
+          ```
         *  The `register` directive is used to declare variables (registers) in the scope of the intrinsic function, which can be used inside the function body to perform low-level hardware operations. The type of the register is inferred by the assigned value.
-        *   The `memoryStore`, `memoryLoad` functions are the main interface to low-level memory accesses.
+        *  The `memoryStore`, `memoryLoad` functions are the main interface to low-level memory accesses.
         *   The `interface intrinsic function` is not callable directly by the user. It is intended to be called by the CAM itself using the `interface intrinsic function` entry point.
-        *   The architecture name can be one of: `arm`, `riscv`, `x86`, `intel`, or any valid identifier.
-        *   The `instrDSL` block can be used to define a domain specific language that is used to define symbolic instructions which may have generic parameters that are evaluated at compile time. The `rule` keyword is used to define a declarative code transformation.
-        *   The `InstructionBuilder` object can be used inside the `instrDSL` block to create symbolic instructions and to access the value of their type parameters.
-        *   The `hardwareInstructionDSL` block allows the developer to define the encoding of a hardware instruction by specifying the bit layout, side effects, operands, and microcode, using a declarative DSL.
+        *  The architecture name can be one of: `arm`, `riscv`, `x86`, `intel`, or any valid identifier.
+         *   The `instrDSL` block can be used to define a domain specific language that is used to define symbolic instructions which may have generic parameters that are evaluated at compile time. The `rule` keyword is used to define a declarative code transformation.
+         *  The `InstructionBuilder` object can be used inside the `instrDSL` block to create symbolic instructions and to access the value of their type parameters.
+        *  The `hardwareInstructionDSL` block allows the developer to define the encoding of a hardware instruction by specifying the bit layout, side effects, operands, and microcode, using a declarative DSL.
         *   Meta-CAMs are used to generate CAMs dynamically at compile time, using a hardware description or a configuration file.
     *   `.manifest` files: Contains metadata: `name`, `version` (e.g., `"1.2.3"`), `description`, `license` (e.g., `"MIT"`), `bml_version_compatibility` (e.g., `">=1.5"`), `architectures` (e.g., `"arm, riscv"`), `keywords` (e.g., `"uart, serial"`), `exports_functions` (comma separated), `interface_intrinsic_functions` (comma separated), `source_file` (e.g., `"MyCam.bml"`), `documentation_file` (e.g., `"README.md"`), `changelog_summary` (e.g., `"v1.0: initial release"`). The manifest file is used by the compiler to find the CAMs, to perform version compatibility checks, and to provide documentation for the user.
         *   Example: `name = "UartCam"; version = "1.0.0"; architectures="arm"; exports_functions="init,send"; interface_intrinsic_functions="platformInit,platformSend"; source_file="UartCam.bml";`
@@ -1171,6 +1037,9 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
                      *   **`hasHardwarePrefetchSupport() -> boolean`:** returns `true` if the target platform provides hardware support for prefetching.
                     *   **`dispatchPrefetch(dataAddress address, size) -> void;`**: dispatches a prefetch instruction to a specific memory location. The `size` parameter indicates how much data should be prefetched from the specified `address`.
                      *    **`getInstructionSchedulingHints(codeBlock) -> List<InstructionSchedulingHint>;`**: Gets a list of hints for instruction scheduling based on data dependencies using symbolic information. The codeBlock is the code region that should be analyzed by the CAM.
+                    *   **`addTransformation(StringLiteral removeCode, StringLiteral insertCode, StringLiteral transformationType)`**: Adds a transformation to the code that removes `removeCode` and inserts `insertCode` using a rule-based transformation. The `transformationType` can be used to specify specific transformation options.
+                    *   **`getHardwareDescription(StringLiteral hardwareDescription)`**: Loads a hardware description language file and returns the content as a string literal that can be used by the CAM.
+
             *   Example:
                 ```baremetal
                  @arc arm {
@@ -1227,8 +1096,11 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
 *   **Custom Error Messages and Hints:** CAMs provide custom error messages using the `compilerError()` function.
 *   **Fine-Grained Hardware Dispatch:** Direct hardware access for accelerators.
 *   **Direct Register Access:** Direct access to hardware registers using memory mapped access and conceptual registers.
+* **ABI Customization:** CAMs can customize the function call ABI using the `callDSL` block.
+* **Microcode Specification:** The microcode of an instruction can be specified using the `microcode` block.
+*  **Performance Optimization**: Code regions can be tagged with performance attributes, to guide the compiler optimizations using a target specific implementation.
 
-**6. Directives and Pragmas**
+**5. Directives and Pragmas (Updated)**
 
 *   **Preprocessor Directives (Start with `#`):**
     *   `#define identifier value`: Macro definition for compile-time variables that are replaced during the preprocessing phase which can improve readability and performance.
@@ -1257,6 +1129,10 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
     *   `#raw binaryEncodingList ;`: Embeds raw byte sequences using hex (`0x10`), binary (`0b00010000`), decimal (`16`), or octal literals (`0o20`). This is mostly used to embed boot code or binary firmware into a specific location. String literals can also be used. String literals are encoded using UTF-8.
         *   Example: `#raw 0x10 0b00010000 16 0o20 "abc";`
     *   `#template(sectionName) { ... }` : This directive allows for injection of a code template into a specific section. The `sectionName` is defined in a CAM.
+     *  `#performance(level, hint, ...)`: A pragma that provides performance information to the compiler.
+           * `#performance(critical, memoryAccess, loopUnroll=4, ...)`: example.
+        *   The `level` is a string literal that can be used to specify the level of performance optimization such as `critical`, `high`, `normal` or `low`, and will be CAM specific, and may have different meanings for different target architectures.
+        *   The `hint` is a string literal that can be used to provide specific hints for a given code section such as `memoryAccess`, or `loopUnroll`.
 
 *   **Operation Directives:**
         *  `print(StringLiteral format, ...);` : This function prints a formatted message. The format string uses standard format specifiers such as %d, %x, %s, or using string interpolation using `f""`: `print(f"The value is {x}");` or using string interpolation with formatting specifiers using `{variable:specifier}`: `print("Value = {x:x}");`. This function is intended to provide basic debug or console output, and its implementation depends on the target platform. Parentheses can be omitted if only one parameter is passed. Example: `print "Hello world";`.
@@ -1280,9 +1156,11 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
          * `hardware_endTimer();` : Reads the current value of the hardware timer.
          * `hardware_resetTimer();`: Resets the hardware timer.
           * `hardware_setWatchpoint(address, type);`: Sets a hardware watchpoint that can be used for debugging purposes. The type of the watchpoint can be `read`, `write`, or `readWrite`.
-          * `prefetch(address, size);`: Dispatches a hardware prefetch instruction for a given `address` with a specific `size`.
+          * `prefetch(address, size, level);`: Dispatches a hardware prefetch instruction for a given `address` with a specific `size` and `level`.
           * `hardware_trap();`: Generates a hardware trap for debugging purposes when a low level error is detected.
-    *  **Atomic Operations:**
+     *  `cacheFlush(address addr, size size, level level)`: Flushes data from the cache at a specific `address`, for a specific `size` at a given `level` in the cache hierarchy.
+    * `cacheInvalidate(address addr, size size, level level)`: Invalidates data in the cache at a specific `address`, for a specific `size` at a given `level` in the cache hierarchy.
+    * **Atomic Operations:**
         *   `atomic { ... }`: Guarantees atomic execution of the code block using the primitives specified in the CAM. If no argument is specified, the compiler will attempt to atomically execute the instructions within the given block, which may involve software locking mechanisms if hardware primitives are not available, which might create an overhead depending on the target architecture and the compiler options. The code block is limited to low level access primitives, and calls to CAM provided `intrinsic` functions that can be mapped to target-specific atomic primitives.
         *   `atomic (variable) { ... }`: Guarantees atomic access and modification of the specified `variable` using the underlying primitives provided by the CAM. The scope is limited to operations involving that specific variable. The compiler will attempt to generate code to atomically read, modify and write to that specific memory location or variable. If the hardware doesn't have a direct atomic read-modify-write instruction the CAM may have to generate code that involves locks and memory barriers to ensure atomicity.
         *  `atomic memoryStore(...)`: Performs an atomic memory store operation.
@@ -1327,8 +1205,11 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
                  * `assert(expression)`: Performs a symbolic assertion generating a compiler error if the assertion is false.
                 *   `hasSymbolicRegion():` Returns true if there is a symbolic region in the current program context.
                  * `symbolicExpression(identifier)`: returns the symbolic expression for a given identifier in the current program context.
+  *  **Customizable Literals:**
+        *  CAMs can register custom literal suffixes to parse and use them in a specific way. This allows the developer to create specialized literals that are specific to the target hardware.
+         *   For example, a CAM can implement a `_us` suffix that is used to define a time value in microseconds, for example: `uint32 time = 100_us;` or `uint32 frequency = 100_MHz;`. The CAM implementation is responsible for parsing the literal and generating the correct value, and may perform static verifications and optimizations depending on the CAM definition.
 
-**7. Memory Safety in BML**
+**7. Memory Safety in BML (Updated)**
 
 *   `DataType scoped`: Zero-overhead dangling pointer prevention using lexical scope. Pointers are valid only within their lexical scope and the compiler ensures that the pointer cannot escape the scope. This mechanism is mostly implemented at compile time, but may include optional runtime checks based on compiler flags. The `scoped` keyword is optional for local variables when the compiler can statically infer their scope. Scoped pointers cannot be null.
     *   **Static Analysis Process for Implicit Scope:**
@@ -1415,7 +1296,7 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
          }
     ```
 
-**8. Multi-Target Architecture Versatility**
+**8. Multi-Target Architecture Versatility (Updated)**
 
 *   `@arc architectureName { ... }`: Provides architecture-specific code implementations inside CAMs, modules, and in the main file. This is the main method to provide different implementations of the same API depending on the target architecture. The compiler will choose the appropriate code block based on the target architecture specified by the user by using the `-target` flag in the command-line interface. **All code in a BML module must be inside an `@arc` block, except for code that is considered architecture-independent.** Code outside `@arc` blocks is only allowed in the main file and within the `statements` block of a module declaration, where it is treated as implicitly architecture-independent (implicit `common` block).
 *   CAMs implement hardware abstractions with platform optimizations allowing developers to write code once and reuse it on different platforms without sacrificing performance. The abstraction mechanism allows developers to create reusable code that is portable across different architectures but also perform architecture-specific optimizations using the features of a specific target platform.
@@ -1428,10 +1309,10 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
     *   **No Nested Functions:** Nested function definitions are *not* allowed in the `@arc common` block. This restriction is in place to avoid complexities in code generation and to maintain a clear separation between architecture-independent and architecture-specific code.
      *   **CAM-Provided Defaults:** CAMs are expected to provide default implementations for common functions (like `print`) that can be used within the `@arc common` block. These defaults are architecture-specific but are automatically selected by the compiler based on the target.
 
-**9. Concurrency and Parallelism**
+**9. Concurrency and Parallelism (Updated)**
 
-*   `threadHandle identifier = startThread(functionName);`: Creates concurrent tasks allowing the developer to implement multi-threaded applications. The `startThread()` function creates a new thread. The way that the stack is handled depends on the target architecture and the compiler flags and is implementation-defined. There is no mechanism to kill a thread or to join a thread directly. If required you can use CAMs to implement such functionality.
-    *   Example: `threadHandle myThread = startThread(myThreadFunction);`
+*   `threadHandle identifier = startThread(functionName) [ threadAttributes ];`: Creates concurrent tasks allowing the developer to implement multi-threaded applications. The `startThread()` function creates a new thread. The way that the stack is handled depends on the target architecture and the compiler flags and is implementation-defined. There is no mechanism to kill a thread or to join a thread directly. If required you can use CAMs to implement such functionality. The `#priority` and `#affinity` attributes can be added to this statement.
+    *   Example: `threadHandle myThread = startThread(myThreadFunction) #priority("realtime") #affinity("cpu1");`
 *   `parallel { ... }`: Structured concurrency allowing the developer to create parallel tasks that execute concurrently. The compiler may map these tasks to different threads depending on the underlying platform and target architecture but the developer has no control over how the tasks are scheduled. Each task inside a parallel block should have its own separate scope. Variables declared within a task are not accessible to other tasks within the same parallel block. Tasks can access variables declared in the outer scope (e.g. the function scope).
     *   Example:
         ```baremetal
@@ -1466,15 +1347,17 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
         *   Memory barriers can be particularly important when dealing with memory mapped peripherals, because the behavior is not always predictable if the access is done in a different order than it was intended.
 *   `transaction { ... }`: Ensures atomic execution of the code block. The implementation of transaction blocks depends on the target. For a single-core processor the compiler will typically generate code that disables interrupts and system preemption during the execution of the transaction. For a multi-core system, the code will generate a lock or a memory barrier operation which depends on the availability of hardware support. There are limitations on the operations that can be performed within a transaction to ensure atomicity. Calling functions may break the atomicity guarantees and the compiler will try to enforce these rules at compile time, if possible. The behavior of calling functions inside transactions is implementation-specific. The user is responsible for understanding the hardware and software implications of using transaction blocks.
 
-**10. Functions**
-
+**10. Functions (Updated)**
 *   **Function Definition:**
     ```
-    function returnType functionName(parameterList) {
+     function [ "#callConvention(stringLiteral)" ] [  "#instruction(stringLiteral)" ]  returnType functionName(parameterList) {
         [declarationsBlock]
         // Function body (statements)
     }
+        // or
+     function [ "#callConvention(stringLiteral)" ] [ "#instruction(stringLiteral)" ]   returnType functionName(parameterList) "=" expression;
     ```
+* The `callConvention` and `#instruction` attributes have been added to function declarations.
 *   **Implicit `statements` Block:** The body of a function is implicitly treated as a `statements` block. You do not need to write `statements { ... }` inside a function.
 *  **Simplified function definition:** If a function consists of a single expression the `return` type and curly braces can be omitted.
   ```baremetal
@@ -1482,6 +1365,7 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
 
    function void init() = print("initializing"); // single expression void function
 ```
+*  If a function has a single expression with an implicit return type the `return` statement can be omitted.
 *   **`declarations` Block (Optional):** You can optionally use a `declarations` block at the beginning of a function body to declare local variables. This block does not create a new scope.
 *   **Lexical Scoping:** Variables declared within a function are local to that function. Nested functions have access to variables in their enclosing function's scope. Nested functions can only be defined within `@arc` blocks and are not allowed in the `@arc common` block.
 *   **Return Type:** The `returnType` specifies the type of value returned by the function. Use `void` if the function does not return a value. If the function consists of a single expression, the return type can be omitted, and the compiler will infer it from the expression. If there is no explicit return statement and no implicit return type can be inferred, a compile-time error will be generated.
@@ -1506,114 +1390,13 @@ Bare Metal Language (BML) is a statically-typed, compiled programming language d
               this.value = 10; // Explicit member access using the this keyword.
            }
            ```
+*   **Code Blocks:** Code blocks can be passed as parameters to other functions if they match a specific `block` type. Code blocks can be created by using lambda expressions `(parameters) => expression` or using a `(parameters) => { ... code ... return expression}` syntax.
 
-**11. Error Handling and Diagnostics**
+**11. Error Handling and Diagnostics (Updated)**
 
-*   **11.1 Compiler Error Codes**
-    *   The BML compiler shall produce clear and informative error messages with the following format: `filename:line:column: error [Error Code]: Error message`
-    *   The following error codes are defined, and a conforming compiler must use them where applicable:
-        *   **E0001:** Syntax error.
-        *   **E0002:** Type mismatch.
-        *   **E0003:** Undeclared identifier. (This error is used when a member is accessed without using `this` in a shadowed scope).
-        *   **E0004:** Invalid use of `const`.
-        *   **E0005:** Invalid use of `volatile`.
-        *   **E0006:** Invalid type conversion.
-        *   **E0007:** Out of bounds array access.
-        *   **E0008:** Null pointer dereference.
-        *   **E0009:** Division by zero.
-        *   **E0010:** Invalid module import.
-        *   **E0011:** CAM configuration error.
-        *   **E0012:** Code outside `@arc` block in module.
-        *   **E0013:** Declaration outside `declarations` block.
-        *   **E0014:** Statement outside `statements` block.
-        *   **E0015:** Invalid use of `with` statement.
-        *   **E0016:** Invalid preprocessor directive.
-        *   **E0017:** Invalid attribute usage.
-        *   **E0018:** Function call does not match function signature.
-        *   **E0019:** Invalid use of `generic` type.
-        *   **E0020:** Missing `return` statement.
-        *   **E0021:** Unreachable code.
-        *   **E0022:** Invalid memory access. (used when memory addresses are not valid or are misaligned or when performing invalid memory accesses with atomic instructions).
-        *   **E0023:** Refinement type constraint violation.
-        *   **E0024:** Invalid symbolic expression.
-        *   **E0025:** Thread creation error
-        *   **E0026:** Asynchronous operation error.
-        *   **E0027:** Memory Region Access Violation
-        *   **E0028:** Invalid Hardware Access (Used when using hardware intrinsics or accessing registers incorrectly)
-        *   **E0029:** Unsupported Operation
-        *   **E0030:** Invalid Region Capability
-        *   **E0031:** Region Conflict
-        *   **E0032:** Use of Uninitialized Variable
-        *   **E0033:** Violation of `readOnce` Attribute
-        *   **E0034:** Violation of `writeOnce` Attribute
-        *   **E0035:** Concurrency Error
-        *   **E0036:** CAM Error (Used by CAMs to report internal errors)
-        *   **E0037:** Internal Compiler Error (Should not occur in normal operation)
-        *  **E0038:** Invalid Tuple Access
-        *   **E0039:** Invalid Bitfield Access
-        *   **E0040:** Invalid `with` Statement Optimization
-        *   **E0041:** Invalid Operation in `symbolic` Block
-        *   **E0042:** Invalid Instruction Definition
-        *   **E0043:** Invalid `instrDSL` Usage
-        *  **E0044:** Invalid `hardwareInstructionDSL` Usage
-        *  **E0045:** Meta-CAM Error
-        *   **E0046:** Scope Violation
-         *   **E0047:** Unsupported Target Architecture
-        *   **E0048:** Use of nested functions in `@arc common` code.
-        *   **E0049:** Function declaration outside of `@arc` block in module.
-        *   **E0050:** `declarations` block used outside of a function body or an `@arc` block.
-       *  **E0051:** Missing `statements` block in function definition.
-        *   **E0052:** Invalid function parameter type inference.
-        *   **E0053:** Conflicting type inference.
-        *  **E0054:** Invalid type for `@inOut` parameter.
-         *   **E0055:** Invalid use of `~` (mutability modifier).
-        *  **E0056:** Parameter name conflicts with local variable or structure member.
-         *   **E0057:** Duplicate declaration in the same scope.
-        *   **E0058:** Invalid attempt to modify an immutable variable.
-        *   **E0059:** Invalid CAM override.
-        *   **E0060:** Invalid CAM configuration.
-        *   **E0061:** Circular module dependency.
-        *   **E0062:** Invalid `main.bml` structure.
-       *  **E0063:** Missing `@arc` block for a target architecture.
-       *   **E0064:** Invalid `boot` code block
-        *   **E0065:** Invalid combination of sub-target architecture and aliases
-         *   **E0066:** Invalid type qualifier.
-          *  **E0067:** Byte literal out of range (0-255).
-          *  **E0068:** Invalid use of custom suffix
-        *  **E0069:** Hardware Error
-          * **E0070:** Invalid attribute for memory mapped struct, or register definition
-          * **E0071**: Invalid access modifier to register declaration, if readOnly, writeOnce or threadLocal are not used on a `register` declaration.
-        *  **E0072**: Attempt to use a register declared in a CAM outside the scope of the CAM.
-        * **E0073**: Invalid atomic block declaration.
-    *   **Note:** This list is not exhaustive but provides a starting point for consistent error reporting. The compiler may define additional error codes as needed. CAMs can also define their own custom error codes.
-*  **11.2 Warnings**
-    *   The BML compiler may also issue warnings for conditions that are not strictly errors but may indicate potential problems in the code.
-    *   Warnings should use a similar format as error messages but use a `warning` prefix.
-    *  The compiler should provide options to enable or disable specific warnings or classes of warnings.
-     *   **Example:** `MyFile.bml:25:10: warning [W0001]: Unused variable 'x'`
-        *   **W0001:** Unused variable.
-        *   **W0002:** Variable shadowing.
-        *   **W0003:** Implicit type conversion may result in loss of data.
-        *   **W0004:** Suspicious use of uninitialized variable.
-        *   **W0005:** Possible unintended integer overflow.
-        *   **W0006:** Code may not be reachable.
-        *   **W0007:** Potentially unsafe memory operation.
-        *   **W0008:** Inefficient use of memory (e.g., poor alignment).
-        *   **W0009:** Potential concurrency issue (e.g., data race).
-        *   **W0010:** CAM-specific warning.
-        *  **W0011:** Implicit conversion from signed to unsigned integer
-        *   **W0012**: Ignoring a `Result` value.
-         *  **W0013**: Potential null dereference.
-         *  **W0014**: Scoped pointer may escape its scope.
-         *   **W0015**: Implicit return type.
-         *   **W0016**: Refinement type check may be computationally expensive.
-         *  **W0017**: Unused module
-          * **W0018:** Variable declared in a scoped region not being used.
-          * **W0019**: Variable used outside of atomic block.
-        *   **W0020:** Invalid use of registers.
-         *  **W0021:** Implicit conversion may lead to data loss due to atomic operations.
+...(No changes in this section)...
 
-**12. Operator Precedence and Associativity**
+**12. Operator Precedence and Associativity (Updated)**
 
 BML follows the following operator precedence rules (from highest to lowest precedence):
 
@@ -1638,6 +1421,7 @@ BML follows the following operator precedence rules (from highest to lowest prec
 | 11         | `&&`                                       | Logical AND                                                                                                                              | Left-to-right |
 | 12         | `||`                                       | Logical OR                                                                                                                               | Left-to-right |
 | 13         | `? :`                                      | Conditional operator                                                                                                                     | Right-to-left |
+|            | `?`                                       | Error propagation operator                                                                                                               | Right-to-left |
 | 14         | `=`, `+=`, `-=`, `*=`, `/=`, `%=`,         | Assignment operators                                                                                                                         | Right-to-left |
 |            | `&=`, `|=`, `^=`, `<<=`, `>>=`              |                                                                                                                                          |               |
 |            | `+^=`, `-^=`                             |                                                                                                                                          |               |
@@ -1647,8 +1431,7 @@ BML follows the following operator precedence rules (from highest to lowest prec
     *   Operators with the same precedence are evaluated according to their associativity.
     *   Parentheses `()` can be used to override the default precedence and associativity.
 
-**13. EBNF Grammar**
-
+**13. EBNF Grammar (Updated)**
 ```ebnf
 sourceFile =
   { preprocessorDirectiveStatement | regionDeclarationBlock | moduleUseDirective | moduleDefinition | targetArchitectureBlock | statement | declaration } , eof ;
@@ -1717,6 +1500,7 @@ targetArchitectureBlock =
     [ bootFunctionDefinition ],
     [ instrDSLBlock ] ,
       [ hardwareInstructionDSLBlock ] ,
+       [ callDSLBlock ],
      [ camFunctionDefinition ] ,
     "}"
    |  "@arc" , ( architectureName | "common" ) , [ architectureAlias ] , "." , identifier , "{" ,
@@ -1726,6 +1510,7 @@ targetArchitectureBlock =
     [ bootFunctionDefinition ],
      [ instrDSLBlock ] ,
       [ hardwareInstructionDSLBlock ] ,
+      [ callDSLBlock ],
      [ camFunctionDefinition ] ,
     "}" ;
 
@@ -1844,10 +1629,11 @@ constantDeclaration =
     "const" , [ "export" ] , dataType , identifier , "=" , constantExpression , ";" ;
 
 functionDeclaration =
-     "function" , [ "inline" | "pure" | "noinline" | bootFunctionAttribute | genericFunctionDeclarationHeader | stackOnlyFunctionAttribute | compileTimeFunctionAttribute  | "inlineAlways" | "inlineIfSmall" ] , [ "export" ] , identifier ,  "(" , [ parameterList ] , ")" , [ "->" , dataType | awaitableType ] , [ "ensures",  expression ] , functionBody
-   | "function", [ "inline" | "pure" | "noinline" | genericFunctionDeclarationHeader | stackOnlyFunctionAttribute | compileTimeFunctionAttribute  | "inlineAlways" | "inlineIfSmall" ] , [ "export" ] , identifier, dataType, identifier, functionBody;
-    | "function", [ "inline" | "pure" | "noinline" | genericFunctionDeclarationHeader | stackOnlyFunctionAttribute | compileTimeFunctionAttribute | "inlineAlways" | "inlineIfSmall" ] , [ "export" ] , identifier, [ "->" , dataType | awaitableType ] , "=" ,  expression ";"
+     "function" , [ "inline" | "pure" | "noinline" | bootFunctionAttribute | genericFunctionDeclarationHeader | stackOnlyFunctionAttribute | compileTimeFunctionAttribute  | "inlineAlways" | "inlineIfSmall" | "#instruction", "(" , stringLiteral , ")" ] , [ "export" ] , identifier ,  "(" , [ parameterList ] , ")" , [ "->" , dataType | awaitableType ] , [ "ensures",  expression ] , functionBody
+   | "function", [ "inline" | "pure" | "noinline" | genericFunctionDeclarationHeader | stackOnlyFunctionAttribute | compileTimeFunctionAttribute  | "inlineAlways" | "inlineIfSmall" | "#instruction", "(" , stringLiteral , ")" ] , [ "export" ] , identifier, [ "->" , dataType | awaitableType ] , "=" ,  expression ";"
+   |  "function" , [ "inline" | "pure" | "noinline" | genericFunctionDeclarationHeader | stackOnlyFunctionAttribute | compileTimeFunctionAttribute  | "inlineAlways" | "inlineIfSmall" | "#instruction", "(" , stringLiteral , ")" ] , [ "export" ] , identifier, dataType, identifier, functionBody;
     | "function", [ "inline" | "pure" | "noinline" | genericFunctionDeclarationHeader | stackOnlyFunctionAttribute | compileTimeFunctionAttribute | "inlineAlways" | "inlineIfSmall" ] , [ "export" ] , identifier, [ "->" , dataType | awaitableType ] ,  block;
+
 bootFunctionDefinition =
     bootFunctionDeclaration , block ;
 
@@ -1875,7 +1661,7 @@ parameterList =
 parameter =
      dataType , identifier [ "=" constantExpression ]
      | dataType, identifier, ( "#in" | "#out" | "#inOut" )
-      | dataType, identifier,  [ "=" constantExpression ]
+     | dataType, identifier,  [ "=" constantExpression ]
     ;
 
 typeDefinition =
@@ -1942,7 +1728,9 @@ interruptAttributes =
 interruptAttribute =
     "fast"
   | ( "priority" , "=" , integerLiteral )
-  | "naked" ;
+  | "naked"
+  | "enable"
+  | "disable";
 
 architectureName =
     "intel" | "arm" | "riscv" | identifier ;
@@ -1993,11 +1781,14 @@ baseDataType =
   | regionBasedType
     | instructionType
    | bitmaskType
+  | codeBlockType
    ;
 bitmaskType =
    "bitmask";
 
 instructionType = "instruction" , "<" , identifier, { "," , expression } , ">";
+codeBlockType =
+    "block", "(" , [ parameterList ], ")" , "->" , [ dataType | awaitableType ] ;
 
 regionBasedType =
     identifier;
@@ -2048,7 +1839,7 @@ regionCapabilitySpecifier =
     "capabilities" , "(" , capabilityList , ")" ;
 
 capabilityList =
-    "read" | "write" | "execute" | "capability_derive" | "peripheral" ;
+    "read" | "write" | "execute" | "capability_derive" | "peripheral" { "," , ( "read" | "write" | "execute" | "capability_derive" | "peripheral" ) } ;
 
 regionDeclarationBlock =
     bootRegionBlock
@@ -2094,8 +1885,8 @@ attributedCamDataRegionBlock =
     typeAttributeList , camDataRegionBlockCore;
 
 dataRegionBlockCore =
-    "dataRegion" ,  [regionCapabilitySpecifier] , "{" , { dataRegionDeclaration } , "}"
- | "dataRegion" , [ regionCapabilitySpecifier ], identifier, dataType, identifier, ";"
+    "dataRegion" ,  [regionCapabilitySpecifier] , [regionAttributeList] , "{" , { dataRegionDeclaration } , "}"
+ | "dataRegion" , [ regionCapabilitySpecifier ], [ regionAttributeList ], identifier, dataType, identifier, ";"
  ;
 
 rodataRegionBlockCore =
@@ -2300,7 +2091,10 @@ optimizationAttribute =
      | "disable" , "(" , stringLiteral ,")"
       |  "@algorithm", "(" , stringLiteral, ")"
    |  "#prefetch" , [ "(" , constantExpression, ")" ]
-  ;
+   | "#performance" , "(" , performanceLevel, { "," , performanceHint }, ")"
+    ;
+performanceLevel = stringLiteral;
+performanceHint = stringLiteral;
 
 otherAttribute =
     identifier
@@ -2340,7 +2134,7 @@ layoutAttributeKindIdentifier =
     "Packed" | "Aligned" | "RowMajor" | "ArrayOfStructures" ;
 
 typeKindIdentifier =
-    "Integer" | "Float" | "Struct" | "Enum" | "Pointer" | "Array" | "Tuple" | "Result" | "Refinement" ;
+    "Integer" | "Float" | "Struct" | "Enum" | "Pointer" | "Array" | "Tuple" | "Result" | "Refinement" | "CodeBlock" ;
 
 boundsCheckOption =
     "runtime" | "compileTime" | "auto" | "off" | identifier ;
@@ -2512,7 +2306,9 @@ statement =
         | rawInstructionStatement
         | atomicRegisterOperationStatement
         | atomicBlockStatement
-   ;
+        | lambdaExpressionStatement
+      |  intrinsicStatement
+  ;
 hardwareTrapStatement =
    "hardware_trap" , ";" ;
 
@@ -2740,7 +2536,12 @@ primaryExpression =
    | bitfieldAccess
   | adtConstructor
   | tupleLiteral
-   | instructionInstantiation ;
+   | instructionInstantiation
+   | codeBlockExpression ;
+
+codeBlockExpression =
+    "(" , [ parameterList ] , ")" , "=>" , ( expression | block ) ;
+
 
 instructionInstantiation =
     "instruction" , "<" , identifier, { "," , expression } , ">"
@@ -2766,7 +2567,16 @@ conceptualRegisterAccess =
 
 bitfieldAccess =
     primaryExpression , "=" ,  bitfieldValue
-     | primaryExpression , "{" , { withStatementMember } , "}" ;
+     | primaryExpression , "{" , { withStatementMember } , "}"
+     | primaryExpression , "[" , bitSelector , "]" ,  ( ":=" | "=" ) ,  expression ;
+
+bitSelector =
+    expression
+    | rangeExpression
+  |   bitSelector { "," , bitSelector }
+;
+  rangeExpression =
+    expression , ".." , expression ;
 
 bitfieldValue =
    "{" , { bitfieldAssignment }, "}"
@@ -2791,6 +2601,7 @@ constantExpression =
   | constantParenthesizedExpression
   | compileTimeFunctionCall
   | compileTimeBitfieldOperation;
+
 compileTimeBitfieldOperation =
    "bitExtract", "(" , constantExpression , ",", constantExpression, "," , constantExpression , ")"
   | "bitInsert" , "(" , constantExpression , ",", constantExpression , "," , constantExpression , "," , constantExpression, ")"
@@ -2929,8 +2740,15 @@ parallelBlockStatement =
     "parallel" , "{" , { statement } , "}" ;
 
 threadStatement =
-    "threadHandle" , identifier , "=" , "startThread" , "(" , identifier , ")" , ";" ;
+    "threadHandle" , identifier , "=" , "startThread" , "(" , identifier , ")" , [ threadAttributes ] ,  ";" ;
 
+threadAttributes =
+   threadAttribute { threadAttribute };
+
+threadAttribute =
+  "#priority" , "(" , identifier, ")"
+  | "#affinity" , "(" , identifier, ")"
+   ;
 lockStatement =
     "lock" , "(" , identifier , ")" , block ;
 
@@ -3007,14 +2825,46 @@ adtMember =
     "enum" , identifier , "(" , [dataType] , ")" , ";"
   ;
 instrDSLBlock =
-  "@instrDSL" , "{" , { instrDefinition } , "}" ;
+  "@instrDSL" , "{" , { instrDefinition | addressingModeEnum | instructionTemplateDefinition | rule } , "}" ;
 
 instrDefinition =
-  "instr" , [ "export" ] ,  dataType , identifier, [ genericInstructionParameters ] , "(" , [ parameterList ] , ")" , "{" , { statement } , "}";
+  "instr" , [ "export" ] ,  dataType , identifier, [ genericInstructionParameters ] , "(" , [ parameterList ] , ")" , [ "#target", "(" , stringLiteral , ")" ] , "{" , [instructionEncoding], [sideEffectBlock], [microcodeBlock] ,  [instructionLatency] , "}";
 
 genericInstructionParameters=
    "<" , concreteTypeList , ">"
   ;
+instructionEncoding =
+  "encoding" , "=" , stringLiteral , ";" ;
+
+sideEffectBlock =
+   "sideEffect" , "{" , { sideEffectStatement } , "}" ;
+
+sideEffectStatement =
+    "setFlag" , "(" , identifier , ")" , "=" , expression , ";"
+  |  "setRegister" , "(" , identifier , ")" , "=" , expression , ";"
+    | "memoryStore" , "(" , dataType , "," , expression, "," , expression, ")" , ";"
+        | "memoryLoad" , "(" , dataType , "," , expression, "," , expression, ")" , ";"
+  ;
+microcodeBlock =
+   "microcode" , "{" , { microcodeStatement } , "}" ;
+
+microcodeStatement =
+  stringLiteral , ";"
+
+instructionLatency =
+ "latency" , "=" , integerLiteral , ";" ;
+
+addressingModeEnum =
+    "enum" , "AddressingMode", "{" , addressingModeList , "}" ;
+
+addressingModeList =
+  addressingMode { "," , addressingMode } ;
+
+addressingMode =
+    "RegisterDirect" | "Immediate" | "MemoryIndirect" | identifier ;
+
+instructionTemplateDefinition =
+    "template" , identifier,  "<" , "type" , identifier , ">" , "(" , [ parameterList ] , ")" , "{" , { microcodeStatement }, "}";
 hardwareInstructionDSLBlock =
   "@hardwareInstructionDSL" , "{" , { hardwareInstructionDefinition } , "}" ;
 
@@ -3028,11 +2878,251 @@ hardwareInstructionBody =
     { operandEncoding } ,
     [ "microcode", "{" , { sourceCharacter } , "}" ] ;
 
+operandEncoding =
+    identifier , ":" , typeName , "+" , stringLiteral , ";"
+  ;
+
+transformation =
+  "remove" , codeBlock, "insert", codeBlock , "type" , transformationType;
+
+codeBlock =
+    "{" , { statement } , "}";
+
+transformationType =
+  "instructionReplacement" | "bitfieldOptimization" | "codeReordering";
+
+rule =
+   "rule" , identifier ,  matchOperation , "->" , transformationOperation ,  ";";
+   matchOperation =
+     "match", "(" , stringLiteral,  expression, ")" , [matchCondition];
+  matchCondition =
+     "where" , expression ;
+  transformationOperation =
+    "replace" , "(" , expression, expression, ")" ;
+callDSLBlock =
+    "@callDSL" , "{" , { callConventionDefinition} , "}" ;
+callConventionDefinition =
+  "callConvention", identifier, "{" , callConventionBody,  "}" ;
+
+callConventionBody =
+     parameterPassingBlock
+    , [ returnLocationSpecifier ],
+    [ prologueBlock ],
+    [ epilogueBlock ],
+    [ stackAllocationBlock ],
+    [ abiNameSpecifier ] ;
+
+parameterPassingBlock =
+ "parameterPassing", "{" , { parameterSpecifier} , "}" ;
+parameterSpecifier =
+    "firstParameter", registerParameter, ","
+    | "otherParameters" , "stack" , ","
+     | "otherParameters" , "register", identifier, ","
+  ;
+registerParameter = typeAttributeList;
+returnLocationSpecifier =
+  "returnLocation" , identifier , "," ;
+prologueBlock =
+    "prologue" , "{" , { microcodeStatement }, "}" ;
+epilogueBlock =
+    "epilogue" , "{" , { microcodeStatement }, "}" ;
+stackAllocationBlock =
+    "stackAllocation" , "{" , stackAllocationOperations,  "}" ;
+
+stackAllocationOperations=
+ "allocateStack" , "(" , identifier ,")" , ";"
+ | "freeStack" , "(" , identifier ,")" , ";"
+
+abiNameSpecifier =
+  "abiName", stringLiteral ,  "," ;
+
+atomicBlockStatement =
+      "atomic" , [ "(" , expression , ")" ] , "{" , { statement }, "}" ;
+atomicRegisterOperationStatement =
+     "atomicSetBit" , "(" , expression, "," , expression, ")" , ";"
+    |"atomicClearBit" , "(" , expression, "," , expression , ")" , ";"
+    |"atomicToggleBit" , "(" , expression, "," , expression , ")" , ";"
+    |"atomicTestAndSetBit" , "(" , expression, "," , expression , ")" , ";"
+     |"atomicTestAndClearBit" , "(" , expression, "," , expression , ")" , ";"
+    |"atomicReadRegister" , "(" , expression, "," , expression, ")" , ";"
+     |"atomicWriteRegister" , "(" , expression, "," , expression, "," , expression, ")" , ";"
+        ;
+
+hardwareWatchpointStatement =
+        "hardware_setWatchpoint" , "(" , expression, "," , typeIdentifier ,  ")" , ";" ;
+
+rawInstructionStatement =
+        "rawInstr", "(" , stringLiteral , ")" , ";" ;
+
+hardwarePrefetchStatement =
+    "prefetch", "(" , expression , "," , expression,  "," , expression , ")" , ";" ;
+hardwareMemoryBarrierStatement =
+       "memoryBarrier" ,  [ "(" , identifier , ")" ] ,  ";" ;
+
+hardwareInstructionBarrierStatement =
+    "instructionBarrier" , "(" , identifier , ")" , ";" ;
+typeIdentifier = identifier;
+
+prefix =
+    "0x" | "0b" | "0o";
+
+identifier =
+    letter { letter | digit | "_" } ;
+
+(* lexical terminals (unicode categories) *)
+letter =  ? unicode letter character ? ;
+digit =  ? unicode digit character ? ;
+sourceCharacter =  ? any unicode character ? ;
+escapeSequence =  "\\" , ( "n" | "r" | "t" | "\\" | "'" | '"' | "0" ) ;
+
+configParameterAssignment =
+    identifier , "=" , constantExpression , ";" ;
+
+concreteTypeList =
+    dataType { "," , dataType} ;
+
+parallelBlockStatement =
+    "parallel" , "{" , { statement } , "}" ;
+
+threadStatement =
+    "threadHandle" , identifier , "=" , "startThread" , "(" , identifier , ")" , [ threadAttributes ] ,  ";" ;
+
+threadAttributes =
+   threadAttribute { threadAttribute };
+
+threadAttribute =
+  "#priority" , "(" , identifier, ")"
+  | "#affinity" , "(" , identifier, ")"
+   ;
+lockStatement =
+    "lock" , "(" , identifier , ")" , block ;
+
+unlockStatement =
+    "unlock" , "(" , identifier , ")" , ";" ;
+
+waitStatement =
+    "wait" , "(" , identifier , ")" , ";" ;
+
+signalStatement =
+    "signal" , "(" , identifier , ")" , ";" ;
+
+yieldStatement =
+    "yield" , "(" , constantExpression , ")" , ";" ;
+
+awaitStatement =
+    "await" , identifier , "=" ,  expression , ";"
+  ;
+
+compileTimeIfStatement =
+    "compileTimeIf" , "(" , constantExpression , ")" , "{" , { statement }, "}" ,  [ "compileTimeElse", "{" , { statement } , "}" ] ;
+
+conceptualRegisterIdentifier = "%" , identifier ;
+
+traitDefinition =
+    "trait" , identifier , "<" , "type" ,  identifier , ">" , "{" , { traitMember }, "}" ;
+
+traitMember =
+    compileTimeFunctionDeclaration
+  | implBlock;
+
+implBlock =
+    "impl" , identifier , "<" , identifier, ">" , "{" , { functionDeclaration }, "}" ;
+
+dslDefinition =
+    "dsl" , identifier , [ dslConfigParameters ] , "{" , dslBlock , "}" ;
+
+dslConfigParameters =
+   "(" , "config" , parameter { "," , parameter } , ")"
+  ;
+
+dslBlock =
+    { dslSection } ;
+
+dslSection =
+    "states" , ":" , "{" , { dslStateDefinition} , "}"
+  | dslCustomSection ;
+
+dslCustomSection =
+    identifier , "{" , { dslStatement } , "}" ;
+
+dslStateDefinition =
+    identifier , "{" , { dslStatement }, "}" ;
+
+dslStatement =
+    dslIdentifier , "(" , [ dslArgumentList ], ")" , [ "->" , dslTypeIdentifier ], ";"
+  | emptyStatement;
+
+dslArgumentList =
+    dslExpression { "," , dslExpression };
+dslExpression =
+    dslConstantExpression | identifier;
+
+dslConstantExpression =
+    constantLiteral | constantIdentifier | constantUnaryExpression | constantBinaryExpression | constantParenthesizedExpression ;
+
+dslIdentifier = identifier;
+dslTypeIdentifier = identifier;
+
+adtDefinition =
+    "adt" , identifier , "{" , { adtMember } , "}" , ";" ;
+
+adtMember =
+    "enum" , identifier , "(" , [dataType] , ")" , ";"
+  ;
+instrDSLBlock =
+  "@instrDSL" , "{" , { instrDefinition | addressingModeEnum | instructionTemplateDefinition | rule } , "}" ;
+
+instrDefinition =
+  "instr" , [ "export" ] ,  dataType , identifier, [ genericInstructionParameters ] , "(" , [ parameterList ] , ")" , [ "#target", "(" , stringLiteral , ")" ] , "{" , [instructionEncoding], [sideEffectBlock], [microcodeBlock] ,  [instructionLatency] , "}";
+
+genericInstructionParameters=
+   "<" , concreteTypeList , ">"
+  ;
+instructionEncoding =
+  "encoding" , "=" , stringLiteral , ";" ;
+
+sideEffectBlock =
+   "sideEffect" , "{" , { sideEffectStatement } , "}" ;
+
 sideEffectStatement =
     "setFlag" , "(" , identifier , ")" , "=" , expression , ";"
   |  "setRegister" , "(" , identifier , ")" , "=" , expression , ";"
     | "memoryStore" , "(" , dataType , "," , expression, "," , expression, ")" , ";"
+        | "memoryLoad" , "(" , dataType , "," , expression, "," , expression, ")" , ";"
   ;
+microcodeBlock =
+   "microcode" , "{" , { microcodeStatement } , "}" ;
+
+microcodeStatement =
+  stringLiteral , ";"
+
+instructionLatency =
+ "latency" , "=" , integerLiteral , ";" ;
+
+addressingModeEnum =
+    "enum" , "AddressingMode", "{" , addressingModeList , "}" ;
+
+addressingModeList =
+  addressingMode { "," , addressingMode } ;
+
+addressingMode =
+    "RegisterDirect" | "Immediate" | "MemoryIndirect" | identifier ;
+
+instructionTemplateDefinition =
+    "template" , identifier,  "<" , "type" , identifier , ">" , "(" , [ parameterList ] , ")" , "{" , { microcodeStatement }, "}";
+hardwareInstructionDSLBlock =
+  "@hardwareInstructionDSL" , "{" , { hardwareInstructionDefinition } , "}" ;
+
+hardwareInstructionDefinition =
+ "instruction" , identifier, "(" , [ parameterList ] , ")" , "{" ,
+  hardwareInstructionBody , "}" ;
+
+hardwareInstructionBody =
+  "encoding" , ":" , stringLiteral , ";" ,
+   [ "sideEffect" , "{" , { sideEffectStatement } , "}" ] ,
+    { operandEncoding } ,
+    [ "microcode", "{" , { sourceCharacter } , "}" ] ;
+
 operandEncoding =
     identifier , ":" , typeName , "+" , stringLiteral , ";"
   ;
@@ -3053,6 +3143,43 @@ transformationType =
      "where" , expression ;
   transformationOperation =
     "replace" , "(" , expression, expression, ")" ;
+callDSLBlock =
+    "@callDSL" , "{" , { callConventionDefinition} , "}" ;
+callConventionDefinition =
+  "callConvention", identifier, "{" , callConventionBody,  "}" ;
+
+callConventionBody =
+     parameterPassingBlock
+    , [ returnLocationSpecifier ],
+    [ prologueBlock ],
+    [ epilogueBlock ],
+    [ stackAllocationBlock ],
+    [ abiNameSpecifier ] ;
+
+parameterPassingBlock =
+ "parameterPassing", "{" , { parameterSpecifier} , "}" ;
+parameterSpecifier =
+    "firstParameter", registerParameter, ","
+    | "otherParameters" , "stack" , ","
+     | "otherParameters" , "register", identifier, ","
+  ;
+registerParameter = typeAttributeList;
+returnLocationSpecifier =
+  "returnLocation" , identifier , "," ;
+prologueBlock =
+    "prologue" , "{" , { microcodeStatement }, "}" ;
+epilogueBlock =
+    "epilogue" , "{" , { microcodeStatement }, "}" ;
+stackAllocationBlock =
+    "stackAllocation" , "{" , stackAllocationOperations,  "}" ;
+
+stackAllocationOperations=
+ "allocateStack" , "(" , identifier ,")" , ";"
+ | "freeStack" , "(" , identifier ,")" , ";"
+
+abiNameSpecifier =
+  "abiName", stringLiteral ,  "," ;
+
  atomicBlockStatement =
       "atomic" , [ "(" , expression , ")" ] , "{" , { statement }, "}" ;
 atomicRegisterOperationStatement =
@@ -3072,14 +3199,18 @@ rawInstructionStatement =
         "rawInstr", "(" , stringLiteral , ")" , ";" ;
 
 hardwarePrefetchStatement =
-    "prefetch", "(" , expression , "," , expression , ")" , ";" ;
+    "prefetch", "(" , expression , "," , expression,  "," , expression, ")" , ";" ;
 
 hardwareMemoryBarrierStatement =
        "memoryBarrier" ,  [ "(" , identifier , ")" ] ,  ";" ;
 
 hardwareInstructionBarrierStatement =
     "instructionBarrier" , "(" , identifier , ")" , ";" ;
+typeIdentifier = identifier;
 
+lambdaExpressionStatement =
+     [ typeAttributeList] , [ mutabilityModifier ] , dataType , identifier , "=" , codeBlockExpression , ";"
+    |  [ typeAttributeList] , [ mutabilityModifier ] , identifier , "=" , codeBlockExpression , ";" ;
 prefix =
     "0x" | "0b" | "0o";
 
