@@ -1,4 +1,4 @@
-# Bare Metal Language (BML) v1.5: High-Performance Embedded Systems Without Assembly
+# Bare Metal Language (BML) v2.0: High-Performance Embedded Systems Without Assembly
 
 **[Join the BML Discord Server](https://discord.gg/jZUqrwjQ)**
 
