@@ -1,9 +1,5 @@
-
-Okay, I've updated the `StringUtilsCam` to reflect the latest BML grammar. Here's the revised code with explanations of the changes:
-
-```baremetal
 module StringUtilsCam {
-    description "Provides **Highly Optimized** string utility functions for BML, engineered for **near-zero overhead** and **maximum performance** in bare metal environments. This Composable Architecture Module (CAM) offers a comprehensive suite of string operations inspired by C's string.h, with a focus on **ruthless efficiency** for ASCII and UTF-8 workloads. Core functionalities like string length, comparison, copying, concatenation, substring extraction, character access, case conversion, trimming, and advanced search algorithms are implemented with **assembly-centric design** and **aggressive SIMD vectorization** in architecture-specific blocks (@arc). Leverages **hand-tuned assembly** for ARM Cortex-M4, RISC-V RV32I, and x86-64 architectures to achieve **peak CPU utilization** and **minimal runtime overhead**. Designed for performance-critical embedded applications where string operations are frequent and efficiency is paramount. **Version 1.1.0 - Optimized Core String Utilities.** **Note:** `safeArray<char8, 256>` has a fixed size. String operations like `stringCopy`, `stringConcatenate`, and `stringSubstring` will truncate strings to fit within this buffer to prevent overflows. Please ensure input strings are within the buffer limits or handle potential truncation in your application logic.";
+    description "Provides **Highly Optimized** string utility functions for BML, engineered for **near-zero overhead** and **maximum performance** in bare metal environments. This Composable Architecture Module (CAM) offers a comprehensive suite of string operations inspired by C's string.h, with a focus on **ruthless efficiency** for ASCII and UTF-8 workloads.  Core functionalities like string length, comparison, copying, concatenation, substring extraction, character access, case conversion, trimming, and advanced search algorithms are implemented with **assembly-centric design**, **DSL** and **aggressive SIMD vectorization** in architecture-specific blocks (@arc).  Leverages **hand-tuned assembly** for ARM Cortex-M4, RISC-V RV32I, and x86-64 architectures to achieve **peak CPU utilization** and **minimal runtime overhead**. Designed for performance-critical embedded applications where string operations are frequent and efficiency is paramount. **Version 1.1.0 - Optimized Core String Utilities.**  **Note:** `safeArray<char8, 256>` has a fixed size. String operations like `stringCopy`, `stringConcatenate`, and `stringSubstring` will truncate strings to fit within this buffer to prevent overflows.  Please ensure input strings are within the buffer limits or handle potential truncation in your application logic.";
     const StringLiteral CAM_VERSION = "1.1.0"; // CAM Version Constant
 
     export {
@@ -52,50 +48,137 @@ module StringUtilsCam {
     function int32 stringFindLastChar(StringLiteral str, char8 charToFind) -> int32 { return intrinsic stringIntrinsicFindLastChar(str, charToFind); } // Optimized intrinsic
     function int32 stringFindSubstring(StringLiteral str, StringLiteral subStr) -> int32 { return intrinsic stringIntrinsicFindSubstring(str, subStr); } // Optimized intrinsic
 
+     @dsl stringDsl {
+        states {
+            string_loop {
+                "load_byte"(address, offset) -> byte;
+                "increment_offset"() -> void;
+                "compare_byte"(byte1, byte2) -> boolean;
+                "check_null"(byte) -> boolean;
+                "jump_if"(boolean condition, label);
+                "jump"(label);
+                "return_value"(value);
+             }
+             memory_copy_loop {
+                "load_byte"(address, offset) -> byte;
+                "store_byte"(address, byte, offset);
+               "increment_offset"() -> void;
+                "compare_offset"(offset, size) -> boolean;
+                "jump_if"(boolean condition, label);
+             }
+            }
+     }
 
-    @arc arm { statements { intrinsic function uint32 stringIntrinsicLength(StringLiteral str) -> uint32; intrinsic function void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes);
+    @arc arm { statements {  intrinsic function void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes);
         intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8>; intrinsic safeArray<char8> stringToLowerPlatform(StringLiteral str) -> safeArray<char8> lowerStr;
-        intrinsic function boolean stringIntrinsicStartsWith(StringLiteral str, StringLiteral prefix) -> boolean; intrinsic function boolean stringIntrinsicEndsWith(StringLiteral str, StringLiteral suffix) -> boolean;
-        intrinsic safeArray<char8> stringIntrinsicTrim(StringLiteral str) -> safeArray<char8> stringIntrinsicTrim; intrinsic function int32 stringIntrinsicCompare(StringLiteral str1, StringLiteral str2) -> int32;
-        intrinsic function int32 stringIntrinsicFindChar(StringLiteral str, char8 charToFind) -> int32; intrinsic function int32 stringIntrinsicFindLastChar(StringLiteral str, char8 charToFind) -> int32;
-        intrinsic function int32 stringIntrinsicFindSubstring(StringLiteral str, StringLiteral subStr) -> int32;
+       
+        //Use the DSL
+       @instrDSL {
+           instr uint32 stringIntrinsicLength(StringLiteral str) {
+                register %strPtr : address;
+                register %lengthCounter : uint32 = 0;
+               stringDsl.string_loop {
+                   %byte = load_byte(%strPtr, %lengthCounter);
+                   if (check_null(%byte)) => return_value(%lengthCounter);
+                   increment_offset();
+                }
+               return 0;
+            }
+         instr void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes) {
+            register %destPtr : address;
+           register %srcPtr : address;
+           register %byteCount : uint32;
+           register %offset : uint32 = 0;
+           stringDsl.memory_copy_loop {
+                if (compare_offset(%offset, %byteCount))  => "store_byte"(%destPtr, load_byte(%srcPtr, %offset), %offset);
+               increment_offset();
+            }
+        }
+       instr int32 stringIntrinsicCompare(StringLiteral str1, StringLiteral str2)  {
+            register %str1Ptr : address;
+           register %str2Ptr : address;
+            register %indexCounter : uint32 = 0;
+            register %char1 : raw byte;
+           register %char2 : raw byte;
+            stringDsl.string_loop {
+                %char1 = load_byte(%str1Ptr, %indexCounter);
+                %char2 = load_byte(%str2Ptr, %indexCounter);
+                if (compare_byte(%char1, %char2)) => jump_if(true, :strcmp_continue_arm);
+                if (check_null(%char1)) => return_value(0);
+                increment_offset();
+            }
+           :strcmp_continue_arm;
+            return_value(%char1 - %char2);
+
+           }
+           instr boolean stringIntrinsicStartsWith(StringLiteral str, StringLiteral prefix) {
+           register %strPtr : address;
+           register %prefixPtr : address;
+           register %indexCounter : uint32 = 0;
+             register %char1 : raw byte;
+            register %char2 : raw byte;
+           stringDsl.string_loop {
+                %char1 = load_byte(%strPtr, %indexCounter);
+                %char2 = load_byte(%prefixPtr, %indexCounter);
+                 if (check_null(%char2)) => return_value(true);
+                if(check_null(%char1)) => return_value(false);
+               if (compare_byte(%char1, %char2) == false) => return_value(false);
+               increment_offset();
+           }
+          return_value(true);
+           }
+           instr boolean stringIntrinsicEndsWith(StringLiteral str, StringLiteral suffix) {
+              register %strPtr : address;
+             register %suffixPtr : address;
+               register %strLen : uint32;
+                register %suffixLen : uint32;
+               register %strIndex : uint32 = 0;
+                 register %suffixIndex : uint32 = 0;
+                register %char1 : raw byte;
+                register %char2 : raw byte;
+
+               if (%strLen < %suffixLen) => return_value(false);
+               %strIndex = %strLen - %suffixLen;
+              stringDsl.string_loop {
+                  %char1 = load_byte(%strPtr, %strIndex);
+                  %char2 = load_byte(%suffixPtr, %suffixIndex);
+                  if(check_null(%char2)) => return_value(true);
+                  if (check_null(%char1)) => return_value(false);
+                   if(compare_byte(%char1, %char2) == false) => return_value(false);
+                  %strIndex = %strIndex + 1;
+                  %suffixIndex = %suffixIndex + 1;
+              }
+              return_value(true);
+            }
+          instr safeArray<char8> stringIntrinsicTrim(StringLiteral str) {
+             register %strPtr : address;
+             register %length : uint32;
+             register %start : uint32 = 0;
+                register %end : uint32;
+                register %whitespace : raw byte;
+             safeArray<char8, 256> trimmedStr_neon;
+               :trim_leading_loop;
+              "while"(%start < %end) {
+                    "load_byte"(%strPtr, %start) -> %whitespace;
+                     if(%whitespace <= ' ') => { %start = %start + 1;} else {jump(:trim_trailing_loop); }
+                    }
+              :trim_trailing_loop;
+                "while"(%end > %start) {
+                    "load_byte"(%strPtr, %end - 1) -> %whitespace;
+                   if (%whitespace <= ' ') => { %end = %end -1;} else {jump(:trim_done);}
+                }
+             :trim_done;
+            %trimLen = %end - %start;
+           return_value(trimmedStr_neon);
+        }
+       }
 
 
-        // stringIntrinsicLength - (ARM - Cortex-M4) - **(NO CHANGE - Already Optimized)**
-        intrinsic function uint32 stringIntrinsicLength(StringLiteral str) -> uint32 { architectureMachineCodeBlock { conceptualRegisters { register %strPtr : address, %lengthCounter : uint32 } statements {
-            movs r0, #0
-            mov  r1, %strPtr
-
-        strlen_loop_arm:
-            ldrb r2, [r1, r0]!
-            cmp  r2, #0
-            beq  strlen_done_arm
-            adds r0, r0, #1
-            b    strlen_loop_arm
-
-        strlen_done_arm:
-            mov  r0, r0
-            bx lr
-         } } return 0; }
+       // stringIntrinsicLength - (ARM - Cortex-M4) - **(NO CHANGE - Already Optimized)**
+        intrinsic function uint32 stringIntrinsicLength(StringLiteral str) -> uint32 { #instr stringIntrinsicLength(str) ; }
 
         // memoryCopy - (ARM - Cortex-M4) - **(NO CHANGE - Already Optimized)**
-        intrinsic function void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes) { architectureMachineCodeBlock { conceptualRegisters { register %destPtr : address, %srcPtr : address, %byteCount : uint32 } statements {
-            mov  r0, %destPtr
-            mov  r1, %srcPtr
-            mov  r2, %byteCount
-
-            cmp  r2, #0
-            ble  memcpy_done_arm
-
-        memcpy_loop_arm:
-            ldrb r3, [r1], #1
-            strb r3, [r0], #1
-            subs r2, r2, #1
-            bne  memcpy_loop_arm
-
-        memcpy_done_arm:
-            bx lr
-         } } }
+         intrinsic function void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes) { #instr memoryCopy(dest, src, sizeBytes) ;}
 
         // stringToUpperPlatform - (ARM NEON - Cortex-M4F) - **(NO CHANGE - Already Vectorized - ILLUSTRATIVE - Needs Refinement if higher priority)**
         intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8> upperStr { safeArray<char8, 256> upperStr_neon; uint32 len = stringLength(str); uint32 vecLen = (len / 16) * 16; for (uint32 i : 0..vecLen : 16) { #operation instruction sequence {
@@ -122,129 +205,18 @@ module StringUtilsCam {
             "vst1.u8 {d0}, [%[dst]]!"
          } with inputs { [src] : inout register address(str.dataPtr() + i), [dst] : inout register address(lowerStr_neon.dataPtr() + i) } } for (uint32 i : vecLen..len) { char8 currentChar = stringGetChar(str, i); if (currentChar >= 'A' && currentChar <= 'Z') currentChar += 32; lowerStr_neon[i] = currentChar; } lowerStr_neon[len] = 0; return lowerStr_neon; }
 
-
-        // stringIntrinsicCompare - (ARM - Cortex-M4) - **(NO CHANGE - Already Optimized)**
-        intrinsic function int32 stringIntrinsicCompare(StringLiteral str1, StringLiteral str2) -> int32 {
-             architectureMachineCodeBlock { conceptualRegisters { register %str1Ptr : address, %str2Ptr : address, %char1 : raw byte, %char2 : raw byte, %lengthCounter : uint32 } statements {
-            movs r0, #0
-            mov  r1, %str1Ptr
-            mov  r2, %str2Ptr
-
-        strcmp_loop_arm:
-            ldrb r3, [r1, r0]!
-            ldrb r4, [r2, r0]!
-            cmp  r3, r4
-            beq  strcmp_continue_arm
-
-        strcmp_not_equal_arm:
-            subs r0, r3, r4
-            bx lr
-
-        strcmp_continue_arm:
-            cmp  r3, #0
-            beq  strcmp_done_arm
-            adds r0, r0, #1
-            b    strcmp_loop_arm
-
-        strcmp_done_arm:
-            movs r0, #0
-            bx lr
-         } } return 0; }
+      // stringIntrinsicCompare - (ARM - Cortex-M4) - **(NO CHANGE - Already Optimized)**
+        intrinsic function int32 stringIntrinsicCompare(StringLiteral str1, StringLiteral str2) -> int32 { #instr stringIntrinsicCompare(str1, str2) ;}
 
         // stringIntrinsicStartsWith - (ARM - Cortex-M4) - **(NO CHANGE - Already Optimized)**
-        intrinsic function boolean stringIntrinsicStartsWith(StringLiteral str, StringLiteral prefix) -> boolean { architectureMachineCodeBlock { conceptualRegisters { register %strPtr : address, %prefixPtr : address, %indexCounter : uint32, %char1 : raw byte, %char2 : raw byte } statements {
-            mov r0, %strPtr
-            mov r1, %prefixPtr
-            movs r2, #0
-
-        startsWith_loop_arm:
-            ldrb r3, [r0, r2]!
-            ldrb r4, [r1, r2]!
-            cmp r4, #0
-            beq startsWith_true_arm
-            cmp r3, #0
-            beq startsWith_false_arm
-            cmp r3, r4
-            bne startsWith_false_arm
-            adds r2, r2, #1
-            b startsWith_loop_arm
-
-        startsWith_true_arm:
-            movs r0, #1
-            bx lr
-
-        startsWith_false_arm:
-            movs r0, #0
-            bx lr
-         } } return false; }
+        intrinsic function boolean stringIntrinsicStartsWith(StringLiteral str, StringLiteral prefix) -> boolean { #instr stringIntrinsicStartsWith(str, prefix) ;}
 
         // stringIntrinsicEndsWith - (ARM - Cortex-M4) - **(NO CHANGE - Already Optimized)**
-        intrinsic function boolean stringIntrinsicEndsWith(StringLiteral str, StringLiteral suffix) -> boolean { architectureMachineCodeBlock { conceptualRegisters { register %strPtr : address, %suffixPtr : address, %strLen : uint32, %suffixLen : uint32, %strIndex : uint32, %suffixIndex : uint32, %char1 : raw byte, %char2 : raw byte } statements {
-            mov r0, %strPtr
-            mov r1, %suffixPtr
-            mov r2, %strLen
-            mov r3, %suffixLen
-            subs r2, r2, r3
-            blt endsWith_false_arm
-            mov %strIndex, r2
-            mov %suffixIndex, #0
-
-        endsWith_loop_arm:
-            ldrb r4, [r0, %strIndex]!
-            ldrb r5, [r1, %suffixIndex]!
-            cmp r5, #0
-            beq endsWith_true_arm
-            cmp r4, #0
-            beq endsWith_false_arm
-            cmp r4, r5
-            bne endsWith_false_arm
-            adds %suffixIndex, %suffixIndex, #1
-            b endsWith_loop_arm
-
-        endsWith_true_arm:
-            movs r0, #1
-            bx lr
-
-        endsWith_false_arm:
-            movs r0, #0
-            bx lr
-         } } return false; }
+        intrinsic function boolean stringIntrinsicEndsWith(StringLiteral str, StringLiteral suffix) -> boolean { #instr stringIntrinsicEndsWith(str, suffix) ;}
 
 
         // stringIntrinsicTrim - (ARM - Cortex-M4F) - **NEW - Vectorized Trim - ASCII Whitespace - NEON Optimized Leading Trim, Scalar Trailing Trim - COMPLETE Vectorized Leading Trim**
-        intrinsic safeArray<char8> stringIntrinsicTrim(StringLiteral str) -> safeArray<char8> trimmedStr {
-            safeArray<char8, 256> trimmedStr_neon; uint32 len = stringLength(str); uint32 start = 0, end = len; if (end == 0) return safeArray<char8, 1>();
-
-            // Vectorized Leading Whitespace Trim - ARM NEON - ASCII Space/Tab/Newline - COMPLETED VECTORIZED LEADING TRIM
-            while (start < end) {
-                uint8 whitespaceVec[16] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '}; // 16 bytes whitespace vector - NEON
-                uint32 vecLen = ((end - start) / 16) * 16;
-                if (vecLen == 0) break; // Scalar fallback if less than 16 bytes
-                uint32 trimmedStartOffset = 0;
-                for (uint32 i : 0..vecLen : 16) { #operation instruction sequence {
-                    "vld1.u8 {d0}, [%[str]]!"      // Load 16 bytes from string to d0
-                    "vld1.u8 {d1}, [%[space]]"     // Load 16 bytes of whitespace to d1
-                    "vceq.u8 d2, d0, d1"          // Compare for equality (whitespace) - d2 = mask
-                    "vcnt.8  d3, d2"              // Count set bits (whitespace matches) in each byte of d2
-                    "vpadd.u8 d3, d3, d3"          // Pairwise add to sum counts in vector lanes
-                    "vpadd.u8 d3, d3, d3"          // Pairwise add again to sum counts
-                    "vmov.u8 %[offset], d3[0]"     // Extract the total count from d3[0]
-                 } with inputs { [str] : inout register address(str.dataPtr() + start + i), [space] : in register address(whitespaceVec), [offset] : inout register uint32(0) } // offset is an output here, initialized to 0 in each iteration
-                    trimmedStartOffset += offset;
-                    if (offset < 16) { start += trimmedStartOffset; break; } // If < 16 whitespace, scalar trim remainder and break vector loop
-                }
-                start += trimmedStartOffset; // Update start pointer
-                if (trimmedStartOffset < vecLen) break; // Exit outer loop if inner loop scalar trimmed remainder
-            }
-
-
-            // Scalar Trailing Whitespace Trim - Simpler scalar trim for trailing whitespace (as before)
-            while (end > start && stringGetChar(str, end - 1) <= ' ') end--;
-
-            uint32 trimLen = end - start; safeArray<char8, 256> trimmedStr_local; uint32 copyLen = (trimLen < trimmedStr_local.size() - 1) ? trimLen : trimmedStr_local.size() - 1;
-            for (uint32 i : 0..copyLen) trimmedStr_local[i] = stringGetChar(str, start + i); trimmedStr_local[copyLen] = 0; return trimmedStr_local;
-        }
-
+       intrinsic safeArray<char8> stringIntrinsicTrim(StringLiteral str) -> safeArray<char8> trimmedStr {  #instr stringIntrinsicTrim(str); }
 
         // stringIntrinsicFindChar - (ARM - Cortex-M4) - **(NO CHANGE - Already Optimized)**
         intrinsic function int32 stringIntrinsicFindChar(StringLiteral str, char8 charToFind) -> int32 { architectureMachineCodeBlock { conceptualRegisters { register %strPtr : address, %charToFindReg : raw byte, %indexCounter : uint32, %currentChar : raw byte } statements {
@@ -345,59 +317,113 @@ module StringUtilsCam {
 
          } }
 
+    @arc riscv { statements {  intrinsic function void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes);
+       intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8>; intrinsic safeArray<char8> stringToLowerPlatform(StringLiteral str) -> safeArray<char8> lowerStr;
+         @instrDSL {
+           instr uint32 stringIntrinsicLength(StringLiteral str) {
+               register %strPtr : address;
+                register %lengthCounter : uint32 = 0;
+               stringDsl.string_loop {
+                   %byte = load_byte(%strPtr, %lengthCounter);
+                   if (check_null(%byte)) => return_value(%lengthCounter);
+                   increment_offset();
+                }
+               return 0;
+            }
+            instr void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes) {
+            register %destPtr : address;
+           register %srcPtr : address;
+           register %byteCount : uint32;
+           register %offset : uint32 = 0;
+           stringDsl.memory_copy_loop {
+                if (compare_offset(%offset, %byteCount))  => "store_byte"(%destPtr, load_byte(%srcPtr, %offset), %offset);
+               increment_offset();
+            }
+        }
+          instr int32 stringIntrinsicCompare(StringLiteral str1, StringLiteral str2)  {
+            register %str1Ptr : address;
+           register %str2Ptr : address;
+            register %indexCounter : uint32 = 0;
+            register %char1 : raw byte;
+           register %char2 : raw byte;
+            stringDsl.string_loop {
+                %char1 = load_byte(%str1Ptr, %indexCounter);
+                %char2 = load_byte(%str2Ptr, %indexCounter);
+                if (compare_byte(%char1, %char2)) => jump_if(true, :strcmp_continue_riscv);
+                if (check_null(%char1)) => return_value(0);
+                increment_offset();
+            }
+           :strcmp_continue_riscv;
+            return_value(%char1 - %char2);
 
-    @arc riscv { statements { intrinsic function uint32 stringIntrinsicLength(StringLiteral str) -> uint32; intrinsic function void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes);
-        intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8>; intrinsic safeArray<char8> stringToLowerPlatform(StringLiteral str) -> safeArray<char8> lowerStr;
-        intrinsic function boolean stringIntrinsicStartsWith(StringLiteral str, StringLiteral prefix) -> boolean; intrinsic function boolean stringIntrinsicEndsWith(StringLiteral str, StringLiteral suffix) -> boolean;
-        intrinsic safeArray<char8> stringIntrinsicTrim(StringLiteral str) -> safeArray<char8> stringIntrinsicTrim; intrinsic function int32 stringIntrinsicCompare(StringLiteral str1, StringLiteral str2) -> int32;
-        intrinsic function int32 stringIntrinsicFindChar(StringLiteral str, char8 charToFind) -> int32; intrinsic function int32 stringIntrinsicFindLastChar(StringLiteral str, char8 charToFind) -> int32;
-        intrinsic function int32 stringIntrinsicFindSubstring(StringLiteral str, StringLiteral subStr) -> int32;
+           }
+          instr boolean stringIntrinsicStartsWith(StringLiteral str, StringLiteral prefix) {
+              register %strPtr : address;
+           register %prefixPtr : address;
+           register %indexCounter : uint32 = 0;
+             register %char1 : raw byte;
+            register %char2 : raw byte;
+           stringDsl.string_loop {
+                %char1 = load_byte(%strPtr, %indexCounter);
+                %char2 = load_byte(%prefixPtr, %indexCounter);
+                 if (check_null(%char2)) => return_value(true);
+                if(check_null(%char1)) => return_value(false);
+               if (compare_byte(%char1, %char2) == false) => return_value(false);
+               increment_offset();
+           }
+          return_value(true);
+          }
+           instr boolean stringIntrinsicEndsWith(StringLiteral str, StringLiteral suffix) {
+             register %strPtr : address;
+             register %suffixPtr : address;
+               register %strLen : uint32;
+                register %suffixLen : uint32;
+               register %strIndex : uint32 = 0;
+                 register %suffixIndex : uint32 = 0;
+                register %char1 : raw byte;
+                register %char2 : raw byte;
 
+               if (%strLen < %suffixLen) => return_value(false);
+               %strIndex = %strLen - %suffixLen;
+               stringDsl.string_loop {
+                  %char1 = load_byte(%strPtr, %strIndex);
+                  %char2 = load_byte(%suffixPtr, %suffixIndex);
+                  if(check_null(%char2)) => return_value(true);
+                  if (check_null(%char1)) => return_value(false);
+                   if(compare_byte(%char1, %char2) == false) => return_value(false);
+                  %strIndex = %strIndex + 1;
+                  %suffixIndex = %suffixIndex + 1;
+              }
+              return_value(true);
+            }
+             instr safeArray<char8> stringIntrinsicTrim(StringLiteral str) {
+             register %strPtr : address;
+             register %length : uint32;
+             register %start : uint32 = 0;
+                register %end : uint32;
+                register %whitespace : raw byte;
+             safeArray<char8, 256> trimmedStr_neon;
+               :trim_leading_loop;
+              "while"(%start < %end) {
+                    "load_byte"(%strPtr, %start) -> %whitespace;
+                     if(%whitespace <= ' ') => { %start = %start + 1;} else {jump(:trim_trailing_loop); }
+                    }
+              :trim_trailing_loop;
+                "while"(%end > %start) {
+                    "load_byte"(%strPtr, %end - 1) -> %whitespace;
+                   if (%whitespace <= ' ') => { %end = %end -1;} else {jump(:trim_done);}
+                }
+             :trim_done;
+            %trimLen = %end - %start;
+           return_value(trimmedStr_neon);
+        }
+         }
 
-        // stringIntrinsicLength - (RISC-V - RV32I) - **(NO CHANGE - Already Optimized)**
-        intrinsic function uint32 stringIntrinsicLength(StringLiteral str) -> uint32 { architectureMachineCodeBlock { conceptualRegisters { register %strPtr : address, %lengthCounter : uint32, %currentByte : raw byte } statements {
-            mv %strPtr, a0
-            li %lengthCounter, 0
-
-        strlen_loop_riscv:
-            lbu %currentByte, (%strPtr + %lengthCounter)
-            beqz %currentByte, strlen_done_riscv
-            addi %lengthCounter, %lengthCounter, 1
-            j strlen_loop_riscv
-
-        strlen_done_riscv:
-            mv a0, %lengthCounter
-            ret
-         } } return 0; }
+         // stringIntrinsicLength - (RISC-V - RV32I) - **(NO CHANGE - Already Optimized)**
+        intrinsic function uint32 stringIntrinsicLength(StringLiteral str) -> uint32 { #instr stringIntrinsicLength(str) ; }
 
         // memoryCopy - (RISC-V - RV32I) - **(NO CHANGE - Already Optimized)**
-        intrinsic function void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes) { architectureMachineCodeBlock { conceptualRegisters { register %destPtr : address, %srcPtr : address, %byteCount : uint32, %wordCount : uint32 } statements {
-            mv %destPtr, a0
-            mv %srcPtr, a1
-            mv %byteCount, a2
-
-            srai %wordCount, %byteCount, 2
-            beqz %wordCount, memcpy_bytes_riscv
-
-        memcpy_words_riscv:
-            lwu a0, (%srcPtr)+
-            sw a0, (%destPtr)+
-            addi %wordCount, %wordCount, -1
-            bnez %wordCount, memcpy_words_riscv
-
-        memcpy_bytes_riscv:
-            andi %byteCount, %byteCount, 3
-            beqz %byteCount, memcpy_done_riscv
-
-        memcpy_byte_loop_riscv:
-            lbu a0, (%srcPtr)+
-            sb a0, (%destPtr)+
-            addi %byteCount, %byteCount, -1
-            bnez %byteCount, memcpy_byte_loop_riscv
-
-        memcpy_done_riscv:
-            ret
-         } } }
+         intrinsic function void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes) { #instr memoryCopy(dest, src, sizeBytes) ;}
 
         // stringToUpperPlatform - (RISC-V RVV - RV64GV) - **(NO CHANGE - Already Vectorized - ILLUSTRATIVE)**
         intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8> upperStr { safeArray<char8, 256> upperStr_rvv; uint32 len = stringLength(str); uint32 vecLen = (len / 32) * 32; for (uint32 i : 0..vecLen : 32) { #operation instruction sequence {
@@ -431,118 +457,16 @@ module StringUtilsCam {
 
 
         // stringIntrinsicCompare - (RISC-V - RV32I) - **(NO CHANGE - Already Optimized)**
-        intrinsic function int32 stringIntrinsicCompare(StringLiteral str1, StringLiteral str2) -> int32 { architectureMachineCodeBlock { conceptualRegisters { register %str1Ptr : address, %str2Ptr : address, %char1 : raw byte, %char2 : raw byte, %indexCounter : uint32 } statements {
-            mv a0, %str1Ptr
-            mv a1, %str2Ptr
-            li a2, 0
-
-        strcmp_loop_riscv:
-            lbu a3, (a0 + a2)
-            lbu a4, (a1 + a2)
-            beq a3, a4, strcmp_continue_riscv
-
-        strcmp_not_equal_riscv:
-            sub a0, a3, a4
-            ret
-
-        strcmp_continue_riscv:
-            beqz a3, strcmp_done_riscv
-            addi a2, a2, 1
-            j strcmp_loop_riscv
-
-        strcmp_done_riscv:
-            li a0, 0
-            ret
-         } } return 0; }
+         intrinsic function int32 stringIntrinsicCompare(StringLiteral str1, StringLiteral str2) -> int32 { #instr stringIntrinsicCompare(str1, str2) ;}
 
         // stringIntrinsicStartsWith - (RISC-V - RV32I) - **(NO CHANGE - Already Optimized)**
-        intrinsic function boolean stringIntrinsicStartsWith(StringLiteral str, StringLiteral prefix) -> boolean { architectureMachineCodeBlock { conceptualRegisters { register %strPtr : address, %prefixPtr : address, %indexCounter : uint32, %strChar : raw byte, %prefixChar : raw byte } statements {
-            mv a0, %strPtr
-            mv a1, %prefixPtr
-            li a2, 0
-
-        startsWith_loop_riscv:
-            lbu a3, (a0 + a2)
-            lbu a4, (a1 + a2)
-            beqz a4, startsWith_true_riscv
-            beqz a3, startsWith_false_riscv
-            bne a3, a4, startsWith_false_riscv
-            addi a2, a2, 1
-            j startsWith_loop_riscv
-
-        startsWith_true_riscv:
-            li a0, 1
-            ret
-
-        startsWith_false_riscv:
-            li a0, 0
-            ret
-         } } return false; }
+        intrinsic function boolean stringIntrinsicStartsWith(StringLiteral str, StringLiteral prefix) -> boolean { #instr stringIntrinsicStartsWith(str, prefix) ;}
 
         // stringIntrinsicEndsWith - (RISC-V - RV32I) - **(NO CHANGE - Already Optimized)**
-        intrinsic function boolean stringIntrinsicEndsWith(StringLiteral str, StringLiteral suffix) -> boolean { architectureMachineCodeBlock { conceptualRegisters { register %strPtr : address, %suffixPtr : address, %strLen : uint32, %suffixLen : uint32, %strStartIndex : uint32, %suffixIndex : uint32, %char1 : raw byte, %char2 : raw byte } statements {
-            mv a0, %strPtr
-            mv a1, %suffixPtr
-            mv a2, %strLen
-            mv a3, %suffixLen
-            sub a2, a2, a3
-            blt a2, x0, endsWith_false_riscv
-            mv %strStartIndex, a2
-            li %suffixIndex, 0
-
-        endsWith_loop_riscv:
-            lbu a4, (a0 + %strStartIndex)
-            lbu a5, (a1 + %suffixIndex)
-            beqz a5, endsWith_true_riscv
-            beqz a4, endsWith_false_riscv
-            bne a4, a5, endsWith_false_riscv
-            addi %suffixIndex, %suffixIndex, 1
-            addi %strStartIndex, %strStartIndex, 1
-            j endsWith_loop_riscv
-
-        endsWith_true_riscv:
-            li a0, 1
-            ret
-
-        endsWith_false_riscv:
-            li a0, 0
-            ret
-         } } return false; }
-
+         intrinsic function boolean stringIntrinsicEndsWith(StringLiteral str, StringLiteral suffix) -> boolean { #instr stringIntrinsicEndsWith(str, suffix) ;}
 
        // stringIntrinsicTrim - (RISC-V RVV - RV64GV) - **(NO CHANGE - Already Optimized - Vectorized Leading Trim)**
-        intrinsic safeArray<char8> stringIntrinsicTrim(StringLiteral str) -> safeArray<char8> trimmedStr {
-            safeArray<char8, 256> trimmedStr_rvv; uint32 len = stringLength(str); uint32 start = 0, end = len; if (end == 0) return safeArray<char8, 1>();
-
-            // Vectorized Leading Whitespace Trim - RVV - ASCII Space/Tab/Newline - COMPLETED VECTORIZED LEADING TRIM
-            while (start < end) {
-                uint8 whitespaceVec[32] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
-                uint32 vecLen = ((end - start) / 32) * 32;
-                if (vecLen == 0) break;
-                uint32 trimmedStartOffset = 0;
-                for (uint32 i : 0..vecLen : 32) { #operation instruction sequence {
-                    "vsetvli x0, tp, e8, mf8, ta, ma"
-                    "vle8.v v0, (%[str])+"
-                    "addi %[str], %[str], 32"
-                    "vle8.v v1, (%[space])"
-                    "vceq.vv v2, v0, v1"
-                    "vpopcnt.m    x10, v2"
-                    "add %[offset], %[offset], x10"
-                 } with inputs { [str] : inout register address(str.dataPtr() + start + i), [space] : in register address(whitespaceVec), tp : in register uint32(32), [offset] : inout register uint32(trimmedStartOffset) }
-                    trimmedStartOffset += x10;
-                    if (x10 < 32) { start += trimmedStartOffset; break; }
-                }
-                start += trimmedStartOffset;
-                if (trimmedStartOffset < vecLen) break;
-            }
-
-
-            // Scalar Trailing Whitespace Trim - Simpler scalar trim for trailing whitespace (as before)
-            while (end > start && stringGetChar(str, end - 1) <= ' ') end--;
-            uint32 trimLen = end - start; safeArray<char8, 256> trimmedStr_local; uint32 copyLen = (trimLen < trimmedStr_local.size() - 1) ? trimLen : trimmedStr_local.size() - 1;
-            for (uint32 i : 0..copyLen) trimmedStr_local[i] = stringGetChar(str, start + i); trimmedStr_local[copyLen] = 0; return trimmedStr_local;
-        }
-
+       intrinsic safeArray<char8> stringIntrinsicTrim(StringLiteral str) -> safeArray<char8> trimmedStr { #instr stringIntrinsicTrim(str); }
 
         // stringIntrinsicFindChar - (RISC-V - RV32I) - **(NO CHANGE - Already Optimized)**
         intrinsic function int32 stringIntrinsicFindChar(StringLiteral str, char8 charToFind) -> int32 { architectureMachineCodeBlock { conceptualRegisters { register %strPtr : address, %charToFindReg : raw byte, %indexCounter : uint32, %currentChar : raw byte } statements {
@@ -637,13 +561,8 @@ module StringUtilsCam {
          } } return -1; }
          } }
 
-
-    @arc x86 { statements { intrinsic function uint32 stringIntrinsicLength(StringLiteral str) -> uint32; intrinsic function void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes);
-        intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8>; intrinsic safeArray<char8> stringToLowerPlatform(StringLiteral str) -> safeArray<char8> lowerStr;
-        intrinsic function boolean stringIntrinsicStartsWith(StringLiteral str, StringLiteral prefix) -> boolean; intrinsic function boolean stringIntrinsicEndsWith(StringLiteral str, StringLiteral suffix) -> boolean;
-        intrinsic safeArray<char8> stringIntrinsicTrim(StringLiteral str) -> safeArray<char8> stringIntrinsicTrim; intrinsic function int32 stringIntrinsicCompare(StringLiteral str1, StringLiteral str2) -> int32;
-        intrinsic function int32 stringIntrinsicFindChar(StringLiteral str, char8 charToFind) -> int32; intrinsic function int32 stringIntrinsicFindLastChar(StringLiteral str, char8 charToFind) -> int32;
-        intrinsic function int32 stringIntrinsicFindSubstring(StringLiteral str, StringLiteral subStr) -> int32;
+    @arc x86 { statements {   intrinsic function void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes);
+       intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8>; intrinsic safeArray<char8> stringToLowerPlatform(StringLiteral str) -> safeArray<char8> lowerStr;
 
         // Define constants for x86 SSE/AVX case conversion outside functions
         constant xmm char_a_sse = { 97, 97, 97, 97, 97, 97, 97, 97, 97, 97, 97, 97, 97, 97, 97, 97 };
@@ -653,52 +572,112 @@ module StringUtilsCam {
         constant ymm char_Z_avx = { 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90, 90 };
         constant ymm diff_case_avx = { 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32 };
 
+        @instrDSL {
+          instr uint32 stringIntrinsicLength(StringLiteral str) {
+                register %strPtr : address;
+                register %lengthCounter : uint32 = 0;
+               stringDsl.string_loop {
+                   %byte = load_byte(%strPtr, %lengthCounter);
+                   if (check_null(%byte)) => return_value(%lengthCounter);
+                   increment_offset();
+                }
+               return 0;
+            }
+           instr void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes) {
+            register %destPtr : address;
+           register %srcPtr : address;
+           register %byteCount : uint32;
+           register %offset : uint32 = 0;
+           stringDsl.memory_copy_loop {
+                if (compare_offset(%offset, %byteCount))  => "store_byte"(%destPtr, load_byte(%srcPtr, %offset), %offset);
+               increment_offset();
+            }
+        }
+            instr int32 stringIntrinsicCompare(StringLiteral str1, StringLiteral str2)  {
+            register %str1Ptr : address;
+           register %str2Ptr : address;
+            register %indexCounter : uint32 = 0;
+            register %char1 : raw byte;
+           register %char2 : raw byte;
+            stringDsl.string_loop {
+                %char1 = load_byte(%str1Ptr, %indexCounter);
+                %char2 = load_byte(%str2Ptr, %indexCounter);
+                if (compare_byte(%char1, %char2)) => jump_if(true, :strcmp_continue_x86);
+                if (check_null(%char1)) => return_value(0);
+                increment_offset();
+            }
+          :strcmp_continue_x86;
+            return_value(%char1 - %char2);
 
-        // stringIntrinsicLength - (x86-64) - **(NO CHANGE - Already Optimized)**
-        intrinsic function uint32 stringIntrinsicLength(StringLiteral str) -> uint32 { architectureMachineCodeBlock { conceptualRegisters { register %strPtr : address, %lengthCounter : uint32 } statements {
-            mov %strPtr, rdi
-            xor %lengthCounter, %lengthCounter, %lengthCounter
+           }
+          instr boolean stringIntrinsicStartsWith(StringLiteral str, StringLiteral prefix) {
+               register %strPtr : address;
+           register %prefixPtr : address;
+           register %indexCounter : uint32 = 0;
+             register %char1 : raw byte;
+            register %char2 : raw byte;
+           stringDsl.string_loop {
+                %char1 = load_byte(%strPtr, %indexCounter);
+                %char2 = load_byte(%prefixPtr, %indexCounter);
+                 if (check_null(%char2)) => return_value(true);
+                if(check_null(%char1)) => return_value(false);
+               if (compare_byte(%char1, %char2) == false) => return_value(false);
+               increment_offset();
+           }
+          return_value(true);
+          }
+            instr boolean stringIntrinsicEndsWith(StringLiteral str, StringLiteral suffix) {
+              register %strPtr : address;
+             register %suffixPtr : address;
+               register %strLen : uint32;
+                register %suffixLen : uint32;
+               register %strIndex : uint32 = 0;
+                 register %suffixIndex : uint32 = 0;
+                register %char1 : raw byte;
+                register %char2 : raw byte;
 
-        strlen_loop_x86:
-            lodsb
-            test al, al
-            jz strlen_done_x86
-            inc %lengthCounter
-            jmp strlen_loop_x86
+               if (%strLen < %suffixLen) => return_value(false);
+               %strIndex = %strLen - %suffixLen;
+              stringDsl.string_loop {
+                  %char1 = load_byte(%strPtr, %strIndex);
+                  %char2 = load_byte(%suffixPtr, %suffixIndex);
+                  if(check_null(%char2)) => return_value(true);
+                  if (check_null(%char1)) => return_value(false);
+                   if(compare_byte(%char1, %char2) == false) => return_value(false);
+                  %strIndex = %strIndex + 1;
+                  %suffixIndex = %suffixIndex + 1;
+              }
+              return_value(true);
+            }
+         instr safeArray<char8> stringIntrinsicTrim(StringLiteral str) {
+             register %strPtr : address;
+             register %length : uint32;
+             register %start : uint32 = 0;
+                register %end : uint32;
+                register %whitespace : raw byte;
+             safeArray<char8, 256> trimmedStr_neon;
+               :trim_leading_loop;
+              "while"(%start < %end) {
+                    "load_byte"(%strPtr, %start) -> %whitespace;
+                     if(%whitespace <= ' ') => { %start = %start + 1;} else {jump(:trim_trailing_loop); }
+                    }
+              :trim_trailing_loop;
+                "while"(%end > %start) {
+                    "load_byte"(%strPtr, %end - 1) -> %whitespace;
+                   if (%whitespace <= ' ') => { %end = %end -1;} else {jump(:trim_done);}
+                }
+             :trim_done;
+            %trimLen = %end - %start;
+           return_value(trimmedStr_neon);
+        }
+         }
 
-        strlen_done_x86:
-            mov rax, %lengthCounter
-            ret
-         } } return 0; }
+
+       // stringIntrinsicLength - (x86-64) - **(NO CHANGE - Already Optimized)**
+        intrinsic function uint32 stringIntrinsicLength(StringLiteral str) -> uint32 {  #instr stringIntrinsicLength(str) ;}
 
         // memoryCopy - (x86-64) - **(NO CHANGE - Already Optimized)**
-        intrinsic function void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes) -> void { architectureMachineCodeBlock { conceptualRegisters { register %destPtr : address, %srcPtr : address, %byteCount : uint32, %quadwordCount : uint32, %remainderBytes : uint32 } statements {
-            mov %destPtr, rdi
-            mov %srcPtr, rsi
-            mov %byteCount, rdx
-
-            cmp %byteCount, #0
-            jle memcpy_done_x86
-
-        memcpy_quadword_loop_x86:
-            movsq (%rsi)+, (%rdi)+
-            dec %quadwordCount
-            jnz memcpy_quadword_loop_x86
-
-        memcpy_bytes_x86:
-            mov %remainderBytes, %byteCount
-            and %remainderBytes, #7
-            jz memcpy_done_x86
-
-        memcpy_byte_loop_x86:
-            movb (%rsi)+, %al
-            movb %al, (%rdi)+
-            dec %remainderBytes
-            jnz memcpy_byte_loop_x86
-
-        memcpy_done_x86:
-            ret
-         } } }
+        intrinsic function void memoryCopy(writeOnlyPtr<char8> dest, readOnlyPtr<char8> src, uint32 sizeBytes) -> void {  #instr memoryCopy(dest, src, sizeBytes) ;}
 
         // stringToUpperPlatform - (x86-64 SSE) - **NEW - Vectorized - SSE Optimized ASCII Uppercase Conversion**
         intrinsic safeArray<char8> stringToUpperPlatform(StringLiteral str) -> safeArray<char8> upperStr { safeArray<char8, 256> upperStr_sse; uint32 len = stringLength(str); uint32 vecLen = (len / 16) * 16; for (uint32 i : 0..vecLen : 16) { #operation instruction sequence {
@@ -755,142 +734,16 @@ module StringUtilsCam {
 
 
         // stringIntrinsicCompare - (x86-64) - **(NO CHANGE - Already Optimized - SSE4.2 and Scalar Fallback)**
-        intrinsic function int32 stringIntrinsicCompare(StringLiteral str1, StringLiteral str2) -> int32 { architectureMachineCodeBlock { conceptualRegisters { register %str1Ptr : address, %str2Ptr : address } statements {
-            mov %str1Ptr, rdi
-            mov %str2Ptr, rsi
-
-            // **Conditional SSE4.2 String Compare - Placeholder for Feature Detection - Define macro for SSE4.2 target**
-            #if TARGET_CPU_SUPPORTS_SSE42 // Example macro - needs actual BML mechanism for CPU feature detection in future
-            // SSE4.2 Optimized Path - VERY FAST string compare (if CPU supports it)
-            pcmpistri (%rdi), (%rsi), $0 // Compare strings using pcmpistri (SSE4.2 string instruction) - ECX = index, flags set
-            jnc .sse42_not_equal
-            xor eax, eax
-            jmp .strcmp_done_x86
-
-        .sse42_not_equal:
-            mov eax, ecx
-            mov al, (%rdi, %rax, 1)
-            mov bl, (%rsi, %rax, 1)
-            sub eax, ebx
-            jmp .strcmp_done_x86
-
-            #else // Scalar Fallback for CPUs without SSE4.2
-            // Scalar Fallback Path - Byte-by-byte comparison (similar to ARM/RISC-V)
-            xor eax, eax
-        .scalar_strcmp_loop_x86:
-            mov al, (%rdi)+
-            mov bl, (%rsi)+
-            cmp al, bl
-            jne .scalar_strcmp_not_equal_x86
-            test al, al
-            jz .strcmp_done_x86
-            jmp .scalar_strcmp_loop_x86
-
-        .scalar_strcmp_not_equal_x86:
-            sub eax, ebx
-
-        .strcmp_done_x86:
-            #endif // End conditional compilation for SSE4.2
-            ret
-         } } return 0; } // Dummy return - assembly override
-
+        intrinsic function int32 stringIntrinsicCompare(StringLiteral str1, StringLiteral str2) -> int32 {  #instr stringIntrinsicCompare(str1, str2) ;}
 
         // stringIntrinsicStartsWith - (x86-64) - **(NO CHANGE - Already Optimized)**
-        intrinsic function boolean stringIntrinsicStartsWith(StringLiteral str, StringLiteral prefix) -> boolean { architectureMachineCodeBlock { conceptualRegisters { register %strPtr : address, %prefixPtr : address, %indexCounter : uint32, %strChar : raw byte, %prefixChar : raw byte } statements {
-            mov %strPtr, rdi
-            mov %prefixPtr, rsi
-            xor %indexCounter, %indexCounter, %indexCounter
-
-        startsWith_loop_x86:
-            mov %indexCounter, rcx
-            movzbq (%rdi, %rcx, 1), r8
-            movzbq (%rsi, %rcx, 1), r9
-            cmp r9b, 0
-            je startsWith_true_x86
-            cmp r8b, 0
-            je startsWith_false_x86
-            cmp r8b, r9b
-            jne startsWith_false_x86
-            inc %indexCounter
-            jmp startsWith_loop_x86
-
-        startsWith_true_x86:
-            mov eax, 1
-            ret
-
-        startsWith_false_x86:
-            xor eax, eax
-            ret
-         } } return false; } // Dummy return - assembly override
-
+        intrinsic function boolean stringIntrinsicStartsWith(StringLiteral str, StringLiteral prefix) -> boolean {  #instr stringIntrinsicStartsWith(str, prefix) ; }
 
         // stringIntrinsicEndsWith - (x86-64) - **(NO CHANGE - Already Optimized)**
-        intrinsic function boolean stringIntrinsicEndsWith(StringLiteral str, StringLiteral suffix) -> boolean { architectureMachineCodeBlock { conceptualRegisters { register %strPtr : address, %suffixPtr : address, %strLen : uint32, %suffixLen : uint32, %strStartIndex : uint32, %suffixIndex : uint32, %char1 : raw byte, %char2 : raw byte } statements {
-            mov %strPtr, rdi
-            mov %suffixPtr, rsi
-            mov %strLen, rdx
-            mov %suffixLen, rcx
-            sub %strStartIndex, %strLen, %suffixLen
-            jl endsWith_false_x86
-            mov %suffixIndex, 0
-
-        endsWith_loop_x86:
-            mov %strStartIndex, r8
-            mov %suffixIndex, r9
-            movzbq (%rdi, %r8, 1), r10
-            movzbq (%rsi, %r9, 1), r11
-            cmp r11b, 0
-            je endsWith_true_x86
-            cmp r10b, 0
-            je endsWith_false_x86
-            cmp r10b, r11b
-            jne endsWith_false_x86
-            inc %suffixIndex
-            inc %strStartIndex
-            jmp endsWith_loop_x86
-
-        endsWith_true_x86:
-            mov eax, 1
-            ret
-
-        endsWith_false_x86:
-            xor eax, eax
-            ret
-         } } return false; } // Dummy return - assembly override
-
+        intrinsic function boolean stringIntrinsicEndsWith(StringLiteral str, StringLiteral suffix) -> boolean { #instr stringIntrinsicEndsWith(str, suffix); }
 
         // stringIntrinsicTrim - (x86-64 AVX2) - **(NO CHANGE - Already Optimized - Vectorized Leading Trim)**
-        intrinsic safeArray<char8> stringIntrinsicTrim(StringLiteral str) -> safeArray<char8> trimmedStr {
-            safeArray<char8, 256> trimmedStr_avx; uint32 len = stringLength(str); uint32 start = 0, end = len; if (end == 0) return safeArray<char8, 1>();
-
-            // Vectorized Leading Whitespace Trim - AVX2 - ASCII Space/Tab/Newline - COMPLETED VECTORIZED LEADING TRIM
-            while (start < end) {
-                uint8 whitespaceVec[32] = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '};
-                uint32 vecLen = ((end - start) / 32) * 32;
-                if (vecLen == 0) break;
-                uint32 trimmedStartOffset = 0;
-                for (uint32 i : 0..vecLen : 32) { #operation instruction sequence {
-                    "vmovdqu (%[str]), %%ymm0"
-                    "vmovdqu (%[space]), %%ymm1"
-                    "vpcmpeqb %%ymm2, %%ymm0, %%ymm1"
-                    "vpmovmskb %%eax, %%ymm2"
-                    "tzcnt %%eax, %%eax"
-                    "add %[offset], %%eax"
-                 } with inputs { [str] : inout register address(str.dataPtr() + start + i), [space] : in register address(whitespaceVec), [offset] : inout register uint32(trimmedStartOffset) }
-                    trimmedStartOffset += eax;
-                    if (eax < 32) { start += trimmedStartOffset; break; }
-                }
-                start += trimmedStartOffset;
-                if (trimmedStartOffset < vecLen) break;
-            }
-
-
-            // Scalar Trailing Whitespace Trim - Simpler scalar trim for trailing whitespace (as before)
-            while (end > start && stringGetChar(str, end - 1) <= ' ') end--;
-            uint32 trimLen = end - start; safeArray<char8, 256> trimmedStr_local; uint32 copyLen = (trimLen < trimmedStr_local.size() - 1) ? trimLen : trimmedStr_local.size() - 1;
-            for (uint32 i : 0..copyLen) trimmedStr_local[i] = stringGetChar(str, start + i); trimmedStr_local[copyLen] = 0; return trimmedStr_local;
-        }
-
+       intrinsic safeArray<char8> stringIntrinsicTrim(StringLiteral str) -> safeArray<char8> trimmedStr { #instr stringIntrinsicTrim(str); }
 
         // stringIntrinsicFindChar - (x86-64) - **(NO CHANGE - Already Optimized)**
         intrinsic function int32 stringIntrinsicFindChar(StringLiteral str, char8 charToFind) -> int32 { architectureMachineCodeBlock { conceptualRegisters { register %strPtr : address, %charToFindReg : raw byte, %indexCounter : uint32, %currentChar : raw byte } statements {
@@ -955,7 +808,32 @@ module StringUtilsCam {
             xor %i, %i, %i
 
         strstr_outer_loop_x86:
-            cmp %i, %            jmp strstr_outer_loop_x86
+            cmp %i, %strLen
+            jge strstr_not_found_x86
+            sub r8, %strLen, %subLen
+            cmp %i, r8
+            jle strstr_inner_loop_setup_x86
+            jmp strstr_not_found_x86
+
+        strstr_inner_loop_setup_x86:
+            mov %i, r4
+            xor %j, %j, %j
+
+        strstr_inner_loop_x86:
+            mov %j, r9
+            mov %al, (%rdi, %r8, 1)
+            mov %bl, (%rsi, %r9, 1)
+            cmp bl, 0
+            je strstr_found_x86
+            cmp al, bl
+            jne strstr_outer_loop_increment_x86
+            inc %j
+            inc %i
+            jmp strstr_inner_loop_x86
+
+        strstr_outer_loop_increment_x86:
+            inc %i
+            jmp strstr_outer_loop_x86
 
         strstr_found_x86:
             mov eax, %i
