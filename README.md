@@ -1,4 +1,3 @@
-```markdown
 # Bare Metal Language (BML) - Work in Progress: Contribute to the Compiler!
 
 **[MIT License]**
